@@ -2,13 +2,13 @@
 
 ## how to use
 
-```
+```bash
 go get github.com/skip-mev/petri
 ```
 
 add to your code:
 
-```
+```go
 import (
   "github.com/skip-mev/petri/provider/docker"
   "github.com/skip-mev/petri/provider"
