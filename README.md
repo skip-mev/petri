@@ -1,4 +1,4 @@
-# petri - an abstraction layer for infrastructure providers
+# petri (alpha) - an abstraction layer for infrastructure providers
 
 ## how to use
 
