@@ -14,6 +14,9 @@ const (
 )
 
 type (
+	// Manifest is a generic interface for a manifest that determines how the underlying cometbft / cosmos-sdk network should be created.
+	// This object should be implemented by chains intending to integrate the networkgen library, as this enables chains to arbitrarily customize
+	// their network configurations in accordance with their app's requirements.
 	Manifest[ACE AppConfigExtension] interface {
 		// create the manifest from a file
 		FromFile(file string) (Manifest[ACE], error)
@@ -33,10 +36,12 @@ type (
 		GetLoadConfig() LoadConfig
 	}
 
+	// AppConfigExtension is an interface representing the schema for any app-specific additions to the generic
 	AppConfigExtension interface {
 		IsTestnetExtension() bool
 	}
 
+	//
 	GenesisExtension interface {
 		IsGenesisExtension() bool
 	}
