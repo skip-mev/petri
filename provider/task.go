@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/skip-mev/petri/util"
+	"time"
 )
 
 func CreateTask(ctx context.Context, provider Provider, definition TaskDefinition) (*Task, error) {
@@ -54,7 +56,7 @@ func (t *Task) Start(ctx context.Context, startSidecars bool) error {
 	}
 
 	if t.PreStart != nil {
-		err := (*t.PreStart)(ctx, t)
+		err := t.PreStart(ctx, t)
 
 		if err != nil {
 			return err
@@ -84,7 +86,7 @@ func (t *Task) Stop(ctx context.Context, stopSidecars bool) error {
 	err := t.Provider.StopTask(ctx, t.ID)
 
 	if t.PostStop != nil {
-		err := (*t.PostStop)(ctx, t)
+		err := t.PostStop(ctx, t)
 
 		if err != nil {
 			return err
@@ -114,8 +116,51 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 	return t.Provider.GetIP(ctx, t.ID)
 }
 
+func (t *Task) GetHostname(ctx context.Context) (string, error) {
+	return t.Provider.GetHostname(ctx, t.ID)
+}
+
 func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, error) {
-	return t.Provider.RunCommand(ctx, t.ID, command)
+	status, err := t.Provider.GetTaskStatus(ctx, t.ID)
+
+	if err != nil {
+		return "", 0, err
+	}
+
+	if status == TASK_RUNNING {
+		return t.Provider.RunCommand(ctx, t.ID, command)
+	}
+
+	modifiedDefinition := t.Definition // todo(zygimantass): make sure this deepcopies the struct instead of modifiying it
+
+	modifiedDefinition.Entrypoint = []string{"sh", "-c"}
+	modifiedDefinition.Command = []string{"sleep 36000"}
+	modifiedDefinition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", t.Definition.Name, util.RandomString(5), time.Now().Unix())
+
+	task, err := t.Provider.CreateTask(ctx, modifiedDefinition)
+
+	if err != nil {
+		return "", 0, err
+	}
+
+	err = t.Provider.StartTask(ctx, task)
+	defer t.Provider.DestroyTask(ctx, task)
+
+	if err != nil {
+		return "", 0, err
+	}
+
+	stdout, exitCode, err := t.Provider.RunCommand(ctx, task, command)
+
+	if err != nil {
+		return "", 0, err
+	}
+
+	return stdout, exitCode, nil
+}
+
+func (t *Task) GetStatus(ctx context.Context) (TaskStatus, error) {
+	return t.Provider.GetTaskStatus(ctx, t.ID)
 }
 
 func (t *Task) Destroy(ctx context.Context, destroySidecars bool) error {
@@ -139,9 +184,9 @@ func (t *Task) Destroy(ctx context.Context, destroySidecars bool) error {
 }
 
 func (t *Task) SetPreStart(f func(context.Context, *Task) error) {
-	t.PreStart = &f
+	t.PreStart = f
 }
 
 func (t *Task) SetPostStop(f func(context.Context, *Task) error) {
-	t.PostStop = &f
+	t.PostStop = f
 }

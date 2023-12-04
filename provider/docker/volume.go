@@ -160,8 +160,8 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 			User: "0",
 		},
 		&container.HostConfig{
-			Binds:      []string{volumeName + ":" + mountPath},
-			AutoRemove: true,
+			Binds: []string{volumeName + ":" + mountPath},
+			//AutoRemove: true,
 		},
 		nil, // No networking necessary.
 		nil,
@@ -172,13 +172,13 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 		return nil, fmt.Errorf("creating container: %w", err)
 	}
 
-	defer func() {
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
-			Force: true,
-		}); err != nil {
-			// todo fix logging
-		}
-	}()
+	//defer func() {
+	//	if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+	//		Force: true,
+	//	}); err != nil {
+	//		// todo fix logging
+	//	}
+	//}()
 
 	rc, _, err := p.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
 	if err != nil {

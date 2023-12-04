@@ -7,14 +7,16 @@ type VolumeDefinition struct {
 }
 
 type TaskDefinition struct {
-	Name        string
-	Image       ImageDefinition
-	Ports       []string
-	Environment map[string]string
-	DataDir     string
-	Command     []string
-	Args        []string
-	Sidecars    []TaskDefinition
+	Name          string // Name is used when generating volumes, etc. - additional resources for the container
+	ContainerName string // ContainerName is used for the actual container / job name
+	Image         ImageDefinition
+	Ports         []string
+	Environment   map[string]string
+	DataDir       string
+	Entrypoint    []string
+	Command       []string
+	Args          []string
+	Sidecars      []TaskDefinition
 }
 
 type ImageDefinition struct {
