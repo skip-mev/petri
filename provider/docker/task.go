@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
@@ -8,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/skip-mev/petri/provider"
 	"io"
+	"time"
 )
 
 func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefinition) (string, error) {
@@ -25,35 +27,42 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		return "", fmt.Errorf("failed to convert task ports to bindings: %v", err)
 	}
 
-	volumeName := fmt.Sprintf("%s-data", definition.Name)
-	_, err = p.CreateVolume(ctx, provider.VolumeDefinition{
-		Name:      volumeName,
-		Size:      "10GB",
-		MountPath: definition.DataDir,
-	})
+	var mounts []mount.Mount
 
-	if err != nil {
-		return "", fmt.Errorf("failed to create dataDir: %v", err)
-	}
+	if definition.DataDir != "" {
+		volumeName := fmt.Sprintf("%s-data", definition.Name)
+		_, err = p.CreateVolume(ctx, provider.VolumeDefinition{
+			Name:      volumeName,
+			Size:      "10GB",
+			MountPath: definition.DataDir,
+		})
 
-	volumeMount := mount.Mount{
-		Type:   mount.TypeVolume,
-		Source: volumeName,
-		Target: definition.DataDir,
-	}
+		if err != nil {
+			return "", fmt.Errorf("failed to create dataDir: %v", err)
+		}
 
-	if err = p.SetVolumeOwner(ctx, volumeName, definition.Image.UID, definition.Image.GID); err != nil {
-		return "", fmt.Errorf("failed to set volume owner: %v", err)
+		volumeMount := mount.Mount{
+			Type:   mount.TypeVolume,
+			Source: volumeName,
+			Target: definition.DataDir,
+		}
+
+		if err = p.SetVolumeOwner(ctx, volumeName, definition.Image.UID, definition.Image.GID); err != nil {
+			return "", fmt.Errorf("failed to set volume owner: %v", err)
+		}
+
+		mounts = []mount.Mount{volumeMount}
 	}
 
 	createdContainer, err := p.dockerClient.ContainerCreate(ctx, &container.Config{
 		Image:      definition.Image.Image,
-		Entrypoint: definition.Command,
+		Entrypoint: definition.Entrypoint,
+		Cmd:        definition.Command,
 		Tty:        false,
 	}, &container.HostConfig{
-		Mounts:       []mount.Mount{volumeMount},
+		Mounts:       mounts,
 		PortBindings: portBindings,
-	}, nil, nil, definition.Name)
+	}, nil, nil, definition.ContainerName)
 
 	if err != nil {
 		return "", err
@@ -86,7 +95,17 @@ func (p *Provider) StartTask(ctx context.Context, id string) error {
 		return err
 	}
 
-	return nil
+	for {
+		status, err := p.GetTaskStatus(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		if status == provider.TASK_RUNNING {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 func (p *Provider) StopTask(ctx context.Context, id string) error {
@@ -110,6 +129,33 @@ func (p *Provider) DestroyTask(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+func (p *Provider) GetTaskStatus(ctx context.Context, id string) (provider.TaskStatus, error) {
+	container, err := p.dockerClient.ContainerInspect(ctx, id)
+
+	if err != nil {
+		return provider.TASK_STATUS_UNDEFINED, err
+	}
+
+	switch state := container.State.Status; state {
+	case "created":
+		return provider.TASK_STOPPED, nil
+	case "running":
+		return provider.TASK_RUNNING, nil
+	case "paused":
+		return provider.TASK_PAUSED, nil
+	case "restarting":
+		return provider.TASK_RUNNING, nil // todo(zygimantass): is this sane?
+	case "removing":
+		return provider.TASK_STOPPED, nil
+	case "exited":
+		return provider.TASK_STOPPED, nil
+	case "dead":
+		return provider.TASK_STOPPED, nil
+	}
+
+	return provider.TASK_STATUS_UNDEFINED, nil
 }
 
 func (p *Provider) RunCommand(ctx context.Context, id string, command []string) (string, int, error) {
@@ -154,4 +200,16 @@ func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
 	}
 
 	return container.NetworkSettings.IPAddress, nil
+}
+
+func (p *Provider) GetHostname(ctx context.Context, id string) (string, error) {
+	container, err := p.dockerClient.ContainerInspect(ctx, id)
+
+	if err != nil {
+		return "", err
+	}
+
+	hostname := bytes.TrimPrefix([]byte(container.Name), []byte("\\"))
+
+	return string(hostname), nil
 }
