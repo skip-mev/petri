@@ -1,4 +1,4 @@
-module petri/networkgen
+module github.com/skip-mev/petri/networkgen
 
 go 1.21.3
 
