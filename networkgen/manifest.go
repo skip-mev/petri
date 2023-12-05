@@ -6,6 +6,7 @@ import (
 
 	"github.com/cometbft/cometbft/test/e2e/pkg"
 	"github.com/informalsystems/tm-load-test/pkg/loadtest"
+	cmttypes "github.com/cometbft/cometbft/types"
 )
 
 const (
@@ -17,9 +18,9 @@ type (
 	// Manifest is a generic interface for a manifest that determines how the underlying cometbft / cosmos-sdk network should be created.
 	// This object should be implemented by chains intending to integrate the networkgen library, as this enables chains to arbitrarily customize
 	// their network configurations in accordance with their app's requirements.
-	Manifest[ACE AppConfigExtension] interface {
+	Manifest interface {
 		// create the manifest from a file
-		FromFile(file string) (Manifest[ACE], error)
+		FromFile(file string) (Manifest, error)
 
 		File() string
 
@@ -27,7 +28,7 @@ type (
 		GetManifest() e2e.Manifest
 
 		// get the AppConfigExtensions from this manifest
-		GetAppConfigExtensions() map[string]ACE
+		GetAppConfigExtensions() map[string]AppConfigExtension
 
 		// get the GenesisExtension from this manifest
 		GetGenesisExtension() GenesisExtension
@@ -36,16 +37,17 @@ type (
 		GetLoadConfig() LoadConfig
 	}
 
-	// AppConfigExtension is an interface representing the schema for any app-specific additions to the generic
+	// AppConfigExtension is an interface representing the schema for any app-specific additions to the base app.toml file.
 	AppConfigExtension interface {
-		IsTestnetExtension() bool
+		GetAppConfig(*e2e.Node) ([]byte, error)
 	}
 
-	//
+	// GenesisExtension is an interface representing the schema for any app-specific additions to the base genesis.json file.
 	GenesisExtension interface {
-		IsGenesisExtension() bool
+		GetGenesis(*e2e.Testnet) (cmttypes.GenesisDoc, error)
 	}
 
+	// LoadConfig is an interface representing the schema for an application specific load-generator
 	LoadConfig interface {
 		WriteConfigFile(file string) error
 		FromFile(string) (LoadConfig, error)
@@ -53,11 +55,12 @@ type (
 		Name() string
 	}
 
-	Testnet[ACE AppConfigExtension] struct {
+	// Testnet is a struct representing a cometbft / cosmos-sdk testnet, with app-specific extensions.
+	Testnet struct {
 		*e2e.Testnet
 
 		// app.toml extensions per node
-		AppConfigExtension map[string]ACE
+		AppConfigExtension map[string]AppConfigExtension
 
 		// genesis config for the chain
 		GenesisExtension GenesisExtension
@@ -67,12 +70,11 @@ type (
 	}
 )
 
-func TestnetFromManifest[
-	ACE AppConfigExtension,
-](m Manifest[ACE], ifd e2e.InfrastructureData) (t Testnet[ACE], err error) {
+// TestnetFromManifest creates a testnet from a manifest.
+func TestnetFromManifest(m Manifest, ifd e2e.InfrastructureData) (t Testnet, err error) {
 	// generate the base testnet from a manifest
 	if t.Testnet, err = e2e.NewTestnetFromManifest(m.GetManifest(), m.File(), ifd); err != nil {
-		return Testnet[ACE]{}, err
+		return Testnet{}, err
 	}
 
 	// get the app-config extensions
@@ -87,7 +89,9 @@ func TestnetFromManifest[
 	return t, nil
 }
 
-func (t Testnet[ACE]) Validate() error {
+// Validate validates the testnet. Specifically, it ensures that all nodes have an associated AppConfigExtension.
+// And that the testnet itself is valid.
+func (t Testnet) Validate() error {
 	// validate the testnet
 	if err := t.Testnet.Validate(); err != nil {
 		return err
@@ -103,6 +107,7 @@ func (t Testnet[ACE]) Validate() error {
 	return nil
 }
 
-func (t Testnet[ACE]) WriteLoadConfig() error {
+// WriteLoadConfig writes the load config to the testnet directory.
+func (t Testnet) WriteLoadConfig() error {
 	return t.LoadConfig.WriteConfigFile(filepath.Join(t.Testnet.Dir, DefaultLoadConfigFile))
 }
