@@ -37,7 +37,9 @@ type Provider interface {
 	DownloadDir(context.Context, string, string, string) error
 
 	GetIP(context.Context, string) (string, error)
-	GetHostname(context.Context, string) (string, error)
+	GetExternalAddress(context.Context, string, string) (string, error)
+
+	Teardown(context.Context) error
 
 	RunCommand(context.Context, string, []string) (string, int, error)
 }

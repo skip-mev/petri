@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/go-connections/nat"
 	"github.com/skip-mev/petri/provider"
 	"io"
+	"net"
 	"time"
 )
 
@@ -21,10 +24,11 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		}
 	}
 
-	portBindings, err := convertTaskDefinitionPortsToNat(definition)
+	portSet := convertTaskDefinitionPortsToPortSet(definition)
+	portBindings, listeners, err := GeneratePortBindings(portSet)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to convert task ports to bindings: %v", err)
+		return "", fmt.Errorf("failed to allocate task ports: %v", err)
 	}
 
 	var mounts []mount.Mount
@@ -59,14 +63,23 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Entrypoint: definition.Entrypoint,
 		Cmd:        definition.Command,
 		Tty:        false,
+		Hostname:   definition.Name,
+		Labels: map[string]string{
+			providerLabelName: p.name,
+		},
 	}, &container.HostConfig{
-		Mounts:       mounts,
-		PortBindings: portBindings,
+		Mounts:          mounts,
+		PortBindings:    portBindings,
+		PublishAllPorts: true,
+		NetworkMode:     container.NetworkMode(p.dockerNetworkName),
 	}, nil, nil, definition.ContainerName)
 
 	if err != nil {
+		listeners.CloseAll()
 		return "", err
 	}
+
+	p.listeners[createdContainer.ID] = listeners
 
 	return createdContainer.ID, nil
 }
@@ -89,6 +102,15 @@ func (p *Provider) pullImage(ctx context.Context, definition provider.TaskDefini
 }
 
 func (p *Provider) StartTask(ctx context.Context, id string) error {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	if _, ok := p.listeners[id]; !ok {
+		return fmt.Errorf("task port listeners %s not found", id)
+	}
+
+	p.listeners[id].CloseAll()
+
 	err := p.dockerClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
 
 	if err != nil {
@@ -199,17 +221,46 @@ func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
 		return "", err
 	}
 
-	return container.NetworkSettings.IPAddress, nil
+	hostname := bytes.TrimPrefix([]byte(container.Name), []byte("/"))
+
+	return string(hostname), nil
 }
 
-func (p *Provider) GetHostname(ctx context.Context, id string) (string, error) {
+func (p *Provider) GetExternalAddress(ctx context.Context, id string, port string) (string, error) {
 	container, err := p.dockerClient.ContainerInspect(ctx, id)
 
 	if err != nil {
 		return "", err
 	}
 
-	hostname := bytes.TrimPrefix([]byte(container.Name), []byte("\\"))
+	portBindings, ok := container.NetworkSettings.Ports[nat.Port(port)]
 
-	return string(hostname), nil
+	if !ok || len(portBindings) == 0 {
+		return "", fmt.Errorf("could not find port %s", port)
+	}
+
+	ip := portBindings[0].HostIP
+
+	return net.JoinHostPort(ip, portBindings[0].HostPort), nil
+}
+
+func (p *Provider) teardownTasks(ctx context.Context) error {
+	containers, err := p.dockerClient.ContainerList(ctx, types.ContainerListOptions{
+		All:     true,
+		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.name))),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	for _, filteredContainer := range containers {
+		err := p.DestroyTask(ctx, filteredContainer.ID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
