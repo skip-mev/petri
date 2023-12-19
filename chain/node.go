@@ -8,11 +8,9 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	libclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
-	client "github.com/cosmos/cosmos-sdk/client"
 	"github.com/skip-mev/petri/provider"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"os"
 	"time"
 )
 
@@ -116,26 +114,4 @@ func (n *Node) NodeCommand(command ...string) ([]string, error) {
 	return append(command,
 		"--node", fmt.Sprintf("tcp://%s:26657", ip),
 	), nil
-}
-
-// CliContext creates a new Cosmos SDK client context
-func (n *Node) CliContext() (client.Context, error) {
-	cfg := n.chain.Config
-
-	tmClient, err := n.GetTMClient(context.Background())
-
-	if err != nil {
-		return client.Context{}, err
-	}
-
-	return client.Context{
-		Client:            tmClient,
-		ChainID:           cfg.ChainId,
-		InterfaceRegistry: cfg.EncodingConfig.InterfaceRegistry,
-		Input:             os.Stdin,
-		Output:            os.Stdout,
-		OutputFormat:      "json",
-		LegacyAmino:       cfg.EncodingConfig.Amino,
-		TxConfig:          cfg.EncodingConfig.TxConfig,
-	}, nil
 }

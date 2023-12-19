@@ -7,7 +7,6 @@ import (
 	"github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/skip-mev/petri/provider"
 	"github.com/skip-mev/petri/wallet"
 	"golang.org/x/sync/errgroup"
@@ -360,24 +359,6 @@ func (c *Chain) GetFullNode() *Node {
 	}
 	// use first validator
 	return c.Validators[0]
-}
-
-func (c *Chain) GetBalance(ctx context.Context, address, denom string) (sdkmath.Int, error) {
-	params := &banktypes.QueryBalanceRequest{Address: address, Denom: denom}
-	cc, err := c.GetGRPCClient(ctx)
-	if err != nil {
-		return sdkmath.Int{}, nil
-	}
-	defer cc.Close()
-
-	queryClient := banktypes.NewQueryClient(cc)
-	res, err := queryClient.Balance(ctx, params)
-
-	if err != nil {
-		return sdkmath.Int{}, err
-	}
-
-	return res.Balance.Amount, nil
 }
 
 func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
