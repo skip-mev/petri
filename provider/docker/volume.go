@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/skip-mev/petri/provider"
 	"io"
@@ -26,6 +27,9 @@ func (p *Provider) CreateVolume(ctx context.Context, definition provider.VolumeD
 
 	createdVolume, err := p.dockerClient.VolumeCreate(ctx, volume.CreateOptions{
 		Name: definition.Name,
+		Labels: map[string]string{
+			providerLabelName: p.name,
+		},
 	})
 
 	if err != nil {
@@ -58,6 +62,10 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 				"_", // Meaningless arg0 for sh -c with positional args.
 				mountPath,
 				mountPath,
+			},
+
+			Labels: map[string]string{
+				providerLabelName: p.name,
 			},
 
 			// Use root user to avoid permission issues when reading files from the volume.
@@ -156,6 +164,10 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 		&container.Config{
 			Image: "busybox:latest",
 
+			Labels: map[string]string{
+				providerLabelName: p.name,
+			},
+
 			// Use root user to avoid permission issues when reading files from the volume.
 			User: "0",
 		},
@@ -219,6 +231,10 @@ func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPa
 		&container.Config{
 			Image: "busybox:latest",
 
+			Labels: map[string]string{
+				providerLabelName: p.name,
+			},
+
 			// Use root user to avoid permission issues when reading files from the volume.
 			User: "0",
 		},
@@ -243,12 +259,12 @@ func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPa
 		}
 	}()
 
-	reader, _, err := p.dockerClient.CopyFromContainer(ctx, cc.ID, relPath)
+	reader, _, err := p.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
 	if err != nil {
 		return err
 	}
 
-	if err := os.Mkdir(localPath, os.ModePerm); err != nil {
+	if err := os.MkdirAll(localPath, os.ModePerm); err != nil {
 		return err
 	}
 	tr := tar.NewReader(reader)
@@ -299,6 +315,9 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 				uid,
 				gid,
 			},
+			Labels: map[string]string{
+				providerLabelName: p.name,
+			},
 			// Use root user to avoid permission issues when reading files from the volume.
 			User: "0",
 		},
@@ -347,6 +366,26 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 
 		if res.StatusCode != 0 {
 			return fmt.Errorf("configuring volume exited %d", res.StatusCode)
+		}
+	}
+
+	return nil
+}
+
+func (p *Provider) teardownVolumes(ctx context.Context) error {
+	volumes, err := p.dockerClient.VolumeList(ctx, volume.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.name))),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	for _, filteredVolume := range volumes.Volumes {
+		err := p.DestroyVolume(ctx, filteredVolume.Name)
+
+		if err != nil {
+			return err
 		}
 	}
 

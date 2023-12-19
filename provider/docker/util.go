@@ -5,14 +5,12 @@ import (
 	"github.com/skip-mev/petri/provider"
 )
 
-func convertTaskDefinitionPortsToNat(definition provider.TaskDefinition) (nat.PortMap, error) {
-	bindings := nat.PortMap{}
+func convertTaskDefinitionPortsToPortSet(definition provider.TaskDefinition) nat.PortSet {
+	bindings := nat.PortSet{}
 
-	_, bindings, err := nat.ParsePortSpecs(definition.Ports)
-
-	if err != nil {
-		return nil, err
+	for _, port := range definition.Ports {
+		bindings[nat.Port(port)] = struct{}{}
 	}
 
-	return bindings, nil
+	return bindings
 }

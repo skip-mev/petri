@@ -2,21 +2,29 @@ package docker
 
 import (
 	"context"
-	"sync"
-
+	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/skip-mev/petri/provider"
+	"github.com/skip-mev/petri/util"
+	"sync"
 )
 
 var _ provider.Provider = (*Provider)(nil)
 
+const (
+	providerLabelName = "petri-provider"
+)
+
 type Provider struct {
-	dockerClient *client.Client
-	taskStates   sync.Map
-	volumes      []string
+	dockerClient      *client.Client
+	name              string
+	dockerNetworkID   string
+	dockerNetworkName string
+	networkMu         sync.RWMutex
+	listeners         map[string]Listeners
 }
 
-func NewDockerProvider(ctx context.Context, dockerOpts ...client.Opt) (*Provider, error) {
+func NewDockerProvider(ctx context.Context, providerName string, dockerOpts ...client.Opt) (*Provider, error) {
 	dockerClient, err := client.NewClientWithOpts(dockerOpts...)
 	if err != nil {
 		return nil, err
@@ -28,8 +36,36 @@ func NewDockerProvider(ctx context.Context, dockerOpts ...client.Opt) (*Provider
 		return nil, err
 	}
 
-	return &Provider{
+	dockerProvider := &Provider{
 		dockerClient: dockerClient,
-		taskStates:   sync.Map{},
-	}, nil
+		listeners:    map[string]Listeners{},
+		name:         providerName,
+	}
+
+	dockerProvider.dockerNetworkName = fmt.Sprintf("petri-network-%s", util.RandomString(5))
+	networkID, err := dockerProvider.createNetwork(ctx, dockerProvider.dockerNetworkName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	dockerProvider.dockerNetworkID = networkID
+
+	return dockerProvider, nil
+}
+
+func (p *Provider) Teardown(ctx context.Context) error {
+	if err := p.teardownTasks(ctx); err != nil {
+		return err
+	}
+
+	if err := p.teardownVolumes(ctx); err != nil {
+		return err
+	}
+
+	if err := p.destroyNetwork(ctx, p.dockerNetworkID); err != nil {
+		return err
+	}
+
+	return nil
 }

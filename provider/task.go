@@ -116,8 +116,8 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 	return t.Provider.GetIP(ctx, t.ID)
 }
 
-func (t *Task) GetHostname(ctx context.Context) (string, error) {
-	return t.Provider.GetHostname(ctx, t.ID)
+func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
+	return t.Provider.GetExternalAddress(ctx, t.ID, port)
 }
 
 func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, error) {
@@ -136,6 +136,7 @@ func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, e
 	modifiedDefinition.Entrypoint = []string{"sh", "-c"}
 	modifiedDefinition.Command = []string{"sleep 36000"}
 	modifiedDefinition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", t.Definition.Name, util.RandomString(5), time.Now().Unix())
+	modifiedDefinition.Ports = []string{}
 
 	task, err := t.Provider.CreateTask(ctx, modifiedDefinition)
 
