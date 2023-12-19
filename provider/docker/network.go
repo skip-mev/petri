@@ -14,7 +14,7 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (strin
 	network, err := p.dockerClient.NetworkCreate(ctx, networkName, types.NetworkCreate{
 		Scope:  "local",
 		Driver: "bridge",
-		Options: map[string]string{
+		Options: map[string]string{ // https://docs.docker.com/engine/reference/commandline/network_create/#bridge-driver-options
 			"com.docker.network.bridge.enable_icc":           "true",
 			"com.docker.network.bridge.enable_ip_masquerade": "true",
 			"com.docker.network.bridge.host_binding_ipv4":    "0.0.0.0",
