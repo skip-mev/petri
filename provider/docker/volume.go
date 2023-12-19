@@ -91,10 +91,11 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 			return
 		}
 
+		// nolint // will fix later
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// todo: fix logging
+			// TODO fix logging
 		}
 	}()
 
@@ -250,10 +251,11 @@ func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPa
 	}
 
 	defer func() {
+		// nolint // will fix later
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// todo fix logging
+			// TODO fix logging
 		}
 	}()
 
@@ -337,10 +339,11 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 			return
 		}
 
+		// nolint // will fix later
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// todo fix logging
+			// TODO fix logging
 		}
 	}()
 

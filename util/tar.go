@@ -44,7 +44,7 @@ func MakeSingleFileTar(name string, file io.Reader) (io.Reader, error) {
 func UnarchiveSingleFileTar(archive io.Reader) (string, io.Reader, error) {
 	tarReader := tar.NewReader(archive)
 
-	for true {
+	for {
 		header, err := tarReader.Next()
 
 		if err == io.EOF {
@@ -69,6 +69,4 @@ func UnarchiveSingleFileTar(archive io.Reader) (string, io.Reader, error) {
 
 		return header.Name, b, nil
 	}
-
-	return "", nil, fmt.Errorf("no files found in tar archive")
 }

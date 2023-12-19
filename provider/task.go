@@ -137,7 +137,7 @@ func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, e
 	}
 
 	err = t.Provider.StartTask(ctx, task)
-	defer t.Provider.DestroyTask(ctx, task)
+	defer t.Provider.DestroyTask(ctx, task) // nolint:errcheck
 
 	if err != nil {
 		return "", 0, err
