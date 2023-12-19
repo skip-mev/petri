@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/docker/go-connections/nat"
+
 	"github.com/skip-mev/petri/provider"
 )
 

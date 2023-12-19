@@ -26,7 +26,7 @@ func MakeSingleFileTar(name string, file io.Reader) (io.Reader, error) {
 	header := &tar.Header{
 		Name: name,
 		Size: fileSize,
-		Mode: 0777,
+		Mode: 0o777,
 	}
 
 	if err := tw.WriteHeader(header); err != nil {
@@ -34,7 +34,6 @@ func MakeSingleFileTar(name string, file io.Reader) (io.Reader, error) {
 	}
 
 	_, err := io.Copy(tw, file)
-
 	if err != nil {
 		return nil, err
 	}

@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/skip-mev/petri/util"
 	"time"
+
+	"github.com/skip-mev/petri/util"
 )
 
 func CreateTask(ctx context.Context, provider Provider, definition TaskDefinition) (*Task, error) {
@@ -17,7 +18,6 @@ func CreateTask(ctx context.Context, provider Provider, definition TaskDefinitio
 		}
 
 		id, err := provider.CreateTask(ctx, sidecar)
-
 		if err != nil {
 			return nil, err
 		}
@@ -31,7 +31,6 @@ func CreateTask(ctx context.Context, provider Provider, definition TaskDefinitio
 	}
 
 	id, err := provider.CreateTask(ctx, definition)
-
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +47,6 @@ func (t *Task) Start(ctx context.Context, startSidecars bool) error {
 	if startSidecars {
 		for _, sidecar := range t.Sidecars {
 			err := sidecar.Start(ctx, startSidecars)
-
 			if err != nil {
 				return err
 			}
@@ -57,14 +55,12 @@ func (t *Task) Start(ctx context.Context, startSidecars bool) error {
 
 	if t.PreStart != nil {
 		err := t.PreStart(ctx, t)
-
 		if err != nil {
 			return err
 		}
 	}
 
 	err := t.Provider.StartTask(ctx, t.ID)
-
 	if err != nil {
 		return err
 	}
@@ -76,7 +72,6 @@ func (t *Task) Stop(ctx context.Context, stopSidecars bool) error {
 	if stopSidecars {
 		for _, sidecar := range t.Sidecars {
 			err := sidecar.Stop(ctx, stopSidecars)
-
 			if err != nil {
 				return err
 			}
@@ -87,7 +82,6 @@ func (t *Task) Stop(ctx context.Context, stopSidecars bool) error {
 
 	if t.PostStop != nil {
 		err := t.PostStop(ctx, t)
-
 		if err != nil {
 			return err
 		}
@@ -122,7 +116,6 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 
 func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, error) {
 	status, err := t.Provider.GetTaskStatus(ctx, t.ID)
-
 	if err != nil {
 		return "", 0, err
 	}
@@ -139,7 +132,6 @@ func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, e
 	modifiedDefinition.Ports = []string{}
 
 	task, err := t.Provider.CreateTask(ctx, modifiedDefinition)
-
 	if err != nil {
 		return "", 0, err
 	}
@@ -152,7 +144,6 @@ func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, e
 	}
 
 	stdout, exitCode, err := t.Provider.RunCommand(ctx, task, command)
-
 	if err != nil {
 		return "", 0, err
 	}
@@ -168,7 +159,6 @@ func (t *Task) Destroy(ctx context.Context, destroySidecars bool) error {
 	if destroySidecars {
 		for _, sidecar := range t.Sidecars {
 			err := sidecar.Destroy(ctx, destroySidecars)
-
 			if err != nil {
 				return err
 			}
@@ -176,7 +166,6 @@ func (t *Task) Destroy(ctx context.Context, destroySidecars bool) error {
 	}
 
 	err := t.Provider.DestroyTask(ctx, t.ID)
-
 	if err != nil {
 		return err
 	}

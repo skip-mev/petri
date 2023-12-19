@@ -3,9 +3,10 @@ package docker
 import (
 	"context"
 	"fmt"
+	"net"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/nat"
-	"net"
 )
 
 type Listeners []net.Listener
@@ -27,7 +28,6 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (strin
 			providerLabelName: p.name,
 		},
 	})
-
 	if err != nil {
 		return "", err
 	}
