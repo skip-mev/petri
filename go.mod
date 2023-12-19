@@ -8,6 +8,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/golangci/golangci-lint v1.55.2
 	golang.org/x/tools v0.16.1
+	golang.org/x/vuln v1.0.1
 	mvdan.cc/gofumpt v0.5.0
 )
 
@@ -203,5 +204,5 @@ require (
 	honnef.co/go/tools v0.4.6 // indirect
 	mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed // indirect
 	mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b // indirect
-	mvdan.cc/unparam v0.0.0-20221223090309-7455f1af531d // indirect
+	mvdan.cc/unparam v0.0.0-20230312165513-e84e2d14e3b8 // indirect
 )
