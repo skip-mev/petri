@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/skip-mev/petri/provider"
+	"github.com/skip-mev/petri/wallet"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"math"
@@ -19,8 +20,10 @@ import (
 type Chain struct {
 	Config ChainConfig
 
-	Validators []*Node
-	Nodes      []*Node
+	Validators       []*Node
+	ValidatorWallets []*wallet.CosmosWallet
+
+	Nodes []*Node
 }
 
 type ChainConfig struct {
@@ -41,7 +44,10 @@ type ChainConfig struct {
 
 	EncodingConfig testutil.TestEncodingConfig
 
-	HomeDir string
+	HomeDir        string
+	SidecarHomeDir string
+	SidecarPorts   []string
+	SidecarArgs    []string
 
 	CoinType string
 	ChainId  string
@@ -95,6 +101,7 @@ func CreateChain(ctx context.Context, infraProvider provider.Provider, config Ch
 	}
 
 	chain.Validators = validators
+	chain.ValidatorWallets = make([]*wallet.CosmosWallet, len(validators))
 
 	nodes := make([]*Node, 0)
 
@@ -180,17 +187,22 @@ func (c *Chain) Init(ctx context.Context) error {
 
 	eg := new(errgroup.Group)
 
-	for _, v := range c.Validators {
+	for idx, v := range c.Validators {
 		v := v
 		eg.Go(func() error {
 			if err := v.InitHome(ctx); err != nil {
 				return err
 			}
 
-			if err := v.CreateKey(ctx, validatorKey); err != nil {
+			validatorWallet, err := v.CreateWallet(ctx, validatorKey)
+
+			if err != nil {
 				return err
 			}
-			bech32, err := v.KeyBech32(ctx, validatorKey, "acc")
+
+			c.ValidatorWallets[idx] = validatorWallet
+
+			bech32 := validatorWallet.FormattedAddress()
 
 			if err != nil {
 				return err
@@ -276,7 +288,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		if err := v.OverwriteGenesisFile(ctx, genbz); err != nil {
 			return err
 		}
-		if err := v.SetTestConfig(ctx); err != nil {
+		if err := v.SetDefaultConfigs(ctx); err != nil {
 			return err
 		}
 		if err := v.SetPersistentPeers(ctx, peers); err != nil {
@@ -294,7 +306,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		if err := n.OverwriteGenesisFile(ctx, genbz); err != nil {
 			return err
 		}
-		if err := n.SetTestConfig(ctx); err != nil {
+		if err := n.SetDefaultConfigs(ctx); err != nil {
 			return err
 		}
 		if err := n.SetPersistentPeers(ctx, peers); err != nil {
