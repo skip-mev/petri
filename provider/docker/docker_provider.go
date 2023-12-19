@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/skip-mev/petri/provider"
 	"github.com/skip-mev/petri/util"
+	"sync"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -19,6 +20,7 @@ type Provider struct {
 	name              string
 	dockerNetworkID   string
 	dockerNetworkName string
+	networkMu         sync.RWMutex
 	listeners         map[string]Listeners
 }
 

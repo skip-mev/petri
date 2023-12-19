@@ -6,10 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/nat"
 	"net"
-	"sync"
 )
-
-var mu sync.RWMutex
 
 type Listeners []net.Listener
 
@@ -53,14 +50,14 @@ func (l Listeners) CloseAll() {
 }
 
 // openListenerOnFreePort opens the next free port
-func openListenerOnFreePort() (*net.TCPListener, error) {
+func (p *Provider) openListenerOnFreePort() (*net.TCPListener, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
 	}
 
-	mu.Lock()
-	defer mu.Unlock()
+	p.networkMu.Lock()
+	defer p.networkMu.Unlock()
 	l, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -73,8 +70,8 @@ func openListenerOnFreePort() (*net.TCPListener, error) {
 // The listener will be closed in the case of an error, otherwise it will be left open.
 // This allows multiple nextAvailablePort calls to find multiple available ports
 // before closing them so they are available for the PortBinding.
-func nextAvailablePort() (nat.PortBinding, *net.TCPListener, error) {
-	l, err := openListenerOnFreePort()
+func (p *Provider) nextAvailablePort() (nat.PortBinding, *net.TCPListener, error) {
+	l, err := p.openListenerOnFreePort()
 	if err != nil {
 		l.Close()
 		return nat.PortBinding{}, nil, err
@@ -88,18 +85,18 @@ func nextAvailablePort() (nat.PortBinding, *net.TCPListener, error) {
 
 // GeneratePortBindings will find open ports on the local
 // machine and create a PortBinding for every port in the portSet.
-func GeneratePortBindings(portSet nat.PortSet) (nat.PortMap, Listeners, error) {
+func (p *Provider) GeneratePortBindings(portSet nat.PortSet) (nat.PortMap, Listeners, error) {
 	m := make(nat.PortMap)
 	listeners := make(Listeners, 0, len(portSet))
 
-	for p := range portSet {
-		pb, l, err := nextAvailablePort()
+	for port := range portSet {
+		pb, l, err := p.nextAvailablePort()
 		if err != nil {
 			listeners.CloseAll()
 			return nat.PortMap{}, nil, err
 		}
 		listeners = append(listeners, l)
-		m[p] = []nat.PortBinding{pb}
+		m[port] = []nat.PortBinding{pb}
 	}
 
 	return m, listeners, nil

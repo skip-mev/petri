@@ -102,8 +102,8 @@ func (p *Provider) pullImage(ctx context.Context, definition provider.TaskDefini
 }
 
 func (p *Provider) StartTask(ctx context.Context, id string) error {
-	mu.RLock()
-	defer mu.RUnlock()
+	p.networkMu.RLock()
+	defer p.networkMu.RUnlock()
 
 	if _, ok := p.listeners[id]; !ok {
 		return fmt.Errorf("task port listeners %s not found", id)
