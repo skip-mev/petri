@@ -25,7 +25,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	}
 
 	portSet := convertTaskDefinitionPortsToPortSet(definition)
-	portBindings, listeners, err := GeneratePortBindings(portSet)
+	portBindings, listeners, err := p.GeneratePortBindings(portSet)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to allocate task ports: %v", err)
