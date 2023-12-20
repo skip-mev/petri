@@ -13,6 +13,10 @@ type GenesisKV struct {
 	Value interface{} `json:"value"`
 }
 
+type GenesisModifier func([]byte) ([]byte, error)
+
+var _ GenesisModifier = ModifyGenesis(nil)
+
 func NewGenesisKV(key string, value interface{}) GenesisKV {
 	return GenesisKV{
 		Key:   key,

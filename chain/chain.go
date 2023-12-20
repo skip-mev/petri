@@ -51,7 +51,7 @@ type ChainConfig struct {
 	CoinType string
 	ChainId  string
 
-	ModifyGenesis func([]byte) ([]byte, error)
+	ModifyGenesis GenesisModifier
 }
 
 func CreateChain(ctx context.Context, infraProvider provider.Provider, config ChainConfig) (*Chain, error) {
