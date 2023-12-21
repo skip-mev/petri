@@ -3,10 +3,12 @@ package docker
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/docker/docker/client"
+
 	"github.com/skip-mev/petri/provider"
 	"github.com/skip-mev/petri/util"
-	"sync"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -44,7 +46,6 @@ func NewDockerProvider(ctx context.Context, providerName string, dockerOpts ...c
 
 	dockerProvider.dockerNetworkName = fmt.Sprintf("petri-network-%s", util.RandomString(5))
 	networkID, err := dockerProvider.createNetwork(ctx, dockerProvider.dockerNetworkName)
-
 	if err != nil {
 		return nil, err
 	}

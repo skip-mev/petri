@@ -26,7 +26,7 @@ func MakeSingleFileTar(name string, file io.Reader) (io.Reader, error) {
 	header := &tar.Header{
 		Name: name,
 		Size: fileSize,
-		Mode: 0777,
+		Mode: 0o777,
 	}
 
 	if err := tw.WriteHeader(header); err != nil {
@@ -34,7 +34,6 @@ func MakeSingleFileTar(name string, file io.Reader) (io.Reader, error) {
 	}
 
 	_, err := io.Copy(tw, file)
-
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +44,7 @@ func MakeSingleFileTar(name string, file io.Reader) (io.Reader, error) {
 func UnarchiveSingleFileTar(archive io.Reader) (string, io.Reader, error) {
 	tarReader := tar.NewReader(archive)
 
-	for true {
+	for {
 		header, err := tarReader.Next()
 
 		if err == io.EOF {
@@ -70,6 +69,4 @@ func UnarchiveSingleFileTar(archive io.Reader) (string, io.Reader, error) {
 
 		return header.Name, b, nil
 	}
-
-	return "", nil, fmt.Errorf("no files found in tar archive")
 }

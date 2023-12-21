@@ -5,16 +5,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/volume"
-	"github.com/skip-mev/petri/provider"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
+
+	"github.com/skip-mev/petri/provider"
 )
 
 // CreateVolume is an idempotent operation
@@ -31,7 +33,6 @@ func (p *Provider) CreateVolume(ctx context.Context, definition provider.VolumeD
 			providerLabelName: p.name,
 		},
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -90,11 +91,11 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 			return
 		}
 
+		// nolint // will fix later
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// todo: fix logging
-
+			// TODO fix logging
 		}
 	}()
 
@@ -104,7 +105,7 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 		Name: relPath,
 
 		Size: int64(len(content)),
-		Mode: 0600,
+		Mode: 0o600,
 		// Not setting uname because the container will chown it anyway.
 		ModTime: time.Now(),
 
@@ -173,13 +174,12 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 		},
 		&container.HostConfig{
 			Binds: []string{volumeName + ":" + mountPath},
-			//AutoRemove: true,
+			// AutoRemove: true,
 		},
 		nil, // No networking necessary.
 		nil,
 		containerName,
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("creating container: %w", err)
 	}
@@ -246,16 +246,16 @@ func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPa
 		nil,
 		containerName,
 	)
-
 	if err != nil {
 		return fmt.Errorf("creating container: %w", err)
 	}
 
 	defer func() {
+		// nolint // will fix later
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// todo fix logging
+			// TODO fix logging
 		}
 	}()
 
@@ -323,13 +323,12 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 		},
 		&container.HostConfig{
 			Binds: []string{volumeName + ":" + mountPath},
-			//AutoRemove: true,
+			// AutoRemove: true,
 		},
 		nil, // No networking necessary.
 		nil,
 		containerName,
 	)
-
 	if err != nil {
 		return fmt.Errorf("creating container: %w", err)
 	}
@@ -340,10 +339,11 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 			return
 		}
 
+		// nolint // will fix later
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// todo fix logging
+			// TODO fix logging
 		}
 	}()
 
@@ -376,14 +376,12 @@ func (p *Provider) teardownVolumes(ctx context.Context) error {
 	volumes, err := p.dockerClient.VolumeList(ctx, volume.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.name))),
 	})
-
 	if err != nil {
 		return err
 	}
 
 	for _, filteredVolume := range volumes.Volumes {
 		err := p.DestroyVolume(ctx, filteredVolume.Name)
-
 		if err != nil {
 			return err
 		}
