@@ -23,6 +23,8 @@ jobs:
       - name: initialize workspace
         run: |
           go work init ||:
+          go work use ./util
+          go work use ./types
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
