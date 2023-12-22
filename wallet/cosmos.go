@@ -6,14 +6,16 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/go-bip39"
+	petritypes "github.com/skip-mev/petri/types"
 )
 
 type CosmosWallet struct {
-	mnemonic     string
-	address      []byte
+	privKey      cryptotypes.PrivKey
 	keyName      string
 	bech32Prefix string
 }
+
+var _ petritypes.WalletI = &CosmosWallet{}
 
 type WalletAmount struct {
 	Address string
@@ -21,16 +23,23 @@ type WalletAmount struct {
 	Amount  math.Int
 }
 
-func NewWallet(keyname string, address []byte, mnemonic string, bech32Prefix string) *CosmosWallet {
+func NewWallet(keyname string, mnemonic string, bech32Prefix string, hdPath *hd.BIP44Params) (*CosmosWallet, error) {
+	derivedPrivKey, err := hd.Secp256k1.Derive()(mnemonic, "", hdPath.String())
+
+	if err != nil {
+		return nil, err
+	}
+
+	privKey := hd.Secp256k1.Generate()(derivedPrivKey)
+
 	return &CosmosWallet{
-		mnemonic:     mnemonic,
-		address:      address,
+		privKey:      privKey,
 		keyName:      keyname,
 		bech32Prefix: bech32Prefix,
-	}
+	}, nil
 }
 
-func NewGeneratedWallet(keyname string, bech32Prefix string) (*CosmosWallet, error) {
+func NewGeneratedWallet(keyname string, bech32Prefix string, hdPath *hd.BIP44Params) (*CosmosWallet, error) {
 	entropy, err := bip39.NewEntropy(128)
 
 	if err != nil {
@@ -43,19 +52,7 @@ func NewGeneratedWallet(keyname string, bech32Prefix string) (*CosmosWallet, err
 		return nil, err
 	}
 
-	hdPath := hd.CreateHDPath(118, 0, 0)
-
-	derivedPrivKey, err := hd.Secp256k1.Derive()(mnemonic, "", hdPath.String())
-
-	if err != nil {
-		return nil, err
-	}
-
-	privKey := hd.Secp256k1.Generate()(derivedPrivKey)
-
-	address := privKey.PubKey().Address()
-
-	return NewWallet(keyname, address, mnemonic, bech32Prefix), nil
+	return NewWallet(keyname, mnemonic, bech32Prefix, hdPath)
 }
 
 func (w *CosmosWallet) KeyName() string {
@@ -64,45 +61,23 @@ func (w *CosmosWallet) KeyName() string {
 
 // Get formatted address, passing in a prefix
 func (w *CosmosWallet) FormattedAddress() string {
-	return types.MustBech32ifyAddressBytes(w.bech32Prefix, w.address)
+	return types.MustBech32ifyAddressBytes(w.bech32Prefix, w.privKey.PubKey().Address())
 }
 
-// Get mnemonic, only used for relayer wallets
-func (w *CosmosWallet) Mnemonic() string {
-	return w.mnemonic
-}
-
-// Get Address with chain's prefix
 func (w *CosmosWallet) Address() []byte {
-	return w.address
+	return w.privKey.PubKey().Address()
 }
 
 func (w *CosmosWallet) FormattedAddressWithPrefix(prefix string) string {
-	return types.MustBech32ifyAddressBytes(prefix, w.address)
+	return types.MustBech32ifyAddressBytes(prefix, w.privKey.PubKey().Address())
 }
 
 func (w *CosmosWallet) PublicKey() (cryptotypes.PubKey, error) {
-	privKey, err := w.PrivateKey()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return privKey.PubKey(), nil
+	return w.privKey.PubKey(), nil
 }
 
 func (w *CosmosWallet) PrivateKey() (cryptotypes.PrivKey, error) {
-	hdPath := hd.CreateHDPath(118, 0, 0)
-
-	derivedPrivKey, err := hd.Secp256k1.Derive()(w.mnemonic, "", hdPath.String())
-
-	if err != nil {
-		return nil, err
-	}
-
-	privKey := hd.Secp256k1.Generate()(derivedPrivKey)
-
-	return privKey, nil
+	return w.privKey, nil
 }
 
 func (w *CosmosWallet) SigningAlgo() string {
