@@ -13,6 +13,9 @@ permissions:
 
 jobs:
   golangci:
+    strategy:
+      matrix:
+        module: ["node", "types", "util", "wallet"]
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
