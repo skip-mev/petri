@@ -15,7 +15,7 @@ jobs:
   golangci:
     strategy:
       matrix:
-        module: ["node", "types", "util", "wallet"]
+        module: ["chain", "node", "types", "util", "wallet"]
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
@@ -30,3 +30,4 @@ jobs:
           version: latest
           only-new-issues: true
           args: --timeout=5m
+          working-directory: ${{ matrix.module }}
