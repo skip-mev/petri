@@ -111,6 +111,7 @@ func (c *Chain) Init(ctx context.Context) error {
 
 	for idx, v := range c.Validators {
 		v := v
+		idx := idx
 		eg.Go(func() error {
 			if err := v.InitHome(ctx); err != nil {
 				return err
@@ -160,6 +161,10 @@ func (c *Chain) Init(ctx context.Context) error {
 
 	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "")
 
+	if err != nil {
+		return err
+	}
+
 	firstValidator := c.Validators[0]
 
 	if err := firstValidator.AddGenesisAccount(ctx, faucetWallet.FormattedAddress(), genesisAmounts); err != nil {
@@ -188,6 +193,10 @@ func (c *Chain) Init(ctx context.Context) error {
 	}
 
 	genbz, err := firstValidator.GenesisFileContent(ctx)
+
+	if err != nil {
+		return err
+	}
 
 	if c.Config.ModifyGenesis != nil {
 		genbz, err = c.Config.ModifyGenesis(genbz)
