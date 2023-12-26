@@ -9,4 +9,5 @@ type WalletI interface {
 	FormattedAddressWithPrefix(prefix string) string
 	PublicKey() (cryptotypes.PubKey, error)
 	PrivateKey() (cryptotypes.PrivKey, error)
+	Mnemonic() string
 }

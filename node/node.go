@@ -28,23 +28,27 @@ var _ petritypes.NodeCreator = CreateNode
 func CreateNode(ctx context.Context, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
 	chainConfig := nodeConfig.Chain.GetConfig()
 
+	var sidecars []provider.TaskDefinition
+
+	if chainConfig.SidecarHomeDir != "" {
+		sidecars = append(sidecars, provider.TaskDefinition{
+			Name:          fmt.Sprintf("%s-sidecar-%d", nodeConfig.Name, 0), // todo(Zygimantass): fix this to support multiple sidecars
+			ContainerName: fmt.Sprintf("%s-sidecar-%d", nodeConfig.Name, 0),
+			Image:         chainConfig.SidecarImage,
+			DataDir:       chainConfig.SidecarHomeDir,
+			Ports:         chainConfig.SidecarPorts,
+			Entrypoint:    chainConfig.SidecarArgs,
+		})
+	}
+
 	def := provider.TaskDefinition{
 		Name:          nodeConfig.Name,
 		ContainerName: nodeConfig.Name,
 		Image:         chainConfig.Image,
 		Ports:         []string{"9090", "26656", "26657", "80"},
-		Sidecars: []provider.TaskDefinition{
-			{
-				Name:          fmt.Sprintf("%s-sidecar-%d", nodeConfig.Name, 0), // todo(Zygimantass): fix this to support multiple sidecars
-				ContainerName: fmt.Sprintf("%s-sidecar-%d", nodeConfig.Name, 0),
-				Image:         chainConfig.SidecarImage,
-				DataDir:       chainConfig.SidecarHomeDir,
-				Ports:         chainConfig.SidecarPorts,
-				Entrypoint:    chainConfig.SidecarArgs,
-			},
-		},
-		Command: []string{"--home", chainConfig.HomeDir},
-		DataDir: chainConfig.HomeDir,
+		Sidecars:      sidecars,
+		Command:       []string{"--home", chainConfig.HomeDir},
+		DataDir:       chainConfig.HomeDir,
 	}
 	task, err := provider.CreateTask(ctx, nodeConfig.Provider, def)
 

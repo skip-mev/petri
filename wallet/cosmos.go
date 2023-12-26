@@ -10,6 +10,7 @@ import (
 )
 
 type CosmosWallet struct {
+	mnemonic     string
 	privKey      cryptotypes.PrivKey
 	keyName      string
 	bech32Prefix string
@@ -33,6 +34,7 @@ func NewWallet(keyname string, mnemonic string, bech32Prefix string, hdPath *hd.
 	privKey := hd.Secp256k1.Generate()(derivedPrivKey)
 
 	return &CosmosWallet{
+		mnemonic:     mnemonic,
 		privKey:      privKey,
 		keyName:      keyname,
 		bech32Prefix: bech32Prefix,
@@ -82,4 +84,8 @@ func (w *CosmosWallet) PrivateKey() (cryptotypes.PrivKey, error) {
 
 func (w *CosmosWallet) SigningAlgo() string {
 	return "secp256k1"
+}
+
+func (w *CosmosWallet) Mnemonic() string {
+	return w.mnemonic
 }
