@@ -3,6 +3,7 @@ package chain
 import (
 	"context"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/types"
 	petritypes "github.com/skip-mev/petri/types"
 	"github.com/skip-mev/petri/wallet"
@@ -18,12 +19,13 @@ func (c *Chain) BuildWallet(ctx context.Context, keyName, mnemonic string) (petr
 		return nil, fmt.Errorf("failed to recover key with name %q on chain %s: %w", keyName, c.Config.ChainId, err)
 	}
 
-	addrBytes, err := c.GetAddress(ctx, keyName)
+	coinType, err := hd.NewParamsFromPath(c.Config.CoinType)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get account address for key %q on chain %s: %w", keyName, c.Config.ChainId, err)
+		return nil, err
 	}
 
-	return wallet.NewWallet(keyName, addrBytes, mnemonic, c.Config.Bech32Prefix), nil
+	return wallet.NewWallet(keyName, mnemonic, c.Config.Bech32Prefix, coinType)
 }
 
 func (c *Chain) RecoverKey(ctx context.Context, keyName, mnemonic string) error {
