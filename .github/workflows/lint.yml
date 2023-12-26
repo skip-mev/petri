@@ -23,6 +23,9 @@ jobs:
         with:
           go-version: 1.21.3
       - uses: actions/checkout@v4
+      - name: initialize workspace
+        run: |
+          go work init ||;
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
