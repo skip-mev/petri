@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func WaitForCondition(timeoutAfter, pollingInterval time.Duration, fn func() (bool, error)) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutAfter)
+func WaitForCondition(ctx context.Context, timeoutAfter, pollingInterval time.Duration, fn func() (bool, error)) error {
+	ctx, cancel := context.WithTimeout(ctx, timeoutAfter)
 	defer cancel()
 
 	for {

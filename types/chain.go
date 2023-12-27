@@ -1,12 +1,18 @@
 package types
 
 import (
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/skip-mev/petri/provider"
+	"google.golang.org/grpc"
 )
 
 type ChainI interface {
 	GetConfig() ChainConfig
+	GetGPRCClient() (*grpc.ClientConn, error)
+	GetTMClient() (rpcclient.Client, error)
+	GetTxConfig() client.TxConfig
 }
 
 type ChainConfig struct {
