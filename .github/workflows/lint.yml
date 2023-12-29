@@ -15,7 +15,7 @@ jobs:
   golangci:
     strategy:
       matrix:
-        module: ["chain", "node", "types", "util", "wallet"]
+        module: ["chain", "cosmosutil", "node", "types", "util", "wallet"]
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
