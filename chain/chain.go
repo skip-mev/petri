@@ -5,6 +5,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"github.com/cometbft/cometbft/rpc/client"
+	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/skip-mev/petri/provider"
 	petritypes "github.com/skip-mev/petri/types"
@@ -21,12 +22,14 @@ type Chain struct {
 	Validators []petritypes.NodeI
 	Nodes      []petritypes.NodeI
 
+	FaucetWallet petritypes.WalletI
+
 	ValidatorWallets []petritypes.WalletI
 }
 
 var _ petritypes.ChainI = &Chain{}
 
-func CreateChain(ctx context.Context, infraProvider provider.Provider, config petritypes.ChainConfig) (petritypes.ChainI, error) {
+func CreateChain(ctx context.Context, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
 	var chain Chain
 
 	validators := make([]petritypes.NodeI, 0)
@@ -164,6 +167,8 @@ func (c *Chain) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	c.FaucetWallet = faucetWallet
 
 	firstValidator := c.Validators[0]
 
@@ -320,4 +325,24 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 		time.Sleep(2 * time.Second)
 	}
 	return nil
+}
+
+func (c *Chain) GetValidators() []petritypes.NodeI {
+	return c.Validators
+}
+
+func (c *Chain) GetNodes() []petritypes.NodeI {
+	return c.Nodes
+}
+
+func (c *Chain) GetValidatorWallets() []petritypes.WalletI {
+	return c.ValidatorWallets
+}
+
+func (c *Chain) GetFaucetWallet() petritypes.WalletI {
+	return c.FaucetWallet
+}
+
+func (c *Chain) GetTxConfig() sdkclient.TxConfig {
+	return c.Config.EncodingConfig.TxConfig
 }
