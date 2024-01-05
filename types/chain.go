@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -9,10 +10,21 @@ import (
 )
 
 type ChainI interface {
+	Init(context.Context) error
+
 	GetConfig() ChainConfig
-	GetGPRCClient() (*grpc.ClientConn, error)
-	GetTMClient() (rpcclient.Client, error)
+	GetGRPCClient(context.Context) (*grpc.ClientConn, error)
+	GetTMClient(context.Context) (rpcclient.Client, error)
 	GetTxConfig() client.TxConfig
+
+	GetValidators() []NodeI
+	GetFaucetWallet() WalletI
+	GetValidatorWallets() []WalletI
+
+	GetNodes() []NodeI
+
+	Height(context.Context) (uint64, error)
+	WaitForBlocks(ctx context.Context, delta uint64) error
 }
 
 type ChainConfig struct {
