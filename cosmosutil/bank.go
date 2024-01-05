@@ -10,7 +10,7 @@ import (
 // bank queries
 
 func (c *ChainClient) Balances(ctx context.Context, address string) (sdk.Coins, error) {
-	bankClient, err := c.getBankClient()
+	bankClient, err := c.getBankClient(ctx)
 
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (c *ChainClient) Balances(ctx context.Context, address string) (sdk.Coins, 
 }
 
 func (c *ChainClient) Balance(ctx context.Context, address, denom string) (sdk.Coin, error) {
-	bankClient, err := c.getBankClient()
+	bankClient, err := c.getBankClient(ctx)
 
 	if err != nil {
 		return sdk.Coin{}, err
@@ -71,7 +71,7 @@ func (c *ChainClient) Balance(ctx context.Context, address, denom string) (sdk.C
 }
 
 func (c *ChainClient) DenomMetadata(ctx context.Context, denom string) (banktypes.Metadata, error) {
-	bankClient, err := c.getBankClient()
+	bankClient, err := c.getBankClient(ctx)
 
 	if err != nil {
 		return banktypes.Metadata{}, err
@@ -89,7 +89,7 @@ func (c *ChainClient) DenomMetadata(ctx context.Context, denom string) (banktype
 }
 
 func (c *ChainClient) DenomsMetadata(ctx context.Context) ([]banktypes.Metadata, error) {
-	bankClient, err := c.getBankClient()
+	bankClient, err := c.getBankClient(ctx)
 
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (c *ChainClient) DenomsMetadata(ctx context.Context) ([]banktypes.Metadata,
 }
 
 func (c *ChainClient) TotalSupplyAll(ctx context.Context) (sdk.Coins, error) {
-	bankClient, err := c.getBankClient()
+	bankClient, err := c.getBankClient(ctx)
 
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func (c *ChainClient) TotalSupplyAll(ctx context.Context) (sdk.Coins, error) {
 }
 
 func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (sdk.Coin, error) {
-	bankClient, err := c.getBankClient()
+	bankClient, err := c.getBankClient(ctx)
 
 	if err != nil {
 		return sdk.Coin{}, err
@@ -167,7 +167,7 @@ func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (
 // bank transactions
 
 func (c *ChainClient) BankSend(ctx context.Context, user InteractingWallet, toAddress string, amount sdk.Coins, blocking bool) (*sdk.TxResponse, error) {
-	msg := banktypes.NewMsgSend(sdk.AccAddress(user.wallet.FormattedAddress()), sdk.AccAddress(toAddress), amount)
+	msg := banktypes.NewMsgSend(sdk.AccAddress(user.FormattedAddress()), sdk.AccAddress(toAddress), amount)
 
 	txResp, err := user.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, msg)
 

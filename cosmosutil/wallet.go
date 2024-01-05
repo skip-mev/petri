@@ -25,7 +25,7 @@ type EncodingConfig struct {
 }
 
 type InteractingWallet struct {
-	wallet petritypes.WalletI
+	petritypes.WalletI
 
 	chain          petritypes.ChainI
 	encodingConfig EncodingConfig
@@ -33,7 +33,7 @@ type InteractingWallet struct {
 
 func NewInteractingWallet(network petritypes.ChainI, wallet petritypes.WalletI, encodingConfig EncodingConfig) *InteractingWallet {
 	return &InteractingWallet{
-		wallet:         wallet,
+		WalletI:        wallet,
 		chain:          network,
 		encodingConfig: encodingConfig,
 	}
@@ -70,13 +70,13 @@ func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking b
 }
 
 func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.Coins, msgs ...sdk.Msg) (sdk.Tx, error) {
-	privateKey, err := w.wallet.PrivateKey()
+	privateKey, err := w.PrivateKey()
 
 	if err != nil {
 		return nil, err
 	}
 
-	publicKey, err := w.wallet.PublicKey()
+	publicKey, err := w.PublicKey()
 
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx) (*sdk.Tx
 		return nil, err
 	}
 
-	cc, err := w.chain.GetGPRCClient()
+	cc, err := w.chain.GetGRPCClient(ctx)
 
 	if err != nil {
 		return nil, err
@@ -173,7 +173,7 @@ func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx) (*sdk.Tx
 }
 
 func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount, error) {
-	cc, err := w.chain.GetGPRCClient()
+	cc, err := w.chain.GetGRPCClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount
 	authClient := authtypes.NewQueryClient(cc)
 
 	res, err := authClient.Account(ctx, &authtypes.QueryAccountRequest{
-		Address: w.wallet.FormattedAddress(),
+		Address: w.FormattedAddress(),
 	})
 
 	if err != nil {
@@ -204,7 +204,7 @@ func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount
 func (w *InteractingWallet) getTxResponse(ctx context.Context, txHash string) (sdk.TxResponse, error) {
 	var txResp sdk.TxResponse
 
-	cc, err := w.chain.GetTMClient()
+	cc, err := w.chain.GetTMClient(ctx)
 
 	if err != nil {
 		return sdk.TxResponse{}, err

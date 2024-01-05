@@ -7,7 +7,7 @@ import (
 )
 
 func (c *ChainClient) Account(ctx context.Context, address string) (sdk.AccountI, error) {
-	authClient, err := c.getAuthClient()
+	authClient, err := c.getAuthClient(ctx)
 
 	if err != nil {
 		return nil, err
