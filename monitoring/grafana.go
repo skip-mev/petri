@@ -12,6 +12,7 @@ const DEFAULT_PROMETHEUS_URL = "http://prometheus:9090"
 
 type GrafanaOptions struct {
 	PrometheusURL string
+	DashboardJSON string
 }
 
 //go:embed files/grafana/config/config.ini
@@ -22,9 +23,6 @@ var grafanaDatasourceTemplate string
 
 //go:embed files/grafana/config/dashboards.yml
 var grafanaDashboardProvisioningConfig string
-
-//go:embed files/grafana/config/dashboard.json
-var grafanaDashboardJSON string
 
 func SetupGrafanaTask(ctx context.Context, p provider.Provider, opts GrafanaOptions) (*provider.Task, error) {
 	task, err := provider.CreateTask(ctx, p, provider.TaskDefinition{
@@ -78,7 +76,7 @@ func SetupGrafanaTask(ctx context.Context, p provider.Provider, opts GrafanaOpti
 		return nil, err
 	}
 
-	err = task.WriteFile(ctx, "conf/provisioning/dashboards/dashboard.json", []byte(grafanaDashboardJSON))
+	err = task.WriteFile(ctx, "conf/provisioning/dashboards/dashboard.json", []byte(opts.DashboardJSON))
 
 	if err != nil {
 		return nil, err
