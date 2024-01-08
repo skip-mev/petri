@@ -24,6 +24,7 @@ func recursiveModifyToml(c map[string]any, modifications Toml) error {
 			}
 			// Retrieve existing config to apply overrides to.
 			cVM, ok := cV.(map[string]any)
+
 			if !ok {
 				return fmt.Errorf("failed to convert section to (map[string]any), found (%T)", cV)
 			}
@@ -59,7 +60,12 @@ func GenerateDefaultConsensusConfig() Toml {
 	consensusConfig["timeout_commit"] = blockTime
 	consensusConfig["timeout_propose"] = blockTime
 
-	cometBftConfig["consensusConfig"] = consensusConfig
+	cometBftConfig["consensus"] = consensusConfig
+
+	instrumentationConfig := make(Toml)
+	instrumentationConfig["prometheus"] = true
+
+	cometBftConfig["instrumentation"] = instrumentationConfig
 
 	rpc := make(Toml)
 
