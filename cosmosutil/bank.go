@@ -167,13 +167,7 @@ func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (
 // bank transactions
 
 func (c *ChainClient) BankSend(ctx context.Context, user InteractingWallet, toAddress string, amount sdk.Coins, blocking bool) (*sdk.TxResponse, error) {
-	msg := banktypes.NewMsgSend(sdk.AccAddress(user.FormattedAddress()), sdk.AccAddress(toAddress), amount)
+	msg := banktypes.NewMsgSend(sdk.MustAccAddressFromBech32(user.FormattedAddress()), sdk.MustAccAddressFromBech32(toAddress), amount)
 
-	txResp, err := user.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, msg)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return txResp, nil
+	return user.CreateAndBroadcastTx(ctx, blocking, 100000, sdk.Coins{}, 0, msg)
 }

@@ -15,6 +15,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	petritypes "github.com/skip-mev/petri/types"
 	"github.com/skip-mev/petri/util"
+	"strings"
 	"time"
 )
 
@@ -39,37 +40,44 @@ func NewInteractingWallet(network petritypes.ChainI, wallet petritypes.WalletI, 
 	}
 }
 
-func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking bool, gas uint64, fees sdk.Coins, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
-	tx, err := w.CreateTx(ctx, gas, fees, msgs...)
+func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking bool, gas uint64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
+	tx, err := w.CreateSignedTx(ctx, gas, fees, timeoutHeight, msgs...)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if !blocking {
-		return w.BroadcastTx(ctx, tx)
-	}
-
-	checkTxResp, err := w.BroadcastTx(ctx, tx)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if checkTxResp.Code != 0 {
-		return checkTxResp, fmt.Errorf("checkTx for the transaction failed with error code: %d", checkTxResp.Code)
-	}
-
-	txResp, err := w.getTxResponse(ctx, checkTxResp.TxHash)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &txResp, nil
+	return w.BroadcastTx(ctx, tx, blocking)
 }
 
-func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.Coins, msgs ...sdk.Msg) (sdk.Tx, error) {
+func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas uint64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
+	tx, err := w.CreateTx(ctx, gas, fees, timeoutHeight, msgs...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return w.SignTx(ctx, tx, 0)
+}
+
+func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
+	txFactory := w.encodingConfig.TxConfig.NewTxBuilder()
+
+	err := txFactory.SetMsgs(msgs...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	txFactory.SetGasLimit(gas)
+	txFactory.SetFeeAmount(fees)
+	txFactory.SetMemo("")
+	txFactory.SetTimeoutHeight(timeoutHeight)
+
+	return txFactory.GetTx(), nil
+}
+
+func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, sequenceIncrement uint64) (sdk.Tx, error) {
 	privateKey, err := w.PrivateKey()
 
 	if err != nil {
@@ -88,17 +96,11 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.C
 		return nil, err
 	}
 
-	txFactory := w.encodingConfig.TxConfig.NewTxBuilder()
-
-	err = txFactory.SetMsgs(msgs...)
+	txFactory, err := w.encodingConfig.TxConfig.WrapTxBuilder(tx)
 
 	if err != nil {
 		return nil, err
 	}
-
-	txFactory.SetGasLimit(gas)
-	txFactory.SetFeeAmount(fees)
-	txFactory.SetMemo("")
 
 	err = txFactory.SetSignatures(signing.SignatureV2{
 		PubKey: publicKey,
@@ -106,6 +108,7 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.C
 			SignMode:  signing.SignMode(w.encodingConfig.TxConfig.SignModeHandler().DefaultMode()),
 			Signature: nil,
 		},
+		Sequence: accInfo.GetSequence() + sequenceIncrement,
 	})
 
 	if err != nil {
@@ -115,7 +118,8 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.C
 	signerData := xauthsigning.SignerData{
 		ChainID:       w.chain.GetConfig().ChainId,
 		AccountNumber: accInfo.GetAccountNumber(),
-		Sequence:      accInfo.GetSequence(),
+		Sequence:      accInfo.GetSequence() + sequenceIncrement,
+		PubKey:        publicKey,
 	}
 
 	sigV2, err := clienttx.SignWithPrivKey(
@@ -125,7 +129,7 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.C
 		txFactory,
 		privateKey,
 		w.encodingConfig.TxConfig,
-		accInfo.GetSequence(),
+		accInfo.GetSequence()+sequenceIncrement,
 	)
 
 	if err != nil {
@@ -141,7 +145,7 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.C
 	return txFactory.GetTx(), nil
 }
 
-func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx) (*sdk.TxResponse, error) {
+func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx, blocking bool) (*sdk.TxResponse, error) {
 	txBytes, err := w.chain.GetTxConfig().TxEncoder()(tx)
 
 	if err != nil {
@@ -160,16 +164,34 @@ func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx) (*sdk.Tx
 		return nil, err
 	}
 
-	res, err := txClient.BroadcastTx(ctx, &txtypes.BroadcastTxRequest{
+	checkTxResp, err := txClient.BroadcastTx(ctx, &txtypes.BroadcastTxRequest{
 		TxBytes: txBytes,
 		Mode:    txtypes.BroadcastMode_BROADCAST_MODE_SYNC,
 	})
 
 	if err != nil {
+		return checkTxResp.TxResponse, err
+	}
+
+	if checkTxResp.TxResponse.Code != 0 {
+		return checkTxResp.TxResponse, fmt.Errorf("checkTx for the transaction failed with error code: %d", checkTxResp.TxResponse.Code)
+	}
+
+	if !blocking {
+		return checkTxResp.TxResponse, nil
+	}
+
+	if err != nil {
 		return nil, err
 	}
 
-	return res.TxResponse, nil
+	txResp, err := w.getTxResponse(ctx, checkTxResp.TxResponse.TxHash)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &txResp, nil
 }
 
 func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount, error) {
@@ -190,7 +212,9 @@ func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount
 		return nil, err
 	}
 
-	var acc authtypes.BaseAccount
+	var acc sdk.AccountI
+
+	authtypes.RegisterInterfaces(w.encodingConfig.InterfaceRegistry)
 
 	err = w.encodingConfig.InterfaceRegistry.UnpackAny(res.Account, &acc)
 
@@ -198,7 +222,12 @@ func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount
 		return nil, err
 	}
 
-	return &acc, nil
+	p, _ := acc.(*authtypes.BaseAccount)
+	if err != nil {
+		return nil, fmt.Errorf("failed converting account to baseaccount")
+	}
+
+	return p, nil
 }
 
 func (w *InteractingWallet) getTxResponse(ctx context.Context, txHash string) (sdk.TxResponse, error) {
@@ -210,11 +239,15 @@ func (w *InteractingWallet) getTxResponse(ctx context.Context, txHash string) (s
 		return sdk.TxResponse{}, err
 	}
 
-	clientCtx := client.Context{Client: cc}
+	clientCtx := client.Context{Client: cc, TxConfig: w.chain.GetTxConfig()}
 	err = util.WaitForCondition(ctx, time.Second*60, time.Second*1, func() (bool, error) {
 		res, err := authtx.QueryTx(clientCtx, txHash)
 
 		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				return false, nil
+			}
+
 			return false, err
 		}
 
