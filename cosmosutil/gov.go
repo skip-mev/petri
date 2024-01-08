@@ -182,7 +182,7 @@ func (c *ChainClient) GovTallyResult(ctx context.Context, proposalID uint64) (*g
 func (c *ChainClient) GovVoteOnProposal(ctx context.Context, proposalID uint64, voter InteractingWallet, option govtypes.VoteOption) (*sdk.TxResponse, error) {
 	msg := govtypes.NewMsgVote(sdk.AccAddress(voter.FormattedAddress()), proposalID, option, "")
 
-	txResp, err := voter.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, msg)
+	txResp, err := voter.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, 0, msg)
 
 	if err != nil {
 		return nil, err
@@ -194,7 +194,7 @@ func (c *ChainClient) GovVoteOnProposal(ctx context.Context, proposalID uint64, 
 func (c *ChainClient) GovDepositOnProposal(ctx context.Context, proposalID uint64, depositor InteractingWallet, amount sdk.Coins) (*sdk.TxResponse, error) {
 	msg := govtypes.NewMsgDeposit(sdk.AccAddress(depositor.FormattedAddress()), proposalID, amount)
 
-	txResp, err := depositor.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, msg)
+	txResp, err := depositor.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, 0, msg)
 
 	if err != nil {
 		return nil, err
@@ -214,7 +214,7 @@ func (c *ChainClient) GovSubmitProposal(ctx context.Context, proposer *Interacti
 		return nil, err
 	}
 
-	txResp, err := proposer.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, msg)
+	txResp, err := proposer.CreateAndBroadcastTx(ctx, true, 0, sdk.Coins{}, 0, msg)
 
 	if err != nil {
 		return nil, err
