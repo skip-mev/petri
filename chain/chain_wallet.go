@@ -19,7 +19,7 @@ func (c *Chain) BuildWallet(ctx context.Context, keyName, mnemonic string) (petr
 		return nil, fmt.Errorf("failed to recover key with name %q on chain %s: %w", keyName, c.Config.ChainId, err)
 	}
 
-	coinType, err := hd.NewParamsFromPath(c.Config.CoinType)
+	coinType, err := hd.NewParamsFromPath(c.Config.HDPath)
 
 	if err != nil {
 		return nil, err

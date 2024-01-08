@@ -11,7 +11,7 @@ import (
 )
 
 func (n *Node) CreateWallet(ctx context.Context, name string) (petritypes.WalletI, error) {
-	coinType, err := hd.NewParamsFromPath(n.chain.GetConfig().CoinType)
+	coinType, err := hd.NewParamsFromPath(n.chain.GetConfig().HDPath)
 
 	if err != nil {
 		return nil, err
@@ -42,6 +42,7 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 	}
 
 	_, _, err := n.RunCommand(ctx, command)
+
 	return err
 }
 

@@ -32,6 +32,8 @@ var _ petritypes.ChainI = &Chain{}
 func CreateChain(ctx context.Context, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
 	var chain Chain
 
+	chain.Config = config
+
 	validators := make([]petritypes.NodeI, 0)
 	nodes := make([]petritypes.NodeI, 0)
 
@@ -86,13 +88,13 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	block, err := client.Block(context.Background(), nil)
+	block, err := client.Status(context.Background())
 
 	if err != nil {
 		return 0, err
 	}
 
-	return uint64(block.Block.Height), nil
+	return uint64(block.SyncInfo.LatestBlockHeight), nil
 }
 
 func (c *Chain) Init(ctx context.Context) error {
@@ -259,6 +261,22 @@ func (c *Chain) Init(ctx context.Context) error {
 	return nil
 }
 
+func (c *Chain) Teardown(ctx context.Context) error {
+	for _, v := range c.Validators {
+		if err := v.GetTask().Destroy(ctx, true); err != nil {
+			return err
+		}
+	}
+
+	for _, n := range c.Nodes {
+		if err := n.GetTask().Destroy(ctx, true); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *Chain) PeerStrings(ctx context.Context) (string, error) {
 	peerStrings := []string{}
 
@@ -324,6 +342,35 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 
 		time.Sleep(2 * time.Second)
 	}
+	return nil
+}
+
+func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
+	height, err := c.Height(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		if height >= desiredHeight {
+			break
+		}
+
+		height, err = c.Height(ctx)
+		if err != nil {
+			continue
+		}
+
+		// We assume the chain will eventually return a non-zero height, otherwise
+		// this may block indefinitely.
+		if height == 0 {
+			continue
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
 	return nil
 }
 

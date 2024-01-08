@@ -11,6 +11,7 @@ import (
 
 type ChainI interface {
 	Init(context.Context) error
+	Teardown(context.Context) error
 
 	GetConfig() ChainConfig
 	GetGRPCClient(context.Context) (*grpc.ClientConn, error)
@@ -25,6 +26,7 @@ type ChainI interface {
 
 	Height(context.Context) (uint64, error)
 	WaitForBlocks(ctx context.Context, delta uint64) error
+	WaitForHeight(ctx context.Context, desiredHeight uint64) error
 }
 
 type ChainConfig struct {
@@ -51,6 +53,7 @@ type ChainConfig struct {
 	SidecarArgs    []string
 
 	CoinType string
+	HDPath   string
 	ChainId  string
 
 	ModifyGenesis GenesisModifier

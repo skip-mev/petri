@@ -71,7 +71,7 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 
 	var command []string
 
-	command = append(command, "genesis", "gentx", petritypes.FaucetAccountKeyName, fmt.Sprintf("%d%s", genesisSelfDelegation.Amount.Int64(), genesisSelfDelegation.Denom),
+	command = append(command, "genesis", "gentx", petritypes.ValidatorKeyName, fmt.Sprintf("%d%s", genesisSelfDelegation.Amount.Int64(), genesisSelfDelegation.Denom),
 		"--keyring-backend", keyring.BackendTest,
 		"--chain-id", chainConfig.ChainId)
 
