@@ -88,7 +88,7 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	block, err := client.Status(context.Background())
+	status, err := client.Status(context.Background())
 
 	if err != nil {
 		return 0, err
