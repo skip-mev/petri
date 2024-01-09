@@ -22,7 +22,7 @@ func (c *ChainClient) Account(ctx context.Context, address string) (sdk.AccountI
 		return nil, err
 	}
 
-	var acc authtypes.AccountI
+	var acc sdk.AccountI
 
 	err = c.EncodingConfig.InterfaceRegistry.UnpackAny(res.Account, &acc)
 
