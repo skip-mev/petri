@@ -4,11 +4,12 @@ import (
 	"context"
 	sdkmath "cosmossdk.io/math"
 	"fmt"
-	"github.com/cometbft/cometbft/rpc/client"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/skip-mev/petri/provider"
 	petritypes "github.com/skip-mev/petri/types"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"math"
@@ -18,6 +19,8 @@ import (
 
 type Chain struct {
 	Config petritypes.ChainConfig
+
+	logger *zap.Logger
 
 	Validators []petritypes.NodeI
 	Nodes      []petritypes.NodeI
@@ -29,17 +32,26 @@ type Chain struct {
 
 var _ petritypes.ChainI = &Chain{}
 
-func CreateChain(ctx context.Context, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
+func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
 	var chain Chain
 
 	chain.Config = config
+	chain.logger = logger.Named("chain").With(zap.String("chain_id", config.ChainId))
+
+	chain.logger.Info("creating chain")
 
 	validators := make([]petritypes.NodeI, 0)
 	nodes := make([]petritypes.NodeI, 0)
 
+	chain.logger.Info("creating validators", zap.Int("num_validators", config.NumValidators))
+
 	for i := 0; i < config.NumValidators; i++ {
-		validator, err := config.NodeCreator(ctx, petritypes.NodeConfig{
-			Name:        fmt.Sprintf("%s-validator-%d", config.ChainId, i),
+		validatorName := fmt.Sprintf("%s-validator-%d", config.ChainId, i)
+
+		logger.Info("creating validator", zap.String("name", validatorName))
+
+		validator, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+			Name:        validatorName,
 			IsValidator: true,
 			Provider:    infraProvider,
 			Chain:       &chain,
@@ -52,9 +64,15 @@ func CreateChain(ctx context.Context, infraProvider provider.Provider, config pe
 		validators = append(validators, validator)
 	}
 
+	logger.Info("creating nodes", zap.Int("num_nodes", config.NumNodes))
+
 	for i := 0; i < config.NumNodes; i++ {
-		node, err := config.NodeCreator(ctx, petritypes.NodeConfig{
-			Name:        fmt.Sprintf("%s-node-%d", config.ChainId, i),
+		nodeName := fmt.Sprintf("%s-node-%d", config.ChainId, i)
+
+		logger.Info("creating node", zap.String("name", nodeName))
+
+		node, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+			Name:        nodeName,
 			IsValidator: true,
 			Provider:    infraProvider,
 			Chain:       &chain,
@@ -83,6 +101,8 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 	node := c.GetFullNode()
 
 	client, err := node.GetTMClient(ctx)
+
+	c.logger.Debug("fetching height from", zap.String("node", node.GetTask().Definition.Name), zap.String("ip", client.Remote()))
 
 	if err != nil {
 		return 0, err
@@ -262,6 +282,8 @@ func (c *Chain) Init(ctx context.Context) error {
 }
 
 func (c *Chain) Teardown(ctx context.Context) error {
+	c.logger.Info("tearing down chain", zap.String("name", c.Config.ChainId))
+
 	for _, v := range c.Validators {
 		if err := v.GetTask().Destroy(ctx, true); err != nil {
 			return err
@@ -303,7 +325,7 @@ func (c *Chain) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 	return c.GetFullNode().GetGRPCClient(ctx)
 }
 
-func (c *Chain) GetTMClient(ctx context.Context) (client.Client, error) {
+func (c *Chain) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 	return c.GetFullNode().GetTMClient(ctx)
 }
 
@@ -317,6 +339,8 @@ func (c *Chain) GetFullNode() petritypes.NodeI {
 }
 
 func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
+	c.logger.Info("waiting for blocks", zap.Uint64("delta", delta))
+
 	start, err := c.Height(ctx)
 
 	if err != nil {
@@ -326,17 +350,21 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 	cur := start
 
 	for {
+		c.logger.Debug("waiting for blocks", zap.Uint64("desired_delta", delta), zap.Uint64("current_delta", cur-start))
+
 		if cur-start >= delta {
 			break
 		}
 
 		cur, err = c.Height(ctx)
 		if err != nil {
+			time.Sleep(2 * time.Second)
 			continue
 		}
 		// We assume the chain will eventually return a non-zero height, otherwise
 		// this may block indefinitely.
 		if cur == 0 {
+			time.Sleep(2 * time.Second)
 			continue
 		}
 
@@ -346,6 +374,8 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 }
 
 func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
+	c.logger.Info("waiting for height", zap.Uint64("desired_height", desiredHeight))
+
 	height, err := c.Height(ctx)
 
 	if err != nil {
@@ -353,18 +383,22 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 	}
 
 	for {
+		c.logger.Debug("waiting for height", zap.Uint64("desired_height", desiredHeight), zap.Uint64("current_height", height))
+
 		if height >= desiredHeight {
 			break
 		}
 
 		height, err = c.Height(ctx)
 		if err != nil {
+			time.Sleep(2 * time.Second)
 			continue
 		}
 
 		// We assume the chain will eventually return a non-zero height, otherwise
 		// this may block indefinitely.
 		if height == 0 {
+			time.Sleep(2 * time.Second)
 			continue
 		}
 

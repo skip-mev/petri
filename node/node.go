@@ -5,10 +5,10 @@ import (
 	"fmt"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/p2p"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	libclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	"github.com/skip-mev/petri/provider"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"time"
@@ -19,13 +19,22 @@ import (
 type Node struct {
 	*provider.Task
 
-	isValidator bool
-	chain       petritypes.ChainI
+	logger *zap.Logger
+	config petritypes.NodeConfig
+	chain  petritypes.ChainI
 }
 
 var _ petritypes.NodeCreator = CreateNode
 
-func CreateNode(ctx context.Context, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
+func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
+	var node Node
+
+	node.logger = logger.Named("node")
+	node.chain = nodeConfig.Chain
+	node.config = nodeConfig
+
+	node.logger.Info("creating node", zap.String("name", nodeConfig.Name))
+
 	chainConfig := nodeConfig.Chain.GetConfig()
 
 	var sidecars []provider.TaskDefinition
@@ -50,24 +59,23 @@ func CreateNode(ctx context.Context, nodeConfig petritypes.NodeConfig) (petrityp
 		Entrypoint:    []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
 		DataDir:       chainConfig.HomeDir,
 	}
-	task, err := provider.CreateTask(ctx, nodeConfig.Provider, def)
+
+	task, err := provider.CreateTask(ctx, node.logger, nodeConfig.Provider, def)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Node{
-		isValidator: true,
-		chain:       nodeConfig.Chain,
-		Task:        task,
-	}, nil
+	node.Task = task
+
+	return &node, nil
 }
 
 func (n *Node) GetTask() *provider.Task {
 	return n.Task
 }
 
-func (n *Node) GetTMClient(ctx context.Context) (rpcclient.Client, error) {
+func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 	addr, err := n.Task.GetExternalAddress(ctx, "26657/tcp")
 
 	if err != nil {
@@ -106,6 +114,7 @@ func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 }
 
 func (n *Node) Height(ctx context.Context) (uint64, error) {
+	n.logger.Debug("getting height", zap.String("node", n.Definition.Name))
 	client, err := n.GetTMClient(ctx)
 
 	if err != nil {
@@ -145,4 +154,8 @@ func (n *Node) BinCommand(command ...string) []string {
 	return append(command,
 		"--home", chainConfig.HomeDir,
 	)
+}
+
+func (n *Node) GetConfig() petritypes.NodeConfig {
+	return n.config
 }

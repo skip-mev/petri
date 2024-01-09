@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"net"
 
 	"github.com/docker/docker/api/types"
@@ -12,6 +13,7 @@ import (
 type Listeners []net.Listener
 
 func (p *Provider) createNetwork(ctx context.Context, networkName string) (string, error) {
+	p.logger.Info("creating network", zap.String("name", networkName))
 	network, err := p.dockerClient.NetworkCreate(ctx, networkName, types.NetworkCreate{
 		Scope:  "local",
 		Driver: "bridge",
@@ -36,6 +38,7 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (strin
 }
 
 func (p *Provider) destroyNetwork(ctx context.Context, networkID string) error {
+	p.logger.Info("destroying network", zap.String("id", networkID))
 	if err := p.dockerClient.NetworkRemove(ctx, networkID); err != nil {
 		return err
 	}

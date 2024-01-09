@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"fmt"
 	"github.com/skip-mev/petri/provider"
+	"go.uber.org/zap"
 	"strings"
 	"text/template"
 )
@@ -17,8 +18,8 @@ type PrometheusOptions struct {
 	Targets []string
 }
 
-func SetupPrometheusTask(ctx context.Context, p provider.Provider, opts PrometheusOptions) (*provider.Task, error) {
-	task, err := provider.CreateTask(ctx, p, provider.TaskDefinition{
+func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts PrometheusOptions) (*provider.Task, error) {
+	task, err := provider.CreateTask(ctx, logger, p, provider.TaskDefinition{
 		Name: "prometheus",
 		Image: provider.ImageDefinition{
 			Image: "prom/prometheus:latest",

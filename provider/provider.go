@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"go.uber.org/zap"
 )
 
 type TaskStatus int
@@ -20,12 +21,14 @@ type Task struct {
 	Definition TaskDefinition
 	Sidecars   []*Task
 
+	logger *zap.Logger
+
 	PreStart func(context.Context, *Task) error
 	PostStop func(context.Context, *Task) error
 }
 
 type Provider interface {
-	CreateTask(context.Context, TaskDefinition) (string, error)
+	CreateTask(context.Context, *zap.Logger, TaskDefinition) (string, error)
 	StartTask(context.Context, string) error
 	StopTask(context.Context, string) error
 	DestroyTask(context.Context, string) error
