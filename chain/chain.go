@@ -94,7 +94,7 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	return uint64(block.SyncInfo.LatestBlockHeight), nil
+	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
 func (c *Chain) Init(ctx context.Context) error {
