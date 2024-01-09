@@ -2,7 +2,7 @@ package types
 
 import (
 	"context"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/skip-mev/petri/provider"
@@ -15,7 +15,7 @@ type ChainI interface {
 
 	GetConfig() ChainConfig
 	GetGRPCClient(context.Context) (*grpc.ClientConn, error)
-	GetTMClient(context.Context) (rpcclient.Client, error)
+	GetTMClient(context.Context) (*rpchttp.HTTP, error)
 	GetTxConfig() client.TxConfig
 
 	GetValidators() []NodeI

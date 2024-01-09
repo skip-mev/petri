@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"github.com/skip-mev/petri/provider"
+	"go.uber.org/zap"
 	"text/template"
 )
 
@@ -24,8 +25,8 @@ var grafanaDatasourceTemplate string
 //go:embed files/grafana/config/dashboards.yml
 var grafanaDashboardProvisioningConfig string
 
-func SetupGrafanaTask(ctx context.Context, p provider.Provider, opts GrafanaOptions) (*provider.Task, error) {
-	task, err := provider.CreateTask(ctx, p, provider.TaskDefinition{
+func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts GrafanaOptions) (*provider.Task, error) {
+	task, err := provider.CreateTask(ctx, logger, p, provider.TaskDefinition{
 		Name: "grafana",
 		Image: provider.ImageDefinition{
 			Image: "grafana/grafana:latest",
