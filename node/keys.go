@@ -8,9 +8,11 @@ import (
 	petritypes "github.com/skip-mev/petri/types"
 	"github.com/skip-mev/petri/util"
 	"github.com/skip-mev/petri/wallet"
+	"go.uber.org/zap"
 )
 
 func (n *Node) CreateWallet(ctx context.Context, name string) (petritypes.WalletI, error) {
+	n.logger.Info("creating wallet", zap.String("name", name))
 	coinType, err := hd.NewParamsFromPath(n.chain.GetConfig().HDPath)
 
 	if err != nil {
@@ -33,6 +35,7 @@ func (n *Node) CreateWallet(ctx context.Context, name string) (petritypes.Wallet
 }
 
 func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
+	n.logger.Info("recovering wallet", zap.String("name", name), zap.String("mnemonic", mnemonic))
 	chainConfig := n.chain.GetConfig()
 
 	command := []string{

@@ -2,9 +2,10 @@ package types
 
 import (
 	"context"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/skip-mev/petri/provider"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -17,10 +18,12 @@ type NodeConfig struct {
 	Provider provider.Provider
 }
 
-type NodeCreator func(context.Context, NodeConfig) (NodeI, error)
+type NodeCreator func(context.Context, *zap.Logger, NodeConfig) (NodeI, error)
 
 type NodeI interface {
-	GetTMClient(context.Context) (rpcclient.Client, error)
+	GetConfig() NodeConfig
+
+	GetTMClient(context.Context) (*rpchttp.HTTP, error)
 	GetGRPCClient(context.Context) (*grpc.ClientConn, error)
 	Height(context.Context) (uint64, error)
 

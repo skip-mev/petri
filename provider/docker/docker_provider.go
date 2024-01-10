@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"sync"
 
 	"github.com/docker/docker/client"
@@ -18,6 +19,7 @@ const (
 )
 
 type Provider struct {
+	logger            *zap.Logger
 	dockerClient      *client.Client
 	name              string
 	dockerNetworkID   string
@@ -26,7 +28,7 @@ type Provider struct {
 	listeners         map[string]Listeners
 }
 
-func NewDockerProvider(ctx context.Context, providerName string, dockerOpts ...client.Opt) (*Provider, error) {
+func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName string, dockerOpts ...client.Opt) (*Provider, error) {
 	dockerClient, err := client.NewClientWithOpts(dockerOpts...)
 	if err != nil {
 		return nil, err
@@ -41,6 +43,7 @@ func NewDockerProvider(ctx context.Context, providerName string, dockerOpts ...c
 	dockerProvider := &Provider{
 		dockerClient: dockerClient,
 		listeners:    map[string]Listeners{},
+		logger:       logger.Named("docker_provider"),
 		name:         providerName,
 	}
 
@@ -56,6 +59,7 @@ func NewDockerProvider(ctx context.Context, providerName string, dockerOpts ...c
 }
 
 func (p *Provider) Teardown(ctx context.Context) error {
+	p.logger.Info("tearing down Docker provider")
 	if err := p.teardownTasks(ctx); err != nil {
 		return err
 	}

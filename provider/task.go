@@ -4,12 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/skip-mev/petri/util"
 )
 
-func CreateTask(ctx context.Context, provider Provider, definition TaskDefinition) (*Task, error) {
+func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, definition TaskDefinition) (*Task, error) {
+	task := &Task{
+		Provider:   provider,
+		Definition: definition,
+		logger:     logger.Named("task"),
+	}
+
 	sidecarTasks := make([]*Task, 0)
 
 	for _, sidecar := range definition.Sidecars {
@@ -17,7 +24,7 @@ func CreateTask(ctx context.Context, provider Provider, definition TaskDefinitio
 			return nil, errors.New("sidecar cannot have sidecar")
 		}
 
-		id, err := provider.CreateTask(ctx, sidecar)
+		id, err := provider.CreateTask(ctx, task.logger, sidecar)
 		if err != nil {
 			return nil, err
 		}
@@ -27,20 +34,20 @@ func CreateTask(ctx context.Context, provider Provider, definition TaskDefinitio
 			Definition: sidecar,
 			ID:         id,
 			Sidecars:   make([]*Task, 0),
+			logger:     task.logger,
 		})
 	}
 
-	id, err := provider.CreateTask(ctx, definition)
+	task.Sidecars = sidecarTasks
+
+	id, err := provider.CreateTask(ctx, logger, definition)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Task{
-		Definition: definition,
-		Provider:   provider,
-		ID:         id,
-		Sidecars:   sidecarTasks,
-	}, nil
+	task.ID = id
+
+	return task, nil
 }
 
 func (t *Task) Start(ctx context.Context, startSidecars bool) error {
@@ -131,7 +138,7 @@ func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, e
 	modifiedDefinition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", t.Definition.Name, util.RandomString(5), time.Now().Unix())
 	modifiedDefinition.Ports = []string{}
 
-	task, err := t.Provider.CreateTask(ctx, modifiedDefinition)
+	task, err := t.Provider.CreateTask(ctx, t.logger, modifiedDefinition)
 	if err != nil {
 		return "", 0, err
 	}

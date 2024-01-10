@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
 	"os"
 	"path"
@@ -21,6 +22,8 @@ import (
 
 // CreateVolume is an idempotent operation
 func (p *Provider) CreateVolume(ctx context.Context, definition provider.VolumeDefinition) (string, error) {
+	p.logger.Debug("creating volume", zap.String("name", definition.Name), zap.String("size", definition.Size))
+
 	existingVolume, err := p.dockerClient.VolumeInspect(ctx, definition.Name)
 
 	if err == nil {
@@ -41,14 +44,22 @@ func (p *Provider) CreateVolume(ctx context.Context, definition provider.VolumeD
 }
 
 func (p *Provider) DestroyVolume(ctx context.Context, id string) error {
+	p.logger.Info("destroying volume", zap.String("id", id))
+
 	return p.dockerClient.VolumeRemove(ctx, id, true)
 }
 
 // taken from strangelove-ventures/interchain-test
 func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, content []byte) error {
+	logger := p.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
+
+	logger.Debug("writing file")
+
 	const mountPath = "/mnt/dockervolume"
 
 	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
+
+	logger.Debug("creating writefile container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
@@ -83,6 +94,8 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 	if err != nil {
 		return fmt.Errorf("creating container: %w", err)
 	}
+
+	logger.Debug("created writefile container", zap.String("id", cc.ID))
 
 	autoRemoved := false
 	defer func() {
@@ -120,6 +133,8 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 		return fmt.Errorf("closing tar writer: %w", err)
 	}
 
+	logger.Debug("copying file to container")
+
 	if err := p.dockerClient.CopyToContainer(
 		ctx,
 		cc.ID,
@@ -130,6 +145,7 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 		return fmt.Errorf("copying tar to container: %w", err)
 	}
 
+	logger.Debug("starting writefile container")
 	if err := p.dockerClient.ContainerStart(ctx, cc.ID, types.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("starting write-file container: %w", err)
 	}
@@ -156,9 +172,13 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 }
 
 func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]byte, error) {
+	logger := p.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
+
 	const mountPath = "/mnt/dockervolume"
 
 	containerName := fmt.Sprintf("petri-getfile-%d", time.Now().UnixNano())
+
+	logger.Debug("creating getfile container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
@@ -184,14 +204,18 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 		return nil, fmt.Errorf("creating container: %w", err)
 	}
 
+	logger.Debug("created getfile container", zap.String("id", cc.ID))
+
 	//defer func() {
 	//	if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 	//		Force: true,
 	//	}); err != nil {
+	//      logger.Error("failed cleaning up the getfile container", zap.Error(err))
 	//		// todo fix logging
 	//	}
 	//}()
 
+	logger.Debug("copying from container")
 	rc, _, err := p.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
 	if err != nil {
 		return nil, fmt.Errorf("copying from container: %w", err)
@@ -222,9 +246,13 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 }
 
 func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPath string) error {
+	logger := p.logger.With(zap.String("volume", volumeName), zap.String("path", relPath), zap.String("localPath", localPath))
+
 	const mountPath = "/mnt/dockervolume"
 
 	containerName := fmt.Sprintf("petri-getdir-%d", time.Now().UnixNano())
+
+	logger.Debug("creating getdir container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
@@ -255,10 +283,11 @@ func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPa
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// TODO fix logging
+			logger.Error("failed cleaning up the getdir container", zap.Error(err))
 		}
 	}()
 
+	logger.Debug("copying from container")
 	reader, _, err := p.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
 	if err != nil {
 		return err
@@ -299,9 +328,13 @@ func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPa
 }
 
 func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid string) error {
+	logger := p.logger.With(zap.String("volume", volumeName), zap.String("uid", uid), zap.String("gid", gid))
+
 	const mountPath = "/mnt/dockervolume"
 
 	containerName := fmt.Sprintf("petri-setowner-%d", time.Now().UnixNano())
+
+	logger.Debug("creating volume-owner container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
@@ -343,10 +376,11 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// TODO fix logging
+			logger.Error("failed cleaning up the volume-owner container", zap.Error(err))
 		}
 	}()
 
+	logger.Debug("starting volume-owner container")
 	if err := p.dockerClient.ContainerStart(ctx, cc.ID, types.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("starting volume-owner container: %w", err)
 	}
@@ -373,6 +407,8 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 }
 
 func (p *Provider) teardownVolumes(ctx context.Context) error {
+	p.logger.Debug("tearing down docker volumes")
+
 	volumes, err := p.dockerClient.VolumeList(ctx, volume.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.name))),
 	})

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
 	"net"
 	"time"
@@ -17,9 +18,12 @@ import (
 	"github.com/skip-mev/petri/provider"
 )
 
-func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefinition) (string, error) {
+func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
+	logger = logger.Named("docker_provider")
+
 	_, _, err := p.dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
 	if err != nil {
+		logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
 		if err := p.pullImage(ctx, definition); err != nil {
 			return "", err
 		}
@@ -33,8 +37,13 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	var mounts []mount.Mount
 
+	logger.Debug("creating task", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
+
 	if definition.DataDir != "" {
 		volumeName := fmt.Sprintf("%s-data", definition.Name)
+
+		logger.Debug("creating volume", zap.String("name", volumeName))
+
 		_, err = p.CreateVolume(ctx, provider.VolumeDefinition{
 			Name:      volumeName,
 			Size:      "10GB",
@@ -51,12 +60,16 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 			Target: definition.DataDir,
 		}
 
+		logger.Debug("setting volume owner", zap.String("name", volumeName), zap.String("uid", definition.Image.UID), zap.String("gid", definition.Image.GID))
+
 		if err = p.SetVolumeOwner(ctx, volumeName, definition.Image.UID, definition.Image.GID); err != nil {
 			return "", fmt.Errorf("failed to set volume owner: %v", err)
 		}
 
 		mounts = []mount.Mount{volumeMount}
 	}
+
+	logger.Debug("creating container", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
 
 	createdContainer, err := p.dockerClient.ContainerCreate(ctx, &container.Config{
 		Image:      definition.Image.Image,
@@ -85,6 +98,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 }
 
 func (p *Provider) pullImage(ctx context.Context, definition provider.TaskDefinition) error {
+	p.logger.Info("pulling image", zap.String("image", definition.Image.Image))
 	resp, err := p.dockerClient.ImagePull(ctx, definition.Image.Image, types.ImagePullOptions{})
 	if err != nil {
 		return err
@@ -101,6 +115,7 @@ func (p *Provider) pullImage(ctx context.Context, definition provider.TaskDefini
 }
 
 func (p *Provider) StartTask(ctx context.Context, id string) error {
+	p.logger.Info("starting task", zap.String("id", id))
 	p.networkMu.RLock()
 	defer p.networkMu.RUnlock()
 
@@ -129,6 +144,7 @@ func (p *Provider) StartTask(ctx context.Context, id string) error {
 }
 
 func (p *Provider) StopTask(ctx context.Context, id string) error {
+	p.logger.Info("stopping task", zap.String("id", id))
 	err := p.dockerClient.ContainerStop(ctx, id, container.StopOptions{})
 	if err != nil {
 		return err
@@ -138,6 +154,7 @@ func (p *Provider) StopTask(ctx context.Context, id string) error {
 }
 
 func (p *Provider) DestroyTask(ctx context.Context, id string) error {
+	p.logger.Info("destroying task", zap.String("id", id))
 	err := p.dockerClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
@@ -176,6 +193,8 @@ func (p *Provider) GetTaskStatus(ctx context.Context, id string) (provider.TaskS
 }
 
 func (p *Provider) RunCommand(ctx context.Context, id string, command []string) (string, int, error) {
+	p.logger.Debug("running command", zap.String("id", id), zap.Strings("command", command))
+
 	exec, err := p.dockerClient.ContainerExecCreate(ctx, id, types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
@@ -206,6 +225,8 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 }
 
 func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
+	p.logger.Debug("getting IP", zap.String("id", id))
+
 	container, err := p.dockerClient.ContainerInspect(ctx, id)
 	if err != nil {
 		return "", err
@@ -217,6 +238,8 @@ func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
 }
 
 func (p *Provider) GetExternalAddress(ctx context.Context, id string, port string) (string, error) {
+	p.logger.Debug("getting external address", zap.String("id", id), zap.String("port", port))
+
 	container, err := p.dockerClient.ContainerInspect(ctx, id)
 	if err != nil {
 		return "", err
@@ -234,6 +257,8 @@ func (p *Provider) GetExternalAddress(ctx context.Context, id string, port strin
 }
 
 func (p *Provider) teardownTasks(ctx context.Context) error {
+	p.logger.Info("tearing down tasks")
+
 	containers, err := p.dockerClient.ContainerList(ctx, types.ContainerListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.name))),
