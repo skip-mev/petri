@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/go-bip39"
@@ -14,6 +13,7 @@ type CosmosWallet struct {
 	privKey      cryptotypes.PrivKey
 	keyName      string
 	bech32Prefix string
+	signingAlgo  string
 }
 
 var _ petritypes.WalletI = &CosmosWallet{}
@@ -24,24 +24,25 @@ type WalletAmount struct {
 	Amount  math.Int
 }
 
-func NewWallet(keyname string, mnemonic string, bech32Prefix string, hdPath *hd.BIP44Params) (*CosmosWallet, error) {
-	derivedPrivKey, err := hd.Secp256k1.Derive()(mnemonic, "", hdPath.String())
+func NewWallet(keyname string, mnemonic string, config petritypes.WalletConfig) (*CosmosWallet, error) {
+	derivedPrivKey, err := config.DerivationFn(mnemonic, "", config.HDPath.String())
 
 	if err != nil {
 		return nil, err
 	}
 
-	privKey := hd.Secp256k1.Generate()(derivedPrivKey)
+	privKey := config.GenerationFn(derivedPrivKey)
 
 	return &CosmosWallet{
 		mnemonic:     mnemonic,
 		privKey:      privKey,
 		keyName:      keyname,
-		bech32Prefix: bech32Prefix,
+		signingAlgo:  config.SigningAlgorithm,
+		bech32Prefix: config.Bech32Prefix,
 	}, nil
 }
 
-func NewGeneratedWallet(keyname string, bech32Prefix string, hdPath *hd.BIP44Params) (*CosmosWallet, error) {
+func NewGeneratedWallet(keyname string, config petritypes.WalletConfig) (*CosmosWallet, error) {
 	entropy, err := bip39.NewEntropy(128)
 
 	if err != nil {
@@ -54,7 +55,7 @@ func NewGeneratedWallet(keyname string, bech32Prefix string, hdPath *hd.BIP44Par
 		return nil, err
 	}
 
-	return NewWallet(keyname, mnemonic, bech32Prefix, hdPath)
+	return NewWallet(keyname, mnemonic, config)
 }
 
 func (w *CosmosWallet) KeyName() string {
@@ -83,7 +84,7 @@ func (w *CosmosWallet) PrivateKey() (cryptotypes.PrivKey, error) {
 }
 
 func (w *CosmosWallet) SigningAlgo() string {
-	return "secp256k1"
+	return w.signingAlgo
 }
 
 func (w *CosmosWallet) Mnemonic() string {

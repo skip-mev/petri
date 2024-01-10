@@ -1,13 +1,11 @@
 package types
 
-import cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+import "github.com/cosmos/cosmos-sdk/crypto/hd"
 
-type WalletI interface {
-	FormattedAddress() string
-	KeyName() string
-	Address() []byte
-	FormattedAddressWithPrefix(prefix string) string
-	PublicKey() (cryptotypes.PubKey, error)
-	PrivateKey() (cryptotypes.PrivKey, error)
-	Mnemonic() string
+type WalletConfig struct {
+	DerivationFn     hd.DeriveFn
+	GenerationFn     hd.GenerateFn
+	Bech32Prefix     string
+	HDPath           *hd.BIP44Params
+	SigningAlgorithm string
 }

@@ -40,7 +40,7 @@ func NewInteractingWallet(network petritypes.ChainI, wallet petritypes.WalletI, 
 	}
 }
 
-func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking bool, gas uint64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
+func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking bool, gas int64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
 	tx, err := w.CreateSignedTx(ctx, gas, fees, timeoutHeight, msgs...)
 
 	if err != nil {
@@ -50,7 +50,7 @@ func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking b
 	return w.BroadcastTx(ctx, tx, blocking)
 }
 
-func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas uint64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
+func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
 	tx, err := w.CreateTx(ctx, gas, fees, timeoutHeight, msgs...)
 
 	if err != nil {
@@ -60,7 +60,7 @@ func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas uint64, fees
 	return w.SignTx(ctx, tx, 0)
 }
 
-func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
+func (w *InteractingWallet) CreateTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
 	txFactory := w.encodingConfig.TxConfig.NewTxBuilder()
 
 	err := txFactory.SetMsgs(msgs...)
@@ -69,7 +69,7 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas uint64, fees sdk.C
 		return nil, err
 	}
 
-	txFactory.SetGasLimit(gas)
+	txFactory.SetGasLimit(uint64(gas))
 	txFactory.SetFeeAmount(fees)
 	txFactory.SetMemo("")
 	txFactory.SetTimeoutHeight(timeoutHeight)
@@ -194,7 +194,7 @@ func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx, blocking
 	return &txResp, nil
 }
 
-func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount, error) {
+func (w *InteractingWallet) Account(ctx context.Context) (authtypes.AccountI, error) {
 	cc, err := w.chain.GetGRPCClient(ctx)
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount
 		return nil, err
 	}
 
-	var acc sdk.AccountI
+	var acc authtypes.AccountI
 
 	authtypes.RegisterInterfaces(w.encodingConfig.InterfaceRegistry)
 
@@ -222,12 +222,7 @@ func (w *InteractingWallet) Account(ctx context.Context) (*authtypes.BaseAccount
 		return nil, err
 	}
 
-	p, _ := acc.(*authtypes.BaseAccount)
-	if err != nil {
-		return nil, fmt.Errorf("failed converting account to baseaccount")
-	}
-
-	return p, nil
+	return acc, nil
 }
 
 func (w *InteractingWallet) getTxResponse(ctx context.Context, txHash string) (sdk.TxResponse, error) {

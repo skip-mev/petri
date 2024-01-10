@@ -44,5 +44,5 @@ type Provider interface {
 
 	Teardown(context.Context) error
 
-	RunCommand(context.Context, string, []string) (string, int, error)
+	RunCommand(context.Context, string, []string) (string, string, int, error)
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/docker/docker/pkg/stdcopy"
 	"go.uber.org/zap"
 	"io"
 	"net"
@@ -192,7 +193,7 @@ func (p *Provider) GetTaskStatus(ctx context.Context, id string) (provider.TaskS
 	return provider.TASK_STATUS_UNDEFINED, nil
 }
 
-func (p *Provider) RunCommand(ctx context.Context, id string, command []string) (string, int, error) {
+func (p *Provider) RunCommand(ctx context.Context, id string, command []string) (string, string, int, error) {
 	p.logger.Debug("running command", zap.String("id", id), zap.Strings("command", command))
 
 	exec, err := p.dockerClient.ContainerExecCreate(ctx, id, types.ExecConfig{
@@ -201,27 +202,26 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 		Cmd:          command,
 	})
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 
 	resp, err := p.dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 
 	defer resp.Close()
 
-	stdout, err := io.ReadAll(resp.Reader)
-	if err != nil {
-		return "", 0, err
-	}
-
 	execInspect, err := p.dockerClient.ContainerExecInspect(ctx, exec.ID)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 
-	return string(stdout), execInspect.ExitCode, nil
+	var stdout, stderr bytes.Buffer
+
+	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+
+	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
 }
 
 func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {

@@ -2,9 +2,11 @@ package cosmosutil
 
 import (
 	"context"
+	"encoding/hex"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/skip-mev/petri/types"
 )
 
 // bank queries
@@ -166,18 +168,18 @@ func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (
 
 // bank transactions
 
-func (c *ChainClient) BankSend(ctx context.Context, user InteractingWallet, toAddress string, amount sdk.Coins, blocking bool) (*sdk.TxResponse, error) {
-	fromAccAddress, err := sdk.AccAddressFromBech32(user.FormattedAddress())
+func (c *ChainClient) BankSend(ctx context.Context, user InteractingWallet, toAddress []byte, amount sdk.Coins, gasSettings types.GasSettings, blocking bool) (*sdk.TxResponse, error) {
+	fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(user.Address()))
 	if err != nil {
 		return nil, err
 	}
 
-	toAccAddress, err := sdk.AccAddressFromBech32(toAddress)
+	toAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(toAddress))
 	if err != nil {
 		return nil, err
 	}
 
 	msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
 
-	return user.CreateAndBroadcastTx(ctx, blocking, 100000, sdk.Coins{}, 0, msg)
+	return user.CreateAndBroadcastTx(ctx, blocking, gasSettings.Gas, GetFeeAmountsFromGasSettings(gasSettings), 0, msg)
 }

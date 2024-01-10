@@ -121,10 +121,10 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 	return t.Provider.GetExternalAddress(ctx, t.ID, port)
 }
 
-func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, error) {
+func (t *Task) RunCommand(ctx context.Context, command []string) (string, string, int, error) {
 	status, err := t.Provider.GetTaskStatus(ctx, t.ID)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 
 	if status == TASK_RUNNING {
@@ -140,22 +140,22 @@ func (t *Task) RunCommand(ctx context.Context, command []string) (string, int, e
 
 	task, err := t.Provider.CreateTask(ctx, t.logger, modifiedDefinition)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 
 	err = t.Provider.StartTask(ctx, task)
 	defer t.Provider.DestroyTask(ctx, task) // nolint:errcheck
 
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 
-	stdout, exitCode, err := t.Provider.RunCommand(ctx, task, command)
+	stdout, stderr, exitCode, err := t.Provider.RunCommand(ctx, task, command)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 
-	return stdout, exitCode, nil
+	return stdout, stderr, exitCode, nil
 }
 
 func (t *Task) GetStatus(ctx context.Context) (TaskStatus, error) {
