@@ -2,6 +2,7 @@ package cosmosutil
 
 import (
 	"context"
+	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
@@ -21,7 +22,7 @@ func (c *ChainClient) Account(ctx context.Context, address string) (sdk.AccountI
 		return nil, err
 	}
 
-	var acc authtypes.BaseAccount
+	var acc sdk.AccountI
 
 	err = c.EncodingConfig.InterfaceRegistry.UnpackAny(res.Account, &acc)
 
@@ -29,5 +30,11 @@ func (c *ChainClient) Account(ctx context.Context, address string) (sdk.AccountI
 		return nil, err
 	}
 
-	return &acc, nil
+	p, ok := acc.(*authtypes.BaseAccount)
+
+	if !ok {
+		return nil, fmt.Errorf("failed converting account to baseaccount")
+	}
+
+	return p, nil
 }
