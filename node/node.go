@@ -45,9 +45,9 @@ func CreateNode(ctx context.Context, nodeConfig petritypes.NodeConfig) (petrityp
 		Name:          nodeConfig.Name,
 		ContainerName: nodeConfig.Name,
 		Image:         chainConfig.Image,
-		Ports:         []string{"9090", "26656", "26657", "80"},
+		Ports:         []string{"9090", "26656", "26657", "26660", "80"},
 		Sidecars:      sidecars,
-		Command:       []string{"--home", chainConfig.HomeDir},
+		Entrypoint:    []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
 		DataDir:       chainConfig.HomeDir,
 	}
 	task, err := provider.CreateTask(ctx, nodeConfig.Provider, def)
