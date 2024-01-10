@@ -58,6 +58,8 @@ type ChainConfig struct {
 
 	ModifyGenesis GenesisModifier
 
+	WalletConfig WalletConfig
+
 	NodeCreator NodeCreator
 }
 

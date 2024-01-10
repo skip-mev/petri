@@ -7,7 +7,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	petritypes "github.com/skip-mev/petri/types"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -55,7 +54,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 			amount += ","
 		}
 
-		amount += fmt.Sprintf("%d%s", coin.Amount.Int64(), coin.Denom)
+		amount += fmt.Sprintf("%s%s", coin.Amount.String(), coin.Denom)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
@@ -63,10 +62,10 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 
 	var command []string
 
-	command = append(command, "genesis", "add-genesis-account", strings.Replace(address, ".", "", -1), amount)
+	command = append(command, "add-genesis-account", address, amount)
 	command = n.BinCommand(command...)
 
-	_, _, err := n.Task.RunCommand(ctx, command)
+	_, _, _, err := n.Task.RunCommand(ctx, command)
 
 	if err != nil {
 		return err
@@ -82,13 +81,17 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 
 	var command []string
 
-	command = append(command, "genesis", "gentx", petritypes.ValidatorKeyName, fmt.Sprintf("%d%s", genesisSelfDelegation.Amount.Int64(), genesisSelfDelegation.Denom),
+	command = append(command, "gentx", petritypes.ValidatorKeyName, fmt.Sprintf("%s%s", genesisSelfDelegation.Amount.String(), genesisSelfDelegation.Denom),
 		"--keyring-backend", keyring.BackendTest,
 		"--chain-id", chainConfig.ChainId)
 
 	command = n.BinCommand(command...)
 
-	_, _, err := n.Task.RunCommand(ctx, command)
+	_, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
+
+	if exitCode != 0 {
+		return fmt.Errorf("failed to generate genesis transaction: %s (exitcode=%d)", stderr, exitCode)
+	}
 
 	return err
 }
@@ -98,7 +101,7 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 
 	chainConfig := n.chain.GetConfig()
 
-	_, _, err := n.Task.RunCommand(ctx, n.BinCommand([]string{"genesis", "collect-gentxs", "--home", chainConfig.HomeDir}...))
+	_, _, _, err := n.Task.RunCommand(ctx, n.BinCommand([]string{"collect-gentxs", "--home", chainConfig.HomeDir}...))
 
 	return err
 }

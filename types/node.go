@@ -37,7 +37,7 @@ type NodeI interface {
 	GenesisFileContent(context.Context) ([]byte, error)
 	OverwriteGenesisFile(context.Context, []byte) error
 
-	CreateWallet(context.Context, string) (WalletI, error)
+	CreateWallet(context.Context, string, WalletConfig) (WalletI, error)
 	RecoverKey(context.Context, string, string) error
 	KeyBech32(context.Context, string, string) (string, error)
 

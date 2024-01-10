@@ -142,7 +142,7 @@ func (c *Chain) Init(ctx context.Context) error {
 				return err
 			}
 
-			validatorWallet, err := v.CreateWallet(ctx, petritypes.ValidatorKeyName)
+			validatorWallet, err := v.CreateWallet(ctx, petritypes.ValidatorKeyName, c.Config.WalletConfig)
 
 			if err != nil {
 				return err
@@ -150,7 +150,7 @@ func (c *Chain) Init(ctx context.Context) error {
 
 			c.ValidatorWallets[idx] = validatorWallet
 
-			bech32 := validatorWallet.FormattedAddress()
+			bech32, err := v.KeyBech32(ctx, petritypes.ValidatorKeyName, "acc")
 
 			if err != nil {
 				return err
@@ -184,7 +184,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		return err
 	}
 
-	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "")
+	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "", c.Config.WalletConfig)
 
 	if err != nil {
 		return err
@@ -207,6 +207,10 @@ func (c *Chain) Init(ctx context.Context) error {
 		}
 
 		if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
+			return err
+		}
+
+		if err := firstValidator.AddGenesisAccount(ctx, c.ValidatorWallets[i].FormattedAddress(), genesisAmounts); err != nil {
 			return err
 		}
 
