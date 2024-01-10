@@ -67,6 +67,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Labels: map[string]string{
 			providerLabelName: p.name,
 		},
+		Env: convertEnvMapToList(definition.Environment),
 	}, &container.HostConfig{
 		Mounts:          mounts,
 		PortBindings:    portBindings,
