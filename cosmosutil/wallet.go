@@ -123,7 +123,6 @@ func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, sequenceIncre
 	}
 
 	sigV2, err := clienttx.SignWithPrivKey(
-		ctx,
 		signing.SignMode(w.encodingConfig.TxConfig.SignModeHandler().DefaultMode()),
 		signerData,
 		txFactory,

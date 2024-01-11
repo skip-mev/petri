@@ -206,10 +206,10 @@ func (c *ChainClient) GovDepositOnProposal(ctx context.Context, proposalID uint6
 
 func (c *ChainClient) GovSubmitProposal(ctx context.Context, proposer *InteractingWallet,
 	messages []sdk.Msg, initialDeposit sdk.Coins, gasSettings types.GasSettings, metadata,
-	title, summary string, expedited bool) (*sdk.TxResponse, error) {
+	title, summary string) (*sdk.TxResponse, error) {
 
 	msg, err := govtypes.NewMsgSubmitProposal(
-		messages, initialDeposit, proposer.FormattedAddress(), metadata, title, summary, expedited)
+		messages, initialDeposit, proposer.FormattedAddress(), metadata, title, summary)
 
 	if err != nil {
 		return nil, err
