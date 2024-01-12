@@ -4,6 +4,7 @@ import (
 	"context"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/skip-mev/petri/provider"
 	"google.golang.org/grpc"
@@ -17,6 +18,7 @@ type ChainI interface {
 	GetGRPCClient(context.Context) (*grpc.ClientConn, error)
 	GetTMClient(context.Context) (*rpchttp.HTTP, error)
 	GetTxConfig() client.TxConfig
+	GetInterfaceRegistry() codectypes.InterfaceRegistry
 
 	GetValidators() []NodeI
 	GetFaucetWallet() WalletI
