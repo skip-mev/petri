@@ -2,24 +2,14 @@ module github.com/skip-mev/petri/chain
 
 go 1.21.3
 
-replace github.com/skip-mev/petri/node => ../node
-
-replace github.com/skip-mev/petri/types => ../types
-
-replace github.com/skip-mev/petri/wallet => ../wallet
-
-replace github.com/skip-mev/petri/util => ../util
-
-replace github.com/skip-mev/petri/provider => ../provider
-
 require (
 	cosmossdk.io/math v1.2.0
 	github.com/cometbft/cometbft v0.37.4
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0
-	github.com/skip-mev/petri/provider v0.0.0-00010101000000-000000000000
-	github.com/skip-mev/petri/types v0.0.0-00010101000000-000000000000
-	github.com/skip-mev/petri/wallet v0.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/provider v1.0.0
+	github.com/skip-mev/petri/types v1.0.0
+	github.com/skip-mev/petri/wallet v1.0.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.58.3
@@ -106,7 +96,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
-	github.com/skip-mev/petri/util v0.0.0-00010101000000-000000000000 // indirect
+	github.com/skip-mev/petri/util v1.0.0 // indirect
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.6.1 // indirect
