@@ -40,8 +40,8 @@ func NewInteractingWallet(network petritypes.ChainI, wallet petritypes.WalletI, 
 	}
 }
 
-func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking bool, gas int64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
-	tx, err := w.CreateSignedTx(ctx, gas, fees, timeoutHeight, msgs...)
+func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking bool, gas int64, fees sdk.Coins, timeoutHeight uint64, memo string, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
+	tx, err := w.CreateSignedTx(ctx, gas, fees, timeoutHeight, memo, msgs...)
 
 	if err != nil {
 		return nil, err
@@ -50,17 +50,23 @@ func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking b
 	return w.BroadcastTx(ctx, tx, blocking)
 }
 
-func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
-	tx, err := w.CreateTx(ctx, gas, fees, timeoutHeight, msgs...)
+func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, memo string, msgs ...sdk.Msg) (sdk.Tx, error) {
+	tx, err := w.CreateTx(ctx, gas, fees, timeoutHeight, memo, msgs...)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return w.SignTx(ctx, tx, 0)
+	acc, err := w.Account(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return w.SignTx(ctx, tx, acc.GetAccountNumber(), acc.GetSequence())
 }
 
-func (w *InteractingWallet) CreateTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
+func (w *InteractingWallet) CreateTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, memo string, msgs ...sdk.Msg) (sdk.Tx, error) {
 	txFactory := w.encodingConfig.TxConfig.NewTxBuilder()
 
 	err := txFactory.SetMsgs(msgs...)
@@ -71,13 +77,13 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas int64, fees sdk.Co
 
 	txFactory.SetGasLimit(uint64(gas))
 	txFactory.SetFeeAmount(fees)
-	txFactory.SetMemo("")
+	txFactory.SetMemo(memo)
 	txFactory.SetTimeoutHeight(timeoutHeight)
 
 	return txFactory.GetTx(), nil
 }
 
-func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, sequenceIncrement uint64) (sdk.Tx, error) {
+func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, accNum, sequence uint64) (sdk.Tx, error) {
 	privateKey, err := w.PrivateKey()
 
 	if err != nil {
@@ -85,12 +91,6 @@ func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, sequenceIncre
 	}
 
 	publicKey, err := w.PublicKey()
-
-	if err != nil {
-		return nil, err
-	}
-
-	accInfo, err := w.Account(ctx)
 
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, sequenceIncre
 			SignMode:  signing.SignMode(w.encodingConfig.TxConfig.SignModeHandler().DefaultMode()),
 			Signature: nil,
 		},
-		Sequence: accInfo.GetSequence() + sequenceIncrement,
+		Sequence: sequence,
 	})
 
 	if err != nil {
@@ -117,8 +117,8 @@ func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, sequenceIncre
 
 	signerData := xauthsigning.SignerData{
 		ChainID:       w.chain.GetConfig().ChainId,
-		AccountNumber: accInfo.GetAccountNumber(),
-		Sequence:      accInfo.GetSequence() + sequenceIncrement,
+		AccountNumber: accNum,
+		Sequence:      sequence,
 		PubKey:        publicKey,
 	}
 
@@ -128,7 +128,7 @@ func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, sequenceIncre
 		txFactory,
 		privateKey,
 		w.encodingConfig.TxConfig,
-		accInfo.GetSequence()+sequenceIncrement,
+		sequence,
 	)
 
 	if err != nil {
@@ -212,8 +212,6 @@ func (w *InteractingWallet) Account(ctx context.Context) (authtypes.AccountI, er
 	}
 
 	var acc authtypes.AccountI
-
-	authtypes.RegisterInterfaces(w.encodingConfig.InterfaceRegistry)
 
 	err = w.encodingConfig.InterfaceRegistry.UnpackAny(res.Account, &acc)
 
