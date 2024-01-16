@@ -6,6 +6,7 @@ import (
 	"fmt"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/skip-mev/petri/provider"
 	petritypes "github.com/skip-mev/petri/types"
@@ -430,4 +431,8 @@ func (c *Chain) GetFaucetWallet() petritypes.WalletI {
 
 func (c *Chain) GetTxConfig() sdkclient.TxConfig {
 	return c.Config.EncodingConfig.TxConfig
+}
+
+func (c *Chain) GetInterfaceRegistry() codectypes.InterfaceRegistry {
+	return c.Config.EncodingConfig.InterfaceRegistry
 }
