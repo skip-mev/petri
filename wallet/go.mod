@@ -106,7 +106,11 @@ require (
 	github.com/tidwall/btree v1.6.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
+<<<<<<< HEAD
 	go.etcd.io/bbolt v1.3.7 // indirect
+=======
+	go.etcd.io/bbolt v1.3.8 // indirect
+>>>>>>> 353b701 (chore: update go.mod)
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/crypto v0.16.0 // indirect

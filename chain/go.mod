@@ -7,9 +7,15 @@ require (
 	github.com/cometbft/cometbft v0.37.4
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0
+<<<<<<< HEAD
 	github.com/skip-mev/petri/provider v1.0.0
 	github.com/skip-mev/petri/types v1.0.0
 	github.com/skip-mev/petri/wallet v1.0.0
+=======
+	github.com/skip-mev/petri/provider v0.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/types v0.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/wallet v0.0.0-00010101000000-000000000000
+>>>>>>> 353b701 (chore: update go.mod)
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.58.3
@@ -53,7 +59,11 @@ require (
 	github.com/getsentry/sentry-go v0.23.0 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
+<<<<<<< HEAD
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
+=======
+	github.com/go-logfmt/logfmt v0.6.0 // indirect
+>>>>>>> 353b701 (chore: update go.mod)
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.1.2 // indirect
@@ -111,7 +121,11 @@ require (
 	github.com/tidwall/btree v1.6.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
+<<<<<<< HEAD
 	go.etcd.io/bbolt v1.3.7 // indirect
+=======
+	go.etcd.io/bbolt v1.3.8 // indirect
+>>>>>>> 353b701 (chore: update go.mod)
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb // indirect

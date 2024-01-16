@@ -11,8 +11,22 @@ require (
 )
 
 require (
+<<<<<<< HEAD
 	cosmossdk.io/api v0.3.1 // indirect
 	cosmossdk.io/core v0.5.1 // indirect
+=======
+	github.com/cometbft/cometbft v0.38.2
+	github.com/cosmos/cosmos-sdk v0.50.2
+	github.com/skip-mev/petri/provider v0.0.0-00010101000000-000000000000
+	go.uber.org/zap v1.26.0
+	google.golang.org/grpc v1.60.1
+)
+
+require (
+	cosmossdk.io/api v0.7.2 // indirect
+	cosmossdk.io/collections v0.4.0 // indirect
+	cosmossdk.io/core v0.11.0 // indirect
+>>>>>>> 353b701 (chore: update go.mod)
 	cosmossdk.io/depinject v1.0.0-alpha.4 // indirect
 	cosmossdk.io/errors v1.0.0 // indirect
 	cosmossdk.io/math v1.2.0 // indirect
@@ -107,7 +121,11 @@ require (
 	github.com/tidwall/btree v1.6.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
+<<<<<<< HEAD
 	go.etcd.io/bbolt v1.3.7 // indirect
+=======
+	go.etcd.io/bbolt v1.3.8 // indirect
+>>>>>>> 353b701 (chore: update go.mod)
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb // indirect
