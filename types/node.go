@@ -4,7 +4,7 @@ import (
 	"context"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/skip-mev/petri/provider"
+	"github.com/skip-mev/petri/provider/v2"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
