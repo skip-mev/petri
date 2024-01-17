@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
-	petritypes "github.com/skip-mev/petri/types"
+	petritypes "github.com/skip-mev/petri/types/v2"
 	"go.uber.org/zap"
 	"time"
 )
