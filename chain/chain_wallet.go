@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/skip-mev/petri/types"
-	"github.com/skip-mev/petri/wallet"
+	"github.com/skip-mev/petri/types/v2"
+	"github.com/skip-mev/petri/wallet/v2"
 )
 
 func (c *Chain) BuildWallet(ctx context.Context, keyName, mnemonic string, walletConfig types.WalletConfig) (types.WalletI, error) {
