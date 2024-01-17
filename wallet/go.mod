@@ -2,17 +2,11 @@ module github.com/skip-mev/petri/wallet
 
 go 1.21.3
 
-replace (
-	github.com/skip-mev/petri/provider => ../provider
-	github.com/skip-mev/petri/types => ../types
-	github.com/skip-mev/petri/util => ../util
-)
-
 require (
 	cosmossdk.io/math v1.2.0
 	github.com/cosmos/cosmos-sdk v0.50.2
 	github.com/cosmos/go-bip39 v1.0.0
-	github.com/skip-mev/petri/types v0.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/types/v2 v2.0.0
 )
 
 require (
@@ -123,8 +117,8 @@ require (
 	github.com/rs/cors v1.8.3 // indirect
 	github.com/rs/zerolog v1.31.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
-	github.com/skip-mev/petri/provider v0.0.0-00010101000000-000000000000 // indirect
-	github.com/skip-mev/petri/util v0.0.0-00010101000000-000000000000 // indirect
+	github.com/skip-mev/petri/provider/v2 v2.0.0 // indirect
+	github.com/skip-mev/petri/util/v2 v2.0.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
