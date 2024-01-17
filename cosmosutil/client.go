@@ -5,7 +5,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	petritypes "github.com/skip-mev/petri/types"
+	petritypes "github.com/skip-mev/petri/types/v2"
 )
 
 type ChainClient struct {

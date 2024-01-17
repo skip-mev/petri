@@ -13,8 +13,8 @@ import (
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	petritypes "github.com/skip-mev/petri/types"
-	"github.com/skip-mev/petri/util"
+	petritypes "github.com/skip-mev/petri/types/v2"
+	"github.com/skip-mev/petri/util/v2"
 	"strings"
 	"time"
 )
