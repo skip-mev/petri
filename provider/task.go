@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 	"time"
 
-	"github.com/skip-mev/petri/util"
+	"github.com/skip-mev/petri/util/v2"
 )
 
 func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, definition TaskDefinition) (*Task, error) {

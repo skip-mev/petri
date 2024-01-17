@@ -1,13 +1,11 @@
-module github.com/skip-mev/petri/provider
+module github.com/skip-mev/petri/provider/v2
 
 go 1.21.3
-
-replace github.com/skip-mev/petri/util => ../util
 
 require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/skip-mev/petri/util v0.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/util/v2 v2.0.1
 	go.uber.org/zap v1.26.0
 )
 
