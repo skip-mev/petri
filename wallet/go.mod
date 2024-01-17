@@ -1,4 +1,4 @@
-module github.com/skip-mev/petri/wallet
+module github.com/skip-mev/petri/wallet/v2
 
 go 1.21.3
 
