@@ -1,17 +1,13 @@
-module github.com/skip-mev/petri/cosmosutil
+module github.com/skip-mev/petri/cosmosutil/v2
 
 go 1.21.3
 
-replace (
-	github.com/skip-mev/petri/provider => ../provider
-	github.com/skip-mev/petri/types => ../types
-	github.com/skip-mev/petri/util => ../util
-)
-
 require (
+	cosmossdk.io/math v1.2.0
+	github.com/cometbft/cometbft v0.38.2
 	github.com/cosmos/cosmos-sdk v0.50.2
-	github.com/skip-mev/petri/types v0.0.0-00010101000000-000000000000
-	github.com/skip-mev/petri/util v0.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/types/v2 v2.0.0
+	github.com/skip-mev/petri/util/v2 v2.0.1
 )
 
 require (
@@ -21,7 +17,6 @@ require (
 	cosmossdk.io/depinject v1.0.0-alpha.4 // indirect
 	cosmossdk.io/errors v1.0.0 // indirect
 	cosmossdk.io/log v1.2.1 // indirect
-	cosmossdk.io/math v1.2.0 // indirect
 	cosmossdk.io/store v1.0.1 // indirect
 	cosmossdk.io/x/tx v0.12.0 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
@@ -40,7 +35,6 @@ require (
 	github.com/cockroachdb/pebble v0.0.0-20231101195458-481da04154d6 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
-	github.com/cometbft/cometbft v0.38.2 // indirect
 	github.com/cometbft/cometbft-db v0.9.1 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-db v1.0.0 // indirect
@@ -124,7 +118,7 @@ require (
 	github.com/rs/cors v1.8.3 // indirect
 	github.com/rs/zerolog v1.31.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
-	github.com/skip-mev/petri/provider v0.0.0-00010101000000-000000000000 // indirect
+	github.com/skip-mev/petri/provider/v2 v2.0.0 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
@@ -139,6 +133,8 @@ require (
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.3.8 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.19.0 // indirect

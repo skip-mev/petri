@@ -1,16 +1,11 @@
-module github.com/skip-mev/petri/types
+module github.com/skip-mev/petri/types/v2
 
 go 1.21.3
-
-replace (
-	github.com/skip-mev/petri/provider => ../provider
-	github.com/skip-mev/petri/util => ../util
-)
 
 require (
 	github.com/cometbft/cometbft v0.38.2
 	github.com/cosmos/cosmos-sdk v0.50.2
-	github.com/skip-mev/petri/provider v0.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/provider/v2 v2.0.0
 	go.uber.org/zap v1.26.0
 	google.golang.org/grpc v1.60.1
 )
@@ -124,7 +119,7 @@ require (
 	github.com/rs/cors v1.8.3 // indirect
 	github.com/rs/zerolog v1.31.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
-	github.com/skip-mev/petri/util v0.0.0-00010101000000-000000000000 // indirect
+	github.com/skip-mev/petri/util/v2 v2.0.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect

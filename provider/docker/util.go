@@ -3,7 +3,7 @@ package docker
 import (
 	"github.com/docker/go-connections/nat"
 
-	"github.com/skip-mev/petri/provider"
+	"github.com/skip-mev/petri/provider/v2"
 )
 
 func convertTaskDefinitionPortsToPortSet(definition provider.TaskDefinition) nat.PortSet {
