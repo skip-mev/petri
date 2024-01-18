@@ -7,9 +7,15 @@ require (
 	github.com/cometbft/cometbft v0.37.4
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0
+<<<<<<< HEAD
 	github.com/skip-mev/petri/provider v1.0.0
 	github.com/skip-mev/petri/types v1.0.0
 	github.com/skip-mev/petri/wallet v1.0.0
+=======
+	github.com/skip-mev/petri/provider/v2 v2.0.0
+	github.com/skip-mev/petri/types/v2 v2.0.0
+	github.com/skip-mev/petri/wallet/v2 v2.0.0
+>>>>>>> 208e297 (fix(chain): fix dependencies)
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.58.3
