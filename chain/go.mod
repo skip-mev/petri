@@ -8,8 +8,8 @@ require (
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0
 	github.com/skip-mev/petri/provider v1.0.0
-	github.com/skip-mev/petri/types v1.0.0
-	github.com/skip-mev/petri/wallet v1.0.0
+	github.com/skip-mev/petri/types v1.0.1
+    github.com/skip-mev/petri/wallet v1.0.1
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.58.3

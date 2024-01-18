@@ -6,8 +6,8 @@ require (
 	cosmossdk.io/math v1.2.0
 	github.com/cometbft/cometbft v0.37.4
 	github.com/cosmos/cosmos-sdk v0.47.7
-	github.com/skip-mev/petri/types v1.0.0
-	github.com/skip-mev/petri/util v1.0.0
+	github.com/skip-mev/petri/types v1.0.1
+    github.com/skip-mev/petri/util v1.0.0
 )
 
 require (

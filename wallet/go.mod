@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/math v1.2.0
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/cosmos/go-bip39 v1.0.0
-	github.com/skip-mev/petri/types v1.0.0
+	github.com/skip-mev/petri/types v1.0.1
 )
 
 require (
