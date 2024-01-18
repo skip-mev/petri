@@ -14,7 +14,7 @@ require (
 	github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0
 	github.com/skip-mev/petri/provider/v2 v2.0.0
 	github.com/skip-mev/petri/types/v2 v2.0.0
-	github.com/skip-mev/petri/wallet/v2 v2.0.
+	github.com/skip-mev/petri/wallet/v2 v2.0.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.60.1
