@@ -181,5 +181,5 @@ func (c *ChainClient) BankSend(ctx context.Context, user InteractingWallet, toAd
 
 	msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
 
-	return user.CreateAndBroadcastTx(ctx, blocking, gasSettings.Gas, GetFeeAmountsFromGasSettings(gasSettings), 0, msg)
+	return user.CreateAndBroadcastTx(ctx, blocking, gasSettings.Gas, GetFeeAmountsFromGasSettings(gasSettings), 0, "", msg)
 }
