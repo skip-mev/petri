@@ -7,7 +7,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.50.2
 	github.com/pelletier/go-toml/v2 v2.1.0
 	github.com/skip-mev/petri/provider/v2 v2.0.0
-	github.com/skip-mev/petri/types/v2 v2.0.0
+	github.com/skip-mev/petri/types/v2 v2.0.1
 	github.com/skip-mev/petri/util/v2 v2.0.1
 	github.com/skip-mev/petri/wallet/v2 v2.0.1
 	go.uber.org/zap v1.26.0
