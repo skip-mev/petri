@@ -62,6 +62,8 @@ type ChainConfig struct {
 
 	WalletConfig WalletConfig
 
+	UseGenesisSubCommand bool
+
 	NodeCreator NodeCreator
 }
 

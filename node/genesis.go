@@ -62,6 +62,10 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 
 	var command []string
 
+	if n.chain.GetConfig().UseGenesisSubCommand {
+		command = append(command, "genesis")
+	}
+
 	command = append(command, "add-genesis-account", address, amount)
 	command = n.BinCommand(command...)
 
@@ -80,6 +84,10 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 	chainConfig := n.chain.GetConfig()
 
 	var command []string
+
+	if n.chain.GetConfig().UseGenesisSubCommand {
+		command = append(command, "genesis")
+	}
 
 	command = append(command, "gentx", petritypes.ValidatorKeyName, fmt.Sprintf("%s%s", genesisSelfDelegation.Amount.String(), genesisSelfDelegation.Denom),
 		"--keyring-backend", keyring.BackendTest,
@@ -101,7 +109,15 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 
 	chainConfig := n.chain.GetConfig()
 
-	_, _, _, err := n.Task.RunCommand(ctx, n.BinCommand([]string{"collect-gentxs", "--home", chainConfig.HomeDir}...))
+	command := []string{}
+
+	if n.chain.GetConfig().UseGenesisSubCommand {
+		command = append(command, "genesis")
+	}
+
+	command = append(command, "collect-gentxs", "--home", chainConfig.HomeDir)
+
+	_, _, _, err := n.Task.RunCommand(ctx, n.BinCommand(command...))
 
 	return err
 }
