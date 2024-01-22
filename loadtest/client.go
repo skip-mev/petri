@@ -7,9 +7,9 @@ import (
 	"encoding/binary"
 	"github.com/cometbft/cometbft/test/loadtime/payload"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/skip-mev/petri/cosmosutil/v2"
-	petritypes "github.com/skip-mev/petri/types/v2"
-	petriutil "github.com/skip-mev/petri/util/v2"
+	"github.com/skip-mev/petri/cosmosutil"
+	petritypes "github.com/skip-mev/petri/types"
+	petriutil "github.com/skip-mev/petri/util"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -21,7 +21,6 @@ type DefaultClient struct {
 	gasSettings      petritypes.GasSettings
 	msgs             []sdk.Msg
 	p                *payload.Payload
-	batchID          int
 	skipSeqIncrement bool
 }
 
@@ -30,7 +29,6 @@ func NewDefaultClient(loader *cosmosutil.InteractingWallet, chainClient *cosmosu
 		loader:           loader,
 		chainClient:      chainClient,
 		p:                p,
-		batchID:          -1,
 		skipSeqIncrement: skipSequenceIncrement,
 		gasSettings:      gasSettings,
 		msgs:             msgs,
