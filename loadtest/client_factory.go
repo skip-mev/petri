@@ -69,8 +69,14 @@ func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, 
 		return nil, err
 	}
 
+	acc, err := interactingLoaderWallet.Account(context.Background())
+
+	if err != nil {
+		return nil, err
+	}
+
 	// create the CosmosDefaultClient
-	return NewDefaultClient(interactingLoaderWallet, f.chainClient, msgs, gasSettings, &payload.Payload{
+	return NewDefaultClient(interactingLoaderWallet, f.chainClient, msgs, acc.GetSequence(), acc.GetAccountNumber(), gasSettings, &payload.Payload{
 		Connections: uint64(cfg.Connections),
 		Id:          f.id,
 		Size:        uint64(cfg.Size),
