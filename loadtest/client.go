@@ -24,11 +24,13 @@ type DefaultClient struct {
 	skipSeqIncrement bool
 }
 
-func NewDefaultClient(loader *cosmosutil.InteractingWallet, chainClient *cosmosutil.ChainClient, msgs []sdk.Msg, gasSettings petritypes.GasSettings, p *payload.Payload, skipSequenceIncrement bool) *DefaultClient {
+func NewDefaultClient(loader *cosmosutil.InteractingWallet, chainClient *cosmosutil.ChainClient, msgs []sdk.Msg, seq, accNum uint64, gasSettings petritypes.GasSettings, p *payload.Payload, skipSequenceIncrement bool) *DefaultClient {
 	return &DefaultClient{
 		loader:           loader,
 		chainClient:      chainClient,
 		p:                p,
+		seq:              seq,
+		accNum:           accNum,
 		skipSeqIncrement: skipSequenceIncrement,
 		gasSettings:      gasSettings,
 		msgs:             msgs,
