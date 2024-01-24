@@ -7,10 +7,10 @@ require (
 	github.com/cometbft/cometbft v0.37.4
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/informalsystems/tm-load-test v1.3.0
-	github.com/skip-mev/petri/cosmosutil v1.1.0
-	github.com/skip-mev/petri/types v1.0.0
+	github.com/skip-mev/petri/cosmosutil v1.1.2
+	github.com/skip-mev/petri/types v1.0.2
 	github.com/skip-mev/petri/util v1.0.0
-	github.com/skip-mev/petri/wallet v1.0.0
+	github.com/skip-mev/petri/wallet v1.0.1
 	google.golang.org/protobuf v1.31.0
 )
 
