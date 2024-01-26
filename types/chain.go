@@ -64,7 +64,8 @@ type ChainConfig struct {
 
 	UseGenesisSubCommand bool
 
-	NodeCreator NodeCreator
+	NodeCreator            NodeCreator
+	NodeDefinitionModifier NodeDefinitionModifier
 }
 
 type GenesisModifier func([]byte) ([]byte, error)
