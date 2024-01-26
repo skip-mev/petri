@@ -45,4 +45,5 @@ type Provider interface {
 	Teardown(context.Context) error
 
 	RunCommand(context.Context, string, []string) (string, string, int, error)
+	RunCommandWhileStopped(context.Context, string, TaskDefinition, []string) (string, string, int, error)
 }
