@@ -10,13 +10,16 @@ import (
 )
 
 type NodeConfig struct {
-	Name string
+	Name  string
+	Index int
 
 	IsValidator bool
 
 	Chain    ChainI
 	Provider provider.Provider
 }
+
+type NodeDefinitionModifier func(provider.TaskDefinition, NodeConfig) provider.TaskDefinition
 
 type NodeCreator func(context.Context, *zap.Logger, NodeConfig) (NodeI, error)
 
