@@ -61,9 +61,7 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 	}
 
 	if nodeConfig.Chain.GetConfig().NodeDefinitionModifier != nil {
-		fmt.Println(def)
 		def = nodeConfig.Chain.GetConfig().NodeDefinitionModifier(def, nodeConfig)
-		fmt.Println(def)
 	}
 
 	task, err := provider.CreateTask(ctx, node.logger, nodeConfig.Provider, def)
