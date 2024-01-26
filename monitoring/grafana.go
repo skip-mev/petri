@@ -12,8 +12,9 @@ import (
 const DEFAULT_PROMETHEUS_URL = "http://prometheus:9090"
 
 type GrafanaOptions struct {
-	PrometheusURL string
-	DashboardJSON string
+	PrometheusURL          string
+	DashboardJSON          string
+	ProviderSpecificConfig interface{}
 }
 
 //go:embed files/grafana/config/config.ini
@@ -52,7 +53,12 @@ func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provid
 			"cfg:default.paths.plugins=/var/lib/grafana/plugins",
 			"cfg:default.paths.provisioning=/grafana/conf/provisioning",
 		},
+		ProviderSpecificConfig: opts.ProviderSpecificConfig,
 	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	err = task.WriteFile(ctx, "grafana.ini", []byte(grafanaConfig))
 
