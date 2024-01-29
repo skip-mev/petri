@@ -69,7 +69,8 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 	command = append(command, "add-genesis-account", address, amount)
 	command = n.BinCommand(command...)
 
-	_, _, _, err := n.Task.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
+	n.logger.Debug("add-genesis-account", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
 		return err
@@ -95,7 +96,8 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 
 	command = n.BinCommand(command...)
 
-	_, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
+	n.logger.Debug("gentx", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if exitCode != 0 {
 		return fmt.Errorf("failed to generate genesis transaction: %s (exitcode=%d)", stderr, exitCode)
@@ -107,17 +109,16 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 func (n *Node) CollectGenTxs(ctx context.Context) error {
 	n.logger.Info("collecting genesis transactions", zap.String("node", n.Definition.Name))
 
-	chainConfig := n.chain.GetConfig()
-
 	command := []string{}
 
 	if n.chain.GetConfig().UseGenesisSubCommand {
 		command = append(command, "genesis")
 	}
 
-	command = append(command, "collect-gentxs", "--home", chainConfig.HomeDir)
+	command = append(command, "collect-gentxs")
 
-	_, _, _, err := n.Task.RunCommand(ctx, n.BinCommand(command...))
+	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, n.BinCommand(command...))
+	n.logger.Debug("collect-gentxs", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	return err
 }
