@@ -238,14 +238,14 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 
 	logger.Debug("created getfile container", zap.String("id", cc.ID))
 
-	//defer func() {
-	//	if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
-	//		Force: true,
-	//	}); err != nil {
-	//      logger.Error("failed cleaning up the getfile container", zap.Error(err))
-	//		// todo fix logging
-	//	}
-	//}()
+	defer func() {
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+			Force: true,
+		}); err != nil {
+			logger.Error("failed cleaning up the getfile container", zap.Error(err))
+			// todo fix logging
+		}
+	}()
 
 	logger.Debug("copying from container")
 	rc, _, err := p.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
