@@ -55,6 +55,7 @@ func (n *Node) KeyBech32(ctx context.Context, name, bech string) (string, error)
 	}
 
 	stdout, stderr, _, err := n.Task.RunCommand(ctx, command)
+	n.logger.Debug("show key", zap.String("name", name), zap.String("stdout", stdout), zap.String("stderr", stderr))
 
 	if err != nil {
 		return "", fmt.Errorf("failed to show key %q (stderr=%q): %w", name, stderr, err)
