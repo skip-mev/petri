@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/skip-mev/petri/util/v2"
 	"go.uber.org/zap"
 	"io"
 	"net"
@@ -224,6 +225,43 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
 }
 
+func (p *Provider) RunCommandWhileStopped(ctx context.Context, id string, definition provider.TaskDefinition, command []string) (string, string, int, error) {
+	p.logger.Debug("running command while stopped", zap.String("id", id), zap.Strings("command", command))
+
+	status, err := p.GetTaskStatus(ctx, id)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	if status == provider.TASK_RUNNING {
+		return p.RunCommand(ctx, id, command)
+	}
+
+	definition.Entrypoint = []string{"sh", "-c"}
+	definition.Command = []string{"sleep 36000"}
+	definition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", definition.Name, util.RandomString(5), time.Now().Unix())
+	definition.Ports = []string{}
+
+	task, err := p.CreateTask(ctx, p.logger, definition)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	err = p.StartTask(ctx, task)
+	defer p.DestroyTask(ctx, task) // nolint:errcheck
+
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	stdout, stderr, exitCode, err := p.RunCommand(ctx, task, command)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	return stdout, stderr, exitCode, nil
+}
+
 func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
 	p.logger.Debug("getting IP", zap.String("id", id))
 
@@ -245,7 +283,7 @@ func (p *Provider) GetExternalAddress(ctx context.Context, id string, port strin
 		return "", err
 	}
 
-	portBindings, ok := container.NetworkSettings.Ports[nat.Port(port)]
+	portBindings, ok := container.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
 
 	if !ok || len(portBindings) == 0 {
 		return "", fmt.Errorf("could not find port %s", port)

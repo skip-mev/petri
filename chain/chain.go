@@ -52,6 +52,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		logger.Info("creating validator", zap.String("name", validatorName))
 
 		validator, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+			Index:       i,
 			Name:        validatorName,
 			IsValidator: true,
 			Provider:    infraProvider,
@@ -73,6 +74,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		logger.Info("creating node", zap.String("name", nodeName))
 
 		node, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+			Index:       i,
 			Name:        nodeName,
 			IsValidator: true,
 			Provider:    infraProvider,
