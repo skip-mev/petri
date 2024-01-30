@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// WaitForCondition polls a function until it returns true or an error
 func WaitForCondition(ctx context.Context, timeoutAfter, pollingInterval time.Duration, fn func() (bool, error)) error {
 	ctx, cancel := context.WithTimeout(ctx, timeoutAfter)
 	defer cancel()

@@ -32,6 +32,8 @@ type Provider struct {
 	containers map[string]string
 }
 
+// NewDigitalOceanProvider creates a provider that implements the Provider interface for DigitalOcean.
+// Token is the DigitalOcean API token
 func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerName string, token string) (*Provider, error) {
 	doClient := godo.NewFromToken(token)
 
@@ -96,6 +98,7 @@ func (p *Provider) Teardown(ctx context.Context) error {
 	return nil
 }
 
+// TODO: Implement teardownTasks
 func (p *Provider) teardownTasks(ctx context.Context) error {
 	return nil
 }

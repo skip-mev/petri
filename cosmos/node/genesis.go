@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// GenesisFileContent returns the genesis file on the node in byte format
 func (n *Node) GenesisFileContent(ctx context.Context) ([]byte, error) {
 	n.logger.Info("reading genesis file", zap.String("node", n.Definition.Name))
 
@@ -22,6 +23,7 @@ func (n *Node) GenesisFileContent(ctx context.Context) ([]byte, error) {
 	return bz, err
 }
 
+// CopyGenTx retrieves the genesis transaction from the node and copy it to the destination node
 func (n *Node) CopyGenTx(ctx context.Context, dstNode petritypes.NodeI) error {
 	n.logger.Info("copying gen tx", zap.String("from", n.GetConfig().Name), zap.String("to", dstNode.GetConfig().Name))
 
@@ -44,6 +46,7 @@ func (n *Node) CopyGenTx(ctx context.Context, dstNode petritypes.NodeI) error {
 	return dstNode.GetTask().WriteFile(context.Background(), path, gentx)
 }
 
+// AddGenesisAccount adds a genesis account to the node's local genesis file
 func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmounts []types.Coin) error {
 	n.logger.Debug("adding genesis account", zap.String("node", n.Definition.Name), zap.String("address", address))
 
@@ -78,6 +81,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 	return nil
 }
 
+// GenerateGenTx generates a genesis transaction for the node
 func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Coin) error {
 	n.logger.Info("generating genesis transaction", zap.String("node", n.Definition.Name))
 
@@ -104,6 +108,7 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 	return err
 }
 
+// CollectGenTxs collects the genesis transactions from the node and create a finalized genesis file
 func (n *Node) CollectGenTxs(ctx context.Context) error {
 	n.logger.Info("collecting genesis transactions", zap.String("node", n.Definition.Name))
 
@@ -122,6 +127,7 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 	return err
 }
 
+// OverwriteGenesisFile overwrites the genesis file on the node with the provided genesis file
 func (n *Node) OverwriteGenesisFile(ctx context.Context, bz []byte) error {
 	n.logger.Info("overwriting genesis file", zap.String("node", n.Definition.Name))
 

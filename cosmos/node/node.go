@@ -26,6 +26,7 @@ type Node struct {
 
 var _ petritypes.NodeCreator = CreateNode
 
+// CreateNode creates a new logical node and creates the underlying workload for it
 func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
 	var node Node
 
@@ -75,10 +76,12 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 	return &node, nil
 }
 
+// GetTask returns the underlying task of the node
 func (n *Node) GetTask() *provider.Task {
 	return n.Task
 }
 
+// GetTMClient returns a CometBFT HTTP client for the node
 func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 	addr, err := n.Task.GetExternalAddress(ctx, "26657")
 
@@ -102,6 +105,7 @@ func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 	return rpcClient, nil
 }
 
+// GetGRPCClient returns a GRPC client for the node
 func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 	grpcAddr, err := n.GetExternalAddress(ctx, "9090")
 	if err != nil {
@@ -117,6 +121,7 @@ func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 	return cc, nil
 }
 
+// Height returns the current block height of the node
 func (n *Node) Height(ctx context.Context) (uint64, error) {
 	n.logger.Debug("getting height", zap.String("node", n.Definition.Name))
 	client, err := n.GetTMClient(ctx)
@@ -134,10 +139,8 @@ func (n *Node) Height(ctx context.Context) (uint64, error) {
 	return uint64(block.Block.Height), nil
 }
 
+// NodeId returns the node's p2p ID
 func (n *Node) NodeId(ctx context.Context) (string, error) {
-	// This used to call p2p.LoadNodeKey against the file on the host,
-	// but because we are transitioning to operating on Docker volumes,
-	// we only have to tmjson.Unmarshal the raw content.
 	j, err := n.Task.ReadFile(ctx, "config/node_key.json")
 	if err != nil {
 		return "", fmt.Errorf("getting node_key.json content: %w", err)
@@ -151,6 +154,7 @@ func (n *Node) NodeId(ctx context.Context) (string, error) {
 	return string(nk.ID()), nil
 }
 
+// BinCommand returns a command that can be used to run a binary on the node
 func (n *Node) BinCommand(command ...string) []string {
 	chainConfig := n.chain.GetConfig()
 
@@ -160,6 +164,7 @@ func (n *Node) BinCommand(command ...string) []string {
 	)
 }
 
+// GetConfig returns the node's config
 func (n *Node) GetConfig() petritypes.NodeConfig {
 	return n.config
 }

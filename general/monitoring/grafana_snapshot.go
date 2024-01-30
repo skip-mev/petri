@@ -8,8 +8,10 @@ import (
 	"time"
 )
 
+// SnapshotGrafanaDashboard takes a snapshot of a grafana dashboard and returns the snapshot URL. This function uses
+// the rod library to control a headless browser.
 func SnapshotGrafanaDashboard(ctx context.Context, uid, grafanaURL string) (string, error) {
-	url, err := launcher.New().Launch()
+	url, err := launcher.New().Headless(false).Launch()
 
 	if err != nil {
 		return "", err
@@ -87,7 +89,7 @@ func SnapshotGrafanaDashboard(ctx context.Context, uid, grafanaURL string) (stri
 		return "", err
 	}
 
-	shareDashboardButton, err := page.Element("[aria-label='Share dashboard']")
+	shareDashboardButton, err := page.Element("[data-testid='data-testid share-button']")
 
 	if err != nil {
 		return "", err
