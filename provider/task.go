@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
-	"time"
-
-	"github.com/skip-mev/petri/util/v2"
 )
 
 func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, definition TaskDefinition) (*Task, error) {
@@ -134,31 +131,7 @@ func (t *Task) RunCommand(ctx context.Context, command []string) (string, string
 		return t.Provider.RunCommand(ctx, t.ID, command)
 	}
 
-	modifiedDefinition := t.Definition // todo(zygimantass): make sure this deepcopies the struct instead of modifiying it
-
-	modifiedDefinition.Entrypoint = []string{"sh", "-c"}
-	modifiedDefinition.Command = []string{"sleep 36000"}
-	modifiedDefinition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", t.Definition.Name, util.RandomString(5), time.Now().Unix())
-	modifiedDefinition.Ports = []string{}
-
-	task, err := t.Provider.CreateTask(ctx, t.logger, modifiedDefinition)
-	if err != nil {
-		return "", "", 0, err
-	}
-
-	err = t.Provider.StartTask(ctx, task)
-	defer t.Provider.DestroyTask(ctx, task) // nolint:errcheck
-
-	if err != nil {
-		return "", "", 0, err
-	}
-
-	stdout, stderr, exitCode, err := t.Provider.RunCommand(ctx, task, command)
-	if err != nil {
-		return "", "", 0, err
-	}
-
-	return stdout, stderr, exitCode, nil
+	return t.Provider.RunCommandWhileStopped(ctx, t.ID, t.Definition, command)
 }
 
 func (t *Task) GetStatus(ctx context.Context) (TaskStatus, error) {
