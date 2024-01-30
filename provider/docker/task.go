@@ -245,7 +245,7 @@ func (p *Provider) GetExternalAddress(ctx context.Context, id string, port strin
 		return "", err
 	}
 
-	portBindings, ok := container.NetworkSettings.Ports[nat.Port(port)]
+	portBindings, ok := container.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
 
 	if !ok || len(portBindings) == 0 {
 		return "", fmt.Errorf("could not find port %s", port)

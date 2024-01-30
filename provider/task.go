@@ -117,6 +117,9 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 	return t.Provider.GetIP(ctx, t.ID)
 }
 
+// GetExternalAddress returns the external address for a specific task port in format host:port.
+// Providers choose the protocol to return the port for themselves.
+
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
 	return t.Provider.GetExternalAddress(ctx, t.ID, port)
 }
