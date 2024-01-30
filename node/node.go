@@ -60,6 +60,10 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 		DataDir:       chainConfig.HomeDir,
 	}
 
+	if nodeConfig.Chain.GetConfig().NodeDefinitionModifier != nil {
+		def = nodeConfig.Chain.GetConfig().NodeDefinitionModifier(def, nodeConfig)
+	}
+
 	task, err := provider.CreateTask(ctx, node.logger, nodeConfig.Provider, def)
 
 	if err != nil {
