@@ -91,7 +91,7 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 }
 
 func (p *Provider) Teardown(ctx context.Context) error {
-	p.logger.Info("tearing down Docker provider")
+	p.logger.Info("tearing down DigitalOcean provider")
 
 	if err := p.teardownTasks(ctx); err != nil {
 		return err
