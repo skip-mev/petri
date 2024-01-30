@@ -57,6 +57,10 @@ func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []
 		return err
 	}
 
+	if len(dockerContainer.Mounts) == 0 {
+		return fmt.Errorf("no volumes found for container %s", id)
+	}
+
 	volumeName := dockerContainer.Mounts[0].Name
 
 	logger := p.logger.With(zap.String("volume", id), zap.String("path", relPath))
@@ -186,6 +190,10 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 		return nil, err
 	}
 
+	if len(dockerContainer.Mounts) == 0 {
+		return nil, fmt.Errorf("no volumes found for container %s", id)
+	}
+
 	volumeName := dockerContainer.Mounts[0].Name
 
 	logger := p.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
@@ -266,6 +274,10 @@ func (p *Provider) DownloadDir(ctx context.Context, id, relPath, localPath strin
 
 	if err != nil {
 		return err
+	}
+
+	if len(dockerContainer.Mounts) == 0 {
+		return fmt.Errorf("no volumes found for container %s", id)
 	}
 
 	volumeName := dockerContainer.Mounts[0].Name
