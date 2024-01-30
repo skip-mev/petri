@@ -17,6 +17,8 @@ type TaskDefinition struct {
 	Command       []string
 	Args          []string
 	Sidecars      []TaskDefinition
+
+	ProviderSpecificConfig interface{}
 }
 
 type ImageDefinition struct {
