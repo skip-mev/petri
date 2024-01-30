@@ -7,7 +7,7 @@ require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/pkg/sftp v1.13.6
-	github.com/skip-mev/petri/util/v2 v2.0.1
+	github.com/skip-mev/petri/util/v2 v2.0.2
 	github.com/spf13/afero v1.11.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.16.0
