@@ -1,0 +1,37 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+# create the docker group
+groups:
+  - docker
+
+# Setup Docker daemon to listen on tcp and unix socket
+write_files:
+  - path: /etc/sysctl.d/enabled_ipv4_forwarding.conf
+    content: |
+      net.ipv4.conf.all.forwarding=1
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:2375"]
+      }
+    owner: root:root
+    permissions: '0644'
+  - path: /etc/systemd/system/docker.service.d/override.conf
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/dockerd --containerd=/run/containerd/containerd.sock --tls=false
+    owner: root:root
+
+
+# Create a directory for Docker volumes
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - mkdir /docker_volumes
+  - chmod 755 /docker_volumes
+  - chown root:docker /docker_volumes
+  - systemctl daemon-reload
+  - systemctl restart docker

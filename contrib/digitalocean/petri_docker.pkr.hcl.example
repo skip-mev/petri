@@ -1,0 +1,55 @@
+packer {
+  required_plugins {
+    digitalocean = {
+      version = ">= 1.0.4"
+      source  = "github.com/digitalocean/digitalocean"
+    }
+  }
+}
+
+source "digitalocean" "petri" {
+    api_token = "<DO_API_TOKEN>"
+    image = "ubuntu-23-10-x64"
+    region = "ams3"
+    size = "s-1vcpu-1gb"
+    ssh_username = "root"
+    snapshot_name = "petri-ubuntu-23-10-x64"
+    snapshot_regions = ["ams3", "nyc3"]
+}
+
+build {
+    sources = ["source.digitalocean.petri"]
+
+    provisioner "shell" {
+        inline = [
+            "apt-get update -y",
+            "apt-get upgrade -y",
+            "mkdir -p /etc/docker",
+            "mkdir -p /etc/systemd/system/docker.service.d",
+        ]
+    }
+
+    provisioner "file" {
+        source = "files/docker_daemon.json"
+        destination = "/etc/docker/daemon.json"
+    }
+
+    provisioner "file" {
+        source = "files/docker_systemd_override.conf"
+        destination = "/etc/systemd/system/docker.service.d/override.conf"
+    }
+
+    provisioner "file" {
+        source = "files/enabled_ipv4_forwarding.conf"
+        destination = "/etc/sysctl.d/enabled_ipv4_forwarding.conf"
+    }
+
+    provisioner "shell" {
+        inline = [
+            "curl -fsSL https://get.docker.com | sh",
+            "mkdir /docker_volumes",
+            "chmod 755 /docker_volumes",
+            "chown root:docker /docker_volumes",
+        ]
+    }
+}

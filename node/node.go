@@ -80,7 +80,7 @@ func (n *Node) GetTask() *provider.Task {
 }
 
 func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
-	addr, err := n.Task.GetExternalAddress(ctx, "26657/tcp")
+	addr, err := n.Task.GetExternalAddress(ctx, "26657")
 
 	if err != nil {
 		panic(err)
@@ -103,7 +103,7 @@ func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 }
 
 func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
-	grpcAddr, err := n.GetExternalAddress(ctx, "9090/tcp")
+	grpcAddr, err := n.GetExternalAddress(ctx, "9090")
 	if err != nil {
 		return nil, err
 	}
