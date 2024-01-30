@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// TaskStatus defines the status of a task's underlying workload
 type TaskStatus int
 
 const (
@@ -14,6 +15,7 @@ const (
 	TASK_PAUSED
 )
 
+// Task is a stateful object that holds the underlying workload's details and tracks the workload's lifecycle
 type Task struct {
 	Provider Provider
 
@@ -27,6 +29,8 @@ type Task struct {
 	PostStop func(context.Context, *Task) error
 }
 
+// Provider is the representation of any infrastructure provider that can handle
+// running arbitrary Docker workloads
 type Provider interface {
 	CreateTask(context.Context, *zap.Logger, TaskDefinition) (string, error)
 	StartTask(context.Context, string) error

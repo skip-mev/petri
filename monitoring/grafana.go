@@ -12,8 +12,14 @@ import (
 const DEFAULT_PROMETHEUS_URL = "http://prometheus:9090"
 
 type GrafanaOptions struct {
+<<<<<<< HEAD:monitoring/grafana.go
 	PrometheusURL string
 	DashboardJSON string
+=======
+	PrometheusURL          string      // The URL of the Prometheus instance. This needs to be accessible from the Grafana container.
+	DashboardJSON          string      // The JSON of the Grafana dashboard to be provisioned. You can get the JSON by exporting a dashboard in the Grafana web interface
+	ProviderSpecificConfig interface{} // Provider-specific configuration for the Grafana task
+>>>>>>> d3ea03a (chore(doc): add godocs everywhere.):core/monitoring/grafana.go
 }
 
 //go:embed files/grafana/config/config.ini
@@ -25,11 +31,13 @@ var grafanaDatasourceTemplate string
 //go:embed files/grafana/config/dashboards.yml
 var grafanaDashboardProvisioningConfig string
 
+// SetupGrafanaTask sets up and configures (but does not start) a Grafana task.
+// Additionally, it creates a Prometheus datasource and a dashboard (given the DashboardJSON in GrafanaOptions).
 func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts GrafanaOptions) (*provider.Task, error) {
 	task, err := provider.CreateTask(ctx, logger, p, provider.TaskDefinition{
 		Name: "grafana",
 		Image: provider.ImageDefinition{
-			Image: "grafana/grafana:latest",
+			Image: "grafana/grafana:main",
 			UID:   "472",
 			GID:   "0",
 		},

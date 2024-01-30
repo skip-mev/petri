@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// CreateWallet creates a new wallet on the node using a randomly generated mnemonic
 func (n *Node) CreateWallet(ctx context.Context, name string, walletConfig types.WalletConfig) (types.WalletI, error) {
 	n.logger.Info("creating wallet", zap.String("name", name))
 
@@ -28,6 +29,7 @@ func (n *Node) CreateWallet(ctx context.Context, name string, walletConfig types
 	return keyWallet, nil
 }
 
+// RecoverWallet recovers a wallet on the node using a mnemonic
 func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 	n.logger.Info("recovering wallet", zap.String("name", name), zap.String("mnemonic", mnemonic))
 	chainConfig := n.chain.GetConfig()
@@ -43,6 +45,7 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 	return err
 }
 
+// KeyBech32 returns the bech32 address of a key on the node using the app's binary
 func (n *Node) KeyBech32(ctx context.Context, name, bech string) (string, error) {
 	chainConfig := n.chain.GetConfig()
 

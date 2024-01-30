@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// InitHome initializes the node's home directory
 func (n *Node) InitHome(ctx context.Context) error {
 	n.logger.Info("initializing home", zap.String("name", n.Definition.Name))
 	chainConfig := n.chain.GetConfig()
