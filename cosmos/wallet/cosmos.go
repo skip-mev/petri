@@ -1,13 +1,13 @@
 package wallet
 
 import (
-	"cosmossdk.io/math"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/go-bip39"
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
+// CosmosWallet implements the types.Wallet interface and represents a valid Cosmos SDK wallet
 type CosmosWallet struct {
 	mnemonic     string
 	privKey      cryptotypes.PrivKey
@@ -18,12 +18,7 @@ type CosmosWallet struct {
 
 var _ petritypes.WalletI = &CosmosWallet{}
 
-type WalletAmount struct {
-	Address string
-	Denom   string
-	Amount  math.Int
-}
-
+// NewWallet creates a new CosmosWallet from a mnemonic and a keyname
 func NewWallet(keyname string, mnemonic string, config petritypes.WalletConfig) (*CosmosWallet, error) {
 	derivedPrivKey, err := config.DerivationFn(mnemonic, "", config.HDPath.String())
 
@@ -42,6 +37,7 @@ func NewWallet(keyname string, mnemonic string, config petritypes.WalletConfig) 
 	}, nil
 }
 
+// NewGeneratedWallet creates a new CosmosWallet from a randomly generated mnemonic and a keyname
 func NewGeneratedWallet(keyname string, config petritypes.WalletConfig) (*CosmosWallet, error) {
 	entropy, err := bip39.NewEntropy(128)
 
@@ -58,35 +54,43 @@ func NewGeneratedWallet(keyname string, config petritypes.WalletConfig) (*Cosmos
 	return NewWallet(keyname, mnemonic, config)
 }
 
+// KeyName returns the keyname of the wallet
 func (w *CosmosWallet) KeyName() string {
 	return w.keyName
 }
 
-// Get formatted address, passing in a prefix
+// FormattedAddress returns a Bech32 formatted address for the wallet, using the provided Bech32 prefix
+// in WalletConfig
 func (w *CosmosWallet) FormattedAddress() string {
 	return types.MustBech32ifyAddressBytes(w.bech32Prefix, w.privKey.PubKey().Address())
 }
 
+// Address returns the raw address bytes for the wallet
 func (w *CosmosWallet) Address() []byte {
 	return w.privKey.PubKey().Address()
 }
 
+// FormattedAddressWithPrefix returns a Bech32 formatted address for the wallet, using the provided prefix
 func (w *CosmosWallet) FormattedAddressWithPrefix(prefix string) string {
 	return types.MustBech32ifyAddressBytes(prefix, w.privKey.PubKey().Address())
 }
 
+// PublicKey returns the public key for the wallet
 func (w *CosmosWallet) PublicKey() (cryptotypes.PubKey, error) {
 	return w.privKey.PubKey(), nil
 }
 
+// PrivateKey returns the private key for the wallet
 func (w *CosmosWallet) PrivateKey() (cryptotypes.PrivKey, error) {
 	return w.privKey, nil
 }
 
+// SigningAlgo returns the signing algorithm for the wallet
 func (w *CosmosWallet) SigningAlgo() string {
 	return w.signingAlgo
 }
 
+// Mnemonic returns the mnemonic for the wallet
 func (w *CosmosWallet) Mnemonic() string {
 	return w.mnemonic
 }

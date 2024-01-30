@@ -19,12 +19,14 @@ import (
 	"time"
 )
 
+// EncodingConfig is a struct that packs all the necessary encoding information
 type EncodingConfig struct {
 	InterfaceRegistry codectypes.InterfaceRegistry
 	Codec             codec.Codec
 	TxConfig          client.TxConfig
 }
 
+// InteractingWallet is a utility struct that helps generating, signing and broadcasting messages
 type InteractingWallet struct {
 	petritypes.WalletI
 
@@ -32,6 +34,7 @@ type InteractingWallet struct {
 	encodingConfig EncodingConfig
 }
 
+// NewInteractingWallet creates a new InteractingWallet
 func NewInteractingWallet(network petritypes.ChainI, wallet petritypes.WalletI, encodingConfig EncodingConfig) *InteractingWallet {
 	return &InteractingWallet{
 		WalletI:        wallet,
@@ -40,6 +43,7 @@ func NewInteractingWallet(network petritypes.ChainI, wallet petritypes.WalletI, 
 	}
 }
 
+// CreateAndBroadcastTx creates, signs and broadcasts a transaction
 func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking bool, gas int64, fees sdk.Coins, timeoutHeight uint64, memo string, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
 	tx, err := w.CreateSignedTx(ctx, gas, fees, timeoutHeight, memo, msgs...)
 
@@ -50,6 +54,7 @@ func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, blocking b
 	return w.BroadcastTx(ctx, tx, blocking)
 }
 
+// CreateSignedTx creates a signed transaction
 func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, memo string, msgs ...sdk.Msg) (sdk.Tx, error) {
 	tx, err := w.CreateTx(ctx, gas, fees, timeoutHeight, memo, msgs...)
 
@@ -66,6 +71,7 @@ func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas int64, fees 
 	return w.SignTx(ctx, tx, acc.GetAccountNumber(), acc.GetSequence())
 }
 
+// CreateTx creates an unsigned transaction
 func (w *InteractingWallet) CreateTx(ctx context.Context, gas int64, fees sdk.Coins, timeoutHeight uint64, memo string, msgs ...sdk.Msg) (sdk.Tx, error) {
 	txFactory := w.encodingConfig.TxConfig.NewTxBuilder()
 
@@ -83,6 +89,7 @@ func (w *InteractingWallet) CreateTx(ctx context.Context, gas int64, fees sdk.Co
 	return txFactory.GetTx(), nil
 }
 
+// SignTx signs an unsigned transaction
 func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, accNum, sequence uint64) (sdk.Tx, error) {
 	privateKey, err := w.PrivateKey()
 
@@ -145,6 +152,7 @@ func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, accNum, seque
 	return txFactory.GetTx(), nil
 }
 
+// BroadcastTx broadcasts a signed transaction
 func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx, blocking bool) (*sdk.TxResponse, error) {
 	txBytes, err := w.chain.GetTxConfig().TxEncoder()(tx)
 
@@ -194,6 +202,7 @@ func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx, blocking
 	return &txResp, nil
 }
 
+// Account returns the account of the wallet from the auth module
 func (w *InteractingWallet) Account(ctx context.Context) (authtypes.AccountI, error) {
 	cc, err := w.chain.GetGRPCClient(ctx)
 	if err != nil {
