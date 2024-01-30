@@ -11,8 +11,10 @@ import (
 	"github.com/skip-mev/petri/wallet/v2"
 )
 
+// GenerateMsgs is a function that generates messages given an address for the DefaultClient
 type GenerateMsgs func(senderAddress []byte) ([]sdk.Msg, petritypes.GasSettings, error)
 
+// DefaultClientFactory is an implementation of the ClientFactory interface that creates DefaultClients
 type DefaultClientFactory struct {
 	chain            petritypes.ChainI
 	chainClient      *cosmosutil.ChainClient
@@ -25,6 +27,7 @@ type DefaultClientFactory struct {
 	msgGenerator     GenerateMsgs
 }
 
+// ClientFactoryConfig is a struct that packs all the necessary information for creating a new DefaultClientFactory
 type ClientFactoryConfig struct {
 	Chain                 petritypes.ChainI
 	Seeder                *cosmosutil.InteractingWallet
@@ -48,6 +51,8 @@ func NewDefaultClientFactory(cfg ClientFactoryConfig, mbm module.BasicManager) (
 	}, nil
 }
 
+// NewClient implements the ClientFactory's interface for creating new clients.
+// In this case, it'll create the DefaultClient
 func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, error) {
 	// create a new private-key
 	loaderWallet, err := wallet.NewGeneratedWallet("seed", f.walletConfig)
@@ -75,7 +80,6 @@ func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, 
 		return nil, err
 	}
 
-	// create the CosmosDefaultClient
 	return NewDefaultClient(interactingLoaderWallet, f.chainClient, msgs, acc.GetSequence(), acc.GetAccountNumber(), gasSettings, &payload.Payload{
 		Connections: uint64(cfg.Connections),
 		Id:          f.id,
@@ -84,6 +88,7 @@ func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, 
 	}, f.skipSeqIncrement), nil
 }
 
+// ValidateConfig for the DefaultClientFactory is a no-op
 func (f *DefaultClientFactory) ValidateConfig(_ loadtest.Config) error {
 	return nil
 }

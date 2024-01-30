@@ -11,6 +11,7 @@ import (
 
 // bank queries
 
+// Balances returns the bank module token balances for a given address
 func (c *ChainClient) Balances(ctx context.Context, address string) (sdk.Coins, error) {
 	bankClient, err := c.getBankClient(ctx)
 
@@ -49,6 +50,7 @@ func (c *ChainClient) Balances(ctx context.Context, address string) (sdk.Coins, 
 	return balances, nil
 }
 
+// Balances returns the bank module token balance for a given address and denom
 func (c *ChainClient) Balance(ctx context.Context, address, denom string) (sdk.Coin, error) {
 	bankClient, err := c.getBankClient(ctx)
 
@@ -72,6 +74,7 @@ func (c *ChainClient) Balance(ctx context.Context, address, denom string) (sdk.C
 	return *res.Balance, nil
 }
 
+// DenomMetadata returns the bank module token metadata for a given denom
 func (c *ChainClient) DenomMetadata(ctx context.Context, denom string) (banktypes.Metadata, error) {
 	bankClient, err := c.getBankClient(ctx)
 
@@ -90,6 +93,7 @@ func (c *ChainClient) DenomMetadata(ctx context.Context, denom string) (banktype
 	return res.Metadata, nil
 }
 
+// DenomsMetadata returns the bank module token metadata for all denoms
 func (c *ChainClient) DenomsMetadata(ctx context.Context) ([]banktypes.Metadata, error) {
 	bankClient, err := c.getBankClient(ctx)
 
@@ -119,6 +123,7 @@ func (c *ChainClient) DenomsMetadata(ctx context.Context) ([]banktypes.Metadata,
 	return metadatas, nil
 }
 
+// TotalSupplyAll returns the total supply of all tokens in the bank module
 func (c *ChainClient) TotalSupplyAll(ctx context.Context) (sdk.Coins, error) {
 	bankClient, err := c.getBankClient(ctx)
 
@@ -148,6 +153,7 @@ func (c *ChainClient) TotalSupplyAll(ctx context.Context) (sdk.Coins, error) {
 	return supplies, nil
 }
 
+// TotalSupplySingle returns the total supply of a single token in the bank module
 func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (sdk.Coin, error) {
 	bankClient, err := c.getBankClient(ctx)
 
@@ -168,6 +174,7 @@ func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (
 
 // bank transactions
 
+// BankSend sends tokens from the given user to another address
 func (c *ChainClient) BankSend(ctx context.Context, user InteractingWallet, toAddress []byte, amount sdk.Coins, gasSettings types.GasSettings, blocking bool) (*sdk.TxResponse, error) {
 	fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(user.Address()))
 	if err != nil {

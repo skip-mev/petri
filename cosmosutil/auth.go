@@ -5,6 +5,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
+// Account fetches the Cosmos SDK account from a provided full node
 func (c *ChainClient) Account(ctx context.Context, address string) (authtypes.AccountI, error) {
 	authClient, err := c.getAuthClient(ctx)
 

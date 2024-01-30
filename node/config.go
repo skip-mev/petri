@@ -13,7 +13,7 @@ import (
 type Toml map[string]any
 
 // recursiveModifyToml will apply toml modifications at the current depth,
-// then recurse for new depths.
+// then recurse for new depths
 func recursiveModifyToml(c map[string]any, modifications Toml) error {
 	for key, value := range modifications {
 		if reflect.ValueOf(value).Kind() == reflect.Map {
@@ -40,6 +40,7 @@ func recursiveModifyToml(c map[string]any, modifications Toml) error {
 	return nil
 }
 
+// GenerateDefaultConsensusConfig returns a default / sensible config for CometBFT
 func GenerateDefaultConsensusConfig() Toml {
 	cometBftConfig := make(Toml)
 
@@ -78,6 +79,7 @@ func GenerateDefaultConsensusConfig() Toml {
 	return cometBftConfig
 }
 
+// GenerateDefaultAppConfig returns a default / sensible config for the Cosmos SDK
 func GenerateDefaultAppConfig(c petritypes.ChainI) Toml {
 	sdkConfig := make(Toml)
 	sdkConfig["minimum-gas-prices"] = c.GetConfig().GasPrices
@@ -101,6 +103,8 @@ func GenerateDefaultAppConfig(c petritypes.ChainI) Toml {
 	return sdkConfig
 }
 
+// ModifyTomlConfigFile will modify a TOML config file at filePath with the provided modifications.
+// If a certain path defined in modifications is not found in the existing config, it will return an error
 func (n *Node) ModifyTomlConfigFile(
 	ctx context.Context,
 	filePath string,
@@ -132,6 +136,7 @@ func (n *Node) ModifyTomlConfigFile(
 	return nil
 }
 
+// SetDefaultConfigs will generate the default configs for CometBFT and the app, and write them to disk
 func (n *Node) SetDefaultConfigs(ctx context.Context) error {
 	appConfig := GenerateDefaultAppConfig(n.chain)
 	consensusConfig := GenerateDefaultConsensusConfig()
@@ -155,6 +160,7 @@ func (n *Node) SetDefaultConfigs(ctx context.Context) error {
 	return nil
 }
 
+// SetPersistentPeers will set the node's persistent peers in the CometBFT config
 func (n *Node) SetPersistentPeers(ctx context.Context, peers string) error {
 	cometBftConfig := make(Toml)
 

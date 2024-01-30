@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// DefaultClient is a default tm-load-test client that implements the Client interface
 type DefaultClient struct {
 	loader           *cosmosutil.InteractingWallet
 	chainClient      *cosmosutil.ChainClient
@@ -24,6 +25,7 @@ type DefaultClient struct {
 	skipSeqIncrement bool
 }
 
+// NewDefaultClient creates a new DefaultClient
 func NewDefaultClient(loader *cosmosutil.InteractingWallet, chainClient *cosmosutil.ChainClient, msgs []sdk.Msg, seq, accNum uint64, gasSettings petritypes.GasSettings, p *payload.Payload, skipSequenceIncrement bool) *DefaultClient {
 	return &DefaultClient{
 		loader:           loader,
@@ -37,6 +39,7 @@ func NewDefaultClient(loader *cosmosutil.InteractingWallet, chainClient *cosmosu
 	}
 }
 
+// GenerateTx generates a transaction using the msgs provided in the constructor
 func (c *DefaultClient) GenerateTx() ([]byte, error) {
 	// update padding to be unique (for this client)
 	padding := make([]byte, 64)

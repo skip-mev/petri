@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 )
 
@@ -39,34 +38,4 @@ func MakeSingleFileTar(name string, file io.Reader) (io.Reader, error) {
 	}
 
 	return b, nil
-}
-
-func UnarchiveSingleFileTar(archive io.Reader) (string, io.Reader, error) {
-	tarReader := tar.NewReader(archive)
-
-	for {
-		header, err := tarReader.Next()
-
-		if err == io.EOF {
-			return "", nil, fmt.Errorf("no files found in tar archive")
-		}
-
-		if err != nil {
-			return "", nil, fmt.Errorf("extract failed: %v", err)
-		}
-
-		if header.Typeflag != tar.TypeReg {
-			continue
-		}
-
-		b := bytes.NewBuffer([]byte{})
-
-		_, err = io.Copy(b, tarReader)
-
-		if err != nil {
-			return "", nil, fmt.Errorf("extract failed: %v", err)
-		}
-
-		return header.Name, b, nil
-	}
 }
