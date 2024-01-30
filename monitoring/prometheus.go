@@ -15,7 +15,8 @@ import (
 var prometheusConfigTemplate string
 
 type PrometheusOptions struct {
-	Targets []string
+	Targets                []string
+	ProviderSpecificConfig interface{}
 }
 
 func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts PrometheusOptions) (*provider.Task, error) {
@@ -37,6 +38,7 @@ func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Pro
 			"--web.console.libraries=/usr/share/prometheus/console_libraries",
 			"--web.console.templates=/usr/share/prometheus/consoles",
 		},
+		ProviderSpecificConfig: opts.ProviderSpecificConfig,
 	})
 
 	parsedPrometheusConfig, err := parsePrometheusConfig(opts)

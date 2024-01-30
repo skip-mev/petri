@@ -99,20 +99,23 @@ func (t *Task) Stop(ctx context.Context, stopSidecars bool) error {
 }
 
 func (t *Task) WriteFile(ctx context.Context, path string, bz []byte) error {
-	return t.Provider.WriteFile(ctx, fmt.Sprintf("%s-data", t.Definition.Name), path, bz)
+	return t.Provider.WriteFile(ctx, t.ID, path, bz)
 }
 
 func (t *Task) ReadFile(ctx context.Context, path string) ([]byte, error) {
-	return t.Provider.ReadFile(ctx, fmt.Sprintf("%s-data", t.Definition.Name), path)
+	return t.Provider.ReadFile(ctx, t.ID, path)
 }
 
 func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error {
-	return t.Provider.DownloadDir(ctx, fmt.Sprintf("%s-data", t.Definition.Name), relPath, localPath)
+	return t.Provider.DownloadDir(ctx, t.ID, relPath, localPath)
 }
 
 func (t *Task) GetIP(ctx context.Context) (string, error) {
 	return t.Provider.GetIP(ctx, t.ID)
 }
+
+// GetExternalAddress returns the external address for a specific task port in format host:port.
+// Providers choose the protocol to return the port for themselves.
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
 	return t.Provider.GetExternalAddress(ctx, t.ID, port)

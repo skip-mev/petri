@@ -50,8 +50,20 @@ func (p *Provider) DestroyVolume(ctx context.Context, id string) error {
 }
 
 // taken from strangelove-ventures/interchain-test
-func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, content []byte) error {
-	logger := p.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
+func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []byte) error {
+	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if len(dockerContainer.Mounts) == 0 {
+		return fmt.Errorf("no volumes found for container %s", id)
+	}
+
+	volumeName := dockerContainer.Mounts[0].Name
+
+	logger := p.logger.With(zap.String("volume", id), zap.String("path", relPath))
 
 	logger.Debug("writing file")
 
@@ -171,7 +183,19 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 	return nil
 }
 
-func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]byte, error) {
+func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, error) {
+	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(dockerContainer.Mounts) == 0 {
+		return nil, fmt.Errorf("no volumes found for container %s", id)
+	}
+
+	volumeName := dockerContainer.Mounts[0].Name
+
 	logger := p.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
 
 	const mountPath = "/mnt/dockervolume"
@@ -245,7 +269,19 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 	return nil, fmt.Errorf("path %q not found in tar from container", relPath)
 }
 
-func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPath string) error {
+func (p *Provider) DownloadDir(ctx context.Context, id, relPath, localPath string) error {
+	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if len(dockerContainer.Mounts) == 0 {
+		return fmt.Errorf("no volumes found for container %s", id)
+	}
+
+	volumeName := dockerContainer.Mounts[0].Name
+
 	logger := p.logger.With(zap.String("volume", volumeName), zap.String("path", relPath), zap.String("localPath", localPath))
 
 	const mountPath = "/mnt/dockervolume"
