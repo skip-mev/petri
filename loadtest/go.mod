@@ -8,8 +8,8 @@ require (
 	github.com/cosmos/cosmos-sdk v0.50.2
 	github.com/informalsystems/tm-load-test v1.3.0
 	github.com/skip-mev/petri/cosmosutil/v2 v2.1.0
-	github.com/skip-mev/petri/types/v2 v2.0.1
-	github.com/skip-mev/petri/util/v2 v2.0.1
+	github.com/skip-mev/petri/types/v2 v2.0.2
+	github.com/skip-mev/petri/util/v2 v2.0.2
 	github.com/skip-mev/petri/wallet/v2 v2.0.1
 	google.golang.org/protobuf v1.31.0
 )

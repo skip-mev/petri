@@ -708,10 +708,10 @@ github.com/skip-mev/petri/cosmosutil/v2 v2.1.0 h1:76VMIcokDmxKRcZaJEx3UAgs3pKA1B
 github.com/skip-mev/petri/cosmosutil/v2 v2.1.0/go.mod h1:YgC23v1cT9R9jWK+W12aV3vuW5ta3Sj1JdjNFDV2EoQ=
 github.com/skip-mev/petri/provider/v2 v2.0.0 h1:1D2KciEtfv7uT/yMBattPXsNZZf5PYMT5zvad9zy1+Q=
 github.com/skip-mev/petri/provider/v2 v2.0.0/go.mod h1:naOjIK5PPvDTlLplsvbh19cw222yMpfKET+yPulHM98=
-github.com/skip-mev/petri/types/v2 v2.0.1 h1:8WdoYyDbKIf+LyuWRv9ChuFpHqnv/g0ZfgRvEKsXsqc=
-github.com/skip-mev/petri/types/v2 v2.0.1/go.mod h1:wEIzLKZ6vcwDwYS0oL2eDMi8X0pjYxTeNs2okB0qT2I=
-github.com/skip-mev/petri/util/v2 v2.0.1 h1:SKjnrK/ZjoA5V0uyHjVf4Cyw+JU1Jy0El1qyk7eeTFY=
-github.com/skip-mev/petri/util/v2 v2.0.1/go.mod h1:sPq+CiL0ytYfOk11j7PAIq5ZcvGhwoV8/z64LOXbeNs=
+github.com/skip-mev/petri/types/v2 v2.0.2 h1:10/l1fGbFICiXQM98hbINAzzD62JausKewvKNiKutr8=
+github.com/skip-mev/petri/types/v2 v2.0.2/go.mod h1:wEIzLKZ6vcwDwYS0oL2eDMi8X0pjYxTeNs2okB0qT2I=
+github.com/skip-mev/petri/util/v2 v2.0.2 h1:TNW0Rco768jHSG9eSe8uev56hjnkfdQ4vJXC1Ysnd+s=
+github.com/skip-mev/petri/util/v2 v2.0.2/go.mod h1:sPq+CiL0ytYfOk11j7PAIq5ZcvGhwoV8/z64LOXbeNs=
 github.com/skip-mev/petri/wallet/v2 v2.0.1 h1:83rvHAzy+Ci86kISZB44LuayiF00q0vbOjApDRIFQpk=
 github.com/skip-mev/petri/wallet/v2 v2.0.1/go.mod h1:clapxceQoHQqqZXPP6MlciTShRw5xVA5w9bWXpywcvY=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
