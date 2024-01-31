@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	toml "github.com/pelletier/go-toml/v2"
-	petritypes "github.com/skip-mev/petri/general/v2/types"
+	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"reflect"
 	"time"
 )

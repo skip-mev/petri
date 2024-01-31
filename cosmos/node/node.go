@@ -7,13 +7,13 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	libclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
-	"github.com/skip-mev/petri/general/v2/provider"
+	"github.com/skip-mev/petri/core/v2/provider"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"time"
 
-	petritypes "github.com/skip-mev/petri/general/v2/types"
+	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
 type Node struct {

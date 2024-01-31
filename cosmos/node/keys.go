@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/v2/util"
 	"github.com/skip-mev/petri/cosmos/v2/wallet"
-	"github.com/skip-mev/petri/general/v2/types"
-	"github.com/skip-mev/petri/general/v2/util"
 	"go.uber.org/zap"
 )
 

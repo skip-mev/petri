@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 
-	"github.com/skip-mev/petri/general/v2/provider"
+	"github.com/skip-mev/petri/core/v2/provider"
 )
 
 // CreateVolume is an idempotent operation

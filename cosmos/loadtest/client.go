@@ -7,9 +7,9 @@ import (
 	"encoding/binary"
 	"github.com/cometbft/cometbft/test/loadtime/payload"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+	petriutil "github.com/skip-mev/petri/core/v2/util"
 	"github.com/skip-mev/petri/cosmos/v2/cosmosutil"
-	petritypes "github.com/skip-mev/petri/general/v2/types"
-	petriutil "github.com/skip-mev/petri/general/v2/util"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

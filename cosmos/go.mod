@@ -5,7 +5,7 @@ go 1.21.3
 replace (
 	github.com/cosmos/cosmos-sdk/api => cosmossdk.io/api v0.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/skip-mev/petri/general/v2 => ../general
+	github.com/skip-mev/petri/core/v2 => ../general
 )
 
 require (
@@ -16,7 +16,7 @@ require (
 	github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0
 	github.com/informalsystems/tm-load-test v1.3.0
 	github.com/pelletier/go-toml/v2 v2.1.0
-	github.com/skip-mev/petri/general/v2 v2.0.0-00010101000000-000000000000
+	github.com/skip-mev/petri/core/v2 v2.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.60.1

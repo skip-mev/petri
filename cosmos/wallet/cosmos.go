@@ -4,8 +4,7 @@ import (
 	"cosmossdk.io/math"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/go-bip39"
-	petritypes "github.com/skip-mev/petri/general/v2/types"
+	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
 type CosmosWallet struct {

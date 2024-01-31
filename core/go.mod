@@ -1,4 +1,4 @@
-module github.com/skip-mev/petri/general/v2
+module github.com/skip-mev/petri/core/v2
 
 go 1.21.3
 
