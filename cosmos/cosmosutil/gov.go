@@ -5,7 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	"github.com/skip-mev/petri/general/v2/types"
+	"github.com/skip-mev/petri/core/v2/types"
 )
 
 func (c *ChainClient) GovProposal(ctx context.Context, proposalID uint64) (*govtypes.Proposal, error) {
