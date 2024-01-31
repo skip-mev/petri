@@ -15,7 +15,7 @@ jobs:
   golangci:
     strategy:
       matrix:
-        module: ["chain", "cosmosutil", "node", "types", "util", "wallet"]
+        module: ["cosmos", "core"]
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +23,9 @@ jobs:
         with:
           go-version: 1.21.3
       - uses: actions/checkout@v4
+      - run: |
+          go work init
+          go work use ./cosmos ./core 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
