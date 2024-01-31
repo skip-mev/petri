@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"github.com/skip-mev/petri/core/v2/provider"
 	"go.uber.org/zap"
 	"strings"
 	"text/template"
