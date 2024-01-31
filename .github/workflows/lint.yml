@@ -15,7 +15,7 @@ jobs:
   golangci:
     strategy:
       matrix:
-        module: ["cosmos", "general"]
+        module: ["cosmos", "core"]
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           go work init
-          go work use ./cosmos ./general 
+          go work use ./cosmos ./core 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
