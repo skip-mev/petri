@@ -28,6 +28,8 @@ type Provider struct {
 	listeners         map[string]Listeners
 }
 
+// NewDockerProvider creates a provider that implements the Provider interface for Docker. It uses the default
+// Docker client options unless provided with additional options
 func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName string, dockerOpts ...client.Opt) (*Provider, error) {
 	dockerClient, err := client.NewClientWithOpts(dockerOpts...)
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 	"time"
 )
 
+// Chain is a logical representation of a Cosmos-based blockchain
 type Chain struct {
 	Config petritypes.ChainConfig
 
@@ -33,6 +34,7 @@ type Chain struct {
 
 var _ petritypes.ChainI = &Chain{}
 
+// CreateChain creates the Chain object and initializes the node tasks, their backing compute and the validator wallets
 func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
 	var chain Chain
 
@@ -96,10 +98,12 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	return &chain, nil
 }
 
+// GetConfig returns the Chain's configuration
 func (c *Chain) GetConfig() petritypes.ChainConfig {
 	return c.Config
 }
 
+// Height returns the chain's height from the first available full node in the network
 func (c *Chain) Height(ctx context.Context) (uint64, error) {
 	node := c.GetFullNode()
 
@@ -120,6 +124,8 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
+// Init initializes the chain. That consists of generating the genesis transactions, genesis file, wallets,
+// the distribution of configuration files and starting the network nodes up
 func (c *Chain) Init(ctx context.Context) error {
 	decimalPow := int64(math.Pow10(int(c.Config.Decimals)))
 
@@ -288,6 +294,7 @@ func (c *Chain) Init(ctx context.Context) error {
 	return nil
 }
 
+// Teardown destroys all resources related to a chain and its' nodes
 func (c *Chain) Teardown(ctx context.Context) error {
 	c.logger.Info("tearing down chain", zap.String("name", c.Config.ChainId))
 
@@ -306,6 +313,8 @@ func (c *Chain) Teardown(ctx context.Context) error {
 	return nil
 }
 
+// PeerStrings returns a comma-delimited string with the addresses of chain nodes in
+// the format of nodeid@host:port
 func (c *Chain) PeerStrings(ctx context.Context) (string, error) {
 	peerStrings := []string{}
 
@@ -328,14 +337,17 @@ func (c *Chain) PeerStrings(ctx context.Context) (string, error) {
 	return strings.Join(peerStrings, ","), nil
 }
 
+// GetGRPCClient returns a gRPC client of the first available node
 func (c *Chain) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 	return c.GetFullNode().GetGRPCClient(ctx)
 }
 
+// GetTMClient returns a CometBFT client of the first available node
 func (c *Chain) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 	return c.GetFullNode().GetTMClient(ctx)
 }
 
+// GetFullNode returns the first available full node in the chain
 func (c *Chain) GetFullNode() petritypes.NodeI {
 	if len(c.Nodes) > 0 {
 		// use first full node
@@ -345,6 +357,7 @@ func (c *Chain) GetFullNode() petritypes.NodeI {
 	return c.Validators[0]
 }
 
+// WaitForBlocks blocks until the chain increases in block height by delta
 func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 	c.logger.Info("waiting for blocks", zap.Uint64("delta", delta))
 
@@ -380,6 +393,7 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 	return nil
 }
 
+// WaitForHeight blocks until the chain reaches block height desiredHeight
 func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 	c.logger.Info("waiting for height", zap.Uint64("desired_height", desiredHeight))
 
@@ -415,26 +429,33 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 	return nil
 }
 
+// GetValidators returns all of the validating nodes in the chain
 func (c *Chain) GetValidators() []petritypes.NodeI {
 	return c.Validators
 }
 
+// GetNodes returns all of the non-validating nodes in the chain
 func (c *Chain) GetNodes() []petritypes.NodeI {
 	return c.Nodes
 }
 
+// GetValidatorWallets returns the wallets that were used to create the Validators on-chain.
+// The ordering of the slice should correspond to the ordering of GetValidators
 func (c *Chain) GetValidatorWallets() []petritypes.WalletI {
 	return c.ValidatorWallets
 }
 
+// GetFaucetWallet retunrs a wallet that was funded and can be used to fund other wallets
 func (c *Chain) GetFaucetWallet() petritypes.WalletI {
 	return c.FaucetWallet
 }
 
+// GetTxConfig returns a Cosmos SDK TxConfig
 func (c *Chain) GetTxConfig() sdkclient.TxConfig {
 	return c.Config.EncodingConfig.TxConfig
 }
 
+// GetInterfaceRegistry returns a Cosmos SDK InterfaceRegistry
 func (c *Chain) GetInterfaceRegistry() codectypes.InterfaceRegistry {
 	return c.Config.EncodingConfig.InterfaceRegistry
 }
