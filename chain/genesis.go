@@ -24,7 +24,6 @@ type GenesisModifier func([]byte) ([]byte, error)
 var _ GenesisModifier = ModifyGenesis(nil)
 
 // NewGenesisKV is a function for creating a GenesisKV object
-
 func NewGenesisKV(key string, value interface{}) GenesisKV {
 	return GenesisKV{
 		Key:   key,
@@ -34,7 +33,6 @@ func NewGenesisKV(key string, value interface{}) GenesisKV {
 
 // ModifyGenesis is a function that is a GenesisModifier and takes in GenesisKV
 // to specify which fields of the genesis file should be modified
-
 func ModifyGenesis(genesisKV []GenesisKV) func([]byte) ([]byte, error) {
 	return func(genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
