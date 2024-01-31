@@ -30,6 +30,7 @@ type Provider struct {
 
 	droplets   map[string]*godo.Droplet
 	containers map[string]string
+	firewallID string
 }
 
 // NewDigitalOceanProvider creates a provider that implements the Provider interface for DigitalOcean.
@@ -73,11 +74,13 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 		return nil, err
 	}
 
-	_, err = digitalOceanProvider.createFirewall(ctx, userIPs)
+	firewall, err := digitalOceanProvider.createFirewall(ctx, userIPs)
 
 	if err != nil {
 		return nil, err
 	}
+
+	digitalOceanProvider.firewallID = firewall.ID
 
 	_, err = digitalOceanProvider.createSSHKey(ctx, sshPubKey)
 
@@ -89,16 +92,76 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 }
 
 func (p *Provider) Teardown(ctx context.Context) error {
-	p.logger.Info("tearing down Docker provider")
+	p.logger.Info("tearing down DigitalOcean provider")
 
 	if err := p.teardownTasks(ctx); err != nil {
+		return err
+	}
+	if err := p.teardownFirewall(ctx); err != nil {
+		return err
+	}
+	if err := p.teardownSSHKey(ctx); err != nil {
+		return err
+	}
+	if err := p.teardownTag(ctx); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// TODO: Implement teardownTasks
 func (p *Provider) teardownTasks(ctx context.Context) error {
+	res, err := p.doClient.Droplets.DeleteByTag(ctx, p.petriTag)
+
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode > 299 || res.StatusCode < 200 {
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
+	return nil
+}
+
+func (p *Provider) teardownFirewall(ctx context.Context) error {
+	res, err := p.doClient.Firewalls.Delete(ctx, p.firewallID)
+
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode > 299 || res.StatusCode < 200 {
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
+	return nil
+}
+
+func (p *Provider) teardownSSHKey(ctx context.Context) error {
+	res, err := p.doClient.Keys.DeleteByFingerprint(ctx, p.sshFingerprint)
+
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode > 299 || res.StatusCode < 200 {
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
+	return nil
+}
+
+func (p *Provider) teardownTag(ctx context.Context) error {
+	res, err := p.doClient.Tags.Delete(ctx, p.petriTag)
+
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode > 299 || res.StatusCode < 200 {
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
 	return nil
 }
