@@ -5,11 +5,15 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+<<<<<<< HEAD
 <<<<<<< HEAD:cosmosutil/client.go
 	petritypes "github.com/skip-mev/petri/types"
 =======
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/cosmosutil/client.go
+=======
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+>>>>>>> d34ae41 (fix: general -> core)
 )
 
 type ChainClient struct {

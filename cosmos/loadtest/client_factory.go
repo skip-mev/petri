@@ -6,6 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/informalsystems/tm-load-test/pkg/loadtest"
+<<<<<<< HEAD
 <<<<<<< HEAD:loadtest/client_factory.go
 	"github.com/skip-mev/petri/cosmosutil"
 	petritypes "github.com/skip-mev/petri/types"
@@ -15,6 +16,11 @@ import (
 	"github.com/skip-mev/petri/cosmos/v2/wallet"
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/loadtest/client_factory.go
+=======
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/cosmos/v2/cosmosutil"
+	"github.com/skip-mev/petri/cosmos/v2/wallet"
+>>>>>>> d34ae41 (fix: general -> core)
 )
 
 type GenerateMsgs func(senderAddress []byte) ([]sdk.Msg, petritypes.GasSettings, error)

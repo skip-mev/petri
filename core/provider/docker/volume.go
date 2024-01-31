@@ -17,11 +17,15 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 
+<<<<<<< HEAD:general/provider/docker/volume.go
 <<<<<<< HEAD:provider/docker/volume.go
 	"github.com/skip-mev/petri/provider"
 =======
 	"github.com/skip-mev/petri/general/v2/provider"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/provider/docker/volume.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> d34ae41 (fix: general -> core):core/provider/docker/volume.go
 )
 
 // CreateVolume is an idempotent operation

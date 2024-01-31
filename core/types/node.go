@@ -4,11 +4,15 @@ import (
 	"context"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+<<<<<<< HEAD:general/types/node.go
 <<<<<<< HEAD:types/node.go
 	"github.com/skip-mev/petri/provider"
 =======
 	"github.com/skip-mev/petri/general/v2/provider"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/types/node.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> d34ae41 (fix: general -> core):core/types/node.go
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )

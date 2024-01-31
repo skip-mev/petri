@@ -7,21 +7,29 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	libclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
+<<<<<<< HEAD
 <<<<<<< HEAD:node/node.go
 	"github.com/skip-mev/petri/provider"
 =======
 	"github.com/skip-mev/petri/general/v2/provider"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/node/node.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> d34ae41 (fix: general -> core)
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"time"
 
+<<<<<<< HEAD
 <<<<<<< HEAD:node/node.go
 	petritypes "github.com/skip-mev/petri/types"
 =======
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/node/node.go
+=======
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+>>>>>>> d34ae41 (fix: general -> core)
 )
 
 type Node struct {

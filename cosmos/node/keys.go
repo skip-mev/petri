@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+<<<<<<< HEAD
 <<<<<<< HEAD:node/keys.go
 	"github.com/skip-mev/petri/types"
 	"github.com/skip-mev/petri/util"
@@ -13,6 +14,11 @@ import (
 	"github.com/skip-mev/petri/general/v2/types"
 	"github.com/skip-mev/petri/general/v2/util"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/node/keys.go
+=======
+	"github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/cosmos/v2/wallet"
+>>>>>>> d34ae41 (fix: general -> core)
 	"go.uber.org/zap"
 )
 

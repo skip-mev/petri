@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"github.com/cometbft/cometbft/test/loadtime/payload"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+<<<<<<< HEAD
 <<<<<<< HEAD:loadtest/client.go
 	"github.com/skip-mev/petri/cosmosutil"
 	petritypes "github.com/skip-mev/petri/types"
@@ -16,6 +17,11 @@ import (
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 	petriutil "github.com/skip-mev/petri/general/v2/util"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/loadtest/client.go
+=======
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+	petriutil "github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/cosmos/v2/cosmosutil"
+>>>>>>> d34ae41 (fix: general -> core)
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

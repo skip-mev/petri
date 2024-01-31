@@ -13,6 +13,7 @@ import (
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+<<<<<<< HEAD
 <<<<<<< HEAD:cosmosutil/wallet.go
 	petritypes "github.com/skip-mev/petri/types"
 	"github.com/skip-mev/petri/util"
@@ -20,6 +21,10 @@ import (
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 	"github.com/skip-mev/petri/general/v2/util"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/cosmosutil/wallet.go
+=======
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/v2/util"
+>>>>>>> d34ae41 (fix: general -> core)
 	"strings"
 	"time"
 )

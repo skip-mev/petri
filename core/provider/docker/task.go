@@ -5,10 +5,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/pkg/stdcopy"
+<<<<<<< HEAD:general/provider/docker/task.go
 <<<<<<< HEAD:provider/docker/task.go
 =======
 	"github.com/skip-mev/petri/general/v2/util"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/provider/docker/task.go
+=======
+	"github.com/skip-mev/petri/core/v2/util"
+>>>>>>> d34ae41 (fix: general -> core):core/provider/docker/task.go
 	"go.uber.org/zap"
 	"io"
 	"net"
@@ -20,11 +24,15 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/nat"
 
+<<<<<<< HEAD:general/provider/docker/task.go
 <<<<<<< HEAD:provider/docker/task.go
 	"github.com/skip-mev/petri/provider"
 =======
 	"github.com/skip-mev/petri/general/v2/provider"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/provider/docker/task.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> d34ae41 (fix: general -> core):core/provider/docker/task.go
 )
 
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {

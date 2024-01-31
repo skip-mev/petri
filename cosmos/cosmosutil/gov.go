@@ -5,11 +5,15 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+<<<<<<< HEAD
 <<<<<<< HEAD:cosmosutil/gov.go
 	"github.com/skip-mev/petri/types"
 =======
 	"github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/cosmosutil/gov.go
+=======
+	"github.com/skip-mev/petri/core/v2/types"
+>>>>>>> d34ae41 (fix: general -> core)
 )
 
 func (c *ChainClient) GovProposal(ctx context.Context, proposalID uint64) (*govtypes.Proposal, error) {

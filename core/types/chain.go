@@ -6,11 +6,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
+<<<<<<< HEAD:general/types/chain.go
 <<<<<<< HEAD:types/chain.go
 	"github.com/skip-mev/petri/provider"
 =======
 	"github.com/skip-mev/petri/general/v2/provider"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/types/chain.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> d34ae41 (fix: general -> core):core/types/chain.go
 	"google.golang.org/grpc"
 )
 

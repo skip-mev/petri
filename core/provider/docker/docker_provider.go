@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/client"
 
+<<<<<<< HEAD:general/provider/docker/docker_provider.go
 <<<<<<< HEAD:provider/docker/docker_provider.go
 	"github.com/skip-mev/petri/provider"
 	"github.com/skip-mev/petri/util"
@@ -15,6 +16,10 @@ import (
 	"github.com/skip-mev/petri/general/v2/provider"
 	"github.com/skip-mev/petri/general/v2/util"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/provider/docker/docker_provider.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v2/util"
+>>>>>>> d34ae41 (fix: general -> core):core/provider/docker/docker_provider.go
 )
 
 var _ provider.Provider = (*Provider)(nil)

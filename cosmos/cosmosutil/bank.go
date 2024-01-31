@@ -6,11 +6,15 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+<<<<<<< HEAD
 <<<<<<< HEAD:cosmosutil/bank.go
 	"github.com/skip-mev/petri/types"
 =======
 	"github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/cosmosutil/bank.go
+=======
+	"github.com/skip-mev/petri/core/v2/types"
+>>>>>>> d34ae41 (fix: general -> core)
 )
 
 // bank queries

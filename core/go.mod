@@ -1,8 +1,12 @@
+<<<<<<< HEAD:general/go.mod
 <<<<<<< HEAD:types/go.mod
 module github.com/skip-mev/petri/types
 =======
 module github.com/skip-mev/petri/general/v2
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/go.mod
+=======
+module github.com/skip-mev/petri/core/v2
+>>>>>>> d34ae41 (fix: general -> core):core/go.mod
 
 go 1.21.3
 

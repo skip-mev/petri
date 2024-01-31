@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
+<<<<<<< HEAD
 <<<<<<< HEAD:node/genesis.go
 	petritypes "github.com/skip-mev/petri/types"
 =======
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/node/genesis.go
+=======
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+>>>>>>> d34ae41 (fix: general -> core)
 	"go.uber.org/zap"
 	"time"
 )

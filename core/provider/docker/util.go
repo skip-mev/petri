@@ -3,11 +3,15 @@ package docker
 import (
 	"github.com/docker/go-connections/nat"
 
+<<<<<<< HEAD:general/provider/docker/util.go
 <<<<<<< HEAD:provider/docker/util.go
 	"github.com/skip-mev/petri/provider"
 =======
 	"github.com/skip-mev/petri/general/v2/provider"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/provider/docker/util.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> d34ae41 (fix: general -> core):core/provider/docker/util.go
 )
 
 func convertTaskDefinitionPortsToPortSet(definition provider.TaskDefinition) nat.PortSet {

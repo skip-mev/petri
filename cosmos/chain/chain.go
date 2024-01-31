@@ -8,6 +8,7 @@ import (
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types"
+<<<<<<< HEAD
 <<<<<<< HEAD:chain/chain.go
 	"github.com/skip-mev/petri/provider"
 	petritypes "github.com/skip-mev/petri/types"
@@ -15,6 +16,10 @@ import (
 	"github.com/skip-mev/petri/general/v2/provider"
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/chain/chain.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+>>>>>>> d34ae41 (fix: general -> core)
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"

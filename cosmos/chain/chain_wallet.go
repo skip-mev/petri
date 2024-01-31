@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+<<<<<<< HEAD
 <<<<<<< HEAD:chain/chain_wallet.go
 	"github.com/skip-mev/petri/types"
 	"github.com/skip-mev/petri/wallet"
@@ -11,6 +12,10 @@ import (
 	"github.com/skip-mev/petri/cosmos/v2/wallet"
 	"github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/chain/chain_wallet.go
+=======
+	"github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/cosmos/v2/wallet"
+>>>>>>> d34ae41 (fix: general -> core)
 )
 
 func (c *Chain) BuildWallet(ctx context.Context, keyName, mnemonic string, walletConfig types.WalletConfig) (types.WalletI, error) {
