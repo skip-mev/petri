@@ -23,12 +23,8 @@ import (
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
 	logger = logger.Named("docker_provider")
 
-	_, _, err := p.dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
-	if err != nil {
-		logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
-		if err := p.pullImage(ctx, definition); err != nil {
-			return "", err
-		}
+	if err := p.pullImage(ctx, definition.Image.Image); err != nil {
+		return "", err
 	}
 
 	portSet := convertTaskDefinitionPortsToPortSet(definition)
@@ -99,18 +95,18 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 	return createdContainer.ID, nil
 }
 
-func (p *Provider) pullImage(ctx context.Context, definition provider.TaskDefinition) error {
-	p.logger.Info("pulling image", zap.String("image", definition.Image.Image))
-	resp, err := p.dockerClient.ImagePull(ctx, definition.Image.Image, types.ImagePullOptions{})
+func (p *Provider) pullImage(ctx context.Context, imageName string) error {
+	_, _, err := p.dockerClient.ImageInspectWithRaw(ctx, imageName)
 	if err != nil {
-		return err
-	}
+		p.logger.Info("image not found, pulling", zap.String("image", imageName))
+		resp, err := p.dockerClient.ImagePull(ctx, imageName, types.ImagePullOptions{})
+		if err != nil {
+			return err
+		}
+		defer resp.Close()
 
-	defer resp.Close()
-	// throw away the image pull stdout response
-	_, err = io.Copy(io.Discard, resp)
-
-	if err != nil {
+		// throw away the image pull stdout response
+		_, err = io.Copy(io.Discard, resp)
 		return err
 	}
 	return nil
