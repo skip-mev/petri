@@ -267,7 +267,6 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 			return nil, fmt.Errorf("reading tar from container: %w", err)
 		}
 		if hdr.Name != wantPath {
-			// todo fix logging
 			continue
 		}
 
