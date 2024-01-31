@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+<<<<<<< HEAD
 <<<<<<< HEAD:monitoring/grafana.go
 	"github.com/skip-mev/petri/provider"
 =======
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/monitoring/grafana.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> 0be208f (fix: dependency managaement)
 	"go.uber.org/zap"
 	"text/template"
 )

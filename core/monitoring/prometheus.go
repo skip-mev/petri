@@ -5,10 +5,14 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+<<<<<<< HEAD
 <<<<<<< HEAD:monitoring/prometheus.go
 	"github.com/skip-mev/petri/provider"
 =======
 >>>>>>> cd1f05b (chore: move everything inside of two packages):general/monitoring/prometheus.go
+=======
+	"github.com/skip-mev/petri/core/v2/provider"
+>>>>>>> 0be208f (fix: dependency managaement)
 	"go.uber.org/zap"
 	"strings"
 	"text/template"

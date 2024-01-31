@@ -5,6 +5,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"github.com/cosmos/go-bip39"
 <<<<<<< HEAD:wallet/cosmos.go
 	petritypes "github.com/skip-mev/petri/types"
@@ -12,6 +13,9 @@ import (
 	petritypes "github.com/skip-mev/petri/general/v2/types"
 >>>>>>> cd1f05b (chore: move everything inside of two packages):cosmos/wallet/cosmos.go
 =======
+=======
+	"github.com/cosmos/go-bip39"
+>>>>>>> 0be208f (fix: dependency managaement)
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 >>>>>>> d34ae41 (fix: general -> core)
 )
