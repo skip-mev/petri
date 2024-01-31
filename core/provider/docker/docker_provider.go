@@ -26,6 +26,7 @@ type Provider struct {
 	dockerNetworkName string
 	networkMu         sync.RWMutex
 	listeners         map[string]Listeners
+	builderImageName  string
 }
 
 // NewDockerProvider creates a provider that implements the Provider interface for Docker. It uses the default
@@ -43,10 +44,11 @@ func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName str
 	}
 
 	dockerProvider := &Provider{
-		dockerClient: dockerClient,
-		listeners:    map[string]Listeners{},
-		logger:       logger.Named("docker_provider"),
-		name:         providerName,
+		dockerClient:     dockerClient,
+		listeners:        map[string]Listeners{},
+		logger:           logger.Named("docker_provider"),
+		name:             providerName,
+		builderImageName: "busybox:latest",
 	}
 
 	dockerProvider.dockerNetworkName = fmt.Sprintf("petri-network-%s", util.RandomString(5))
