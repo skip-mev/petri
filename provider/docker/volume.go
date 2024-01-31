@@ -235,7 +235,6 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 			return nil, fmt.Errorf("reading tar from container: %w", err)
 		}
 		if hdr.Name != wantPath {
-			// todo fix logging
 			continue
 		}
 
