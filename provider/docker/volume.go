@@ -59,12 +59,16 @@ func (p *Provider) WriteFile(ctx context.Context, volumeName, relPath string, co
 
 	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return err
+	}
+
 	logger.Debug("creating writefile container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: "busybox:latest",
+			Image: p.builderImageName,
 
 			Entrypoint: []string{"sh", "-c"},
 			Cmd: []string{
@@ -178,12 +182,16 @@ func (p *Provider) ReadFile(ctx context.Context, volumeName, relPath string) ([]
 
 	containerName := fmt.Sprintf("petri-getfile-%d", time.Now().UnixNano())
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return nil, err
+	}
+
 	logger.Debug("creating getfile container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: "busybox:latest",
+			Image: p.builderImageName,
 
 			Labels: map[string]string{
 				providerLabelName: p.name,
@@ -254,10 +262,14 @@ func (p *Provider) DownloadDir(ctx context.Context, volumeName, relPath, localPa
 
 	logger.Debug("creating getdir container")
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return err
+	}
+
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: "busybox:latest",
+			Image: p.builderImageName,
 
 			Labels: map[string]string{
 				providerLabelName: p.name,
@@ -334,12 +346,16 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 
 	containerName := fmt.Sprintf("petri-setowner-%d", time.Now().UnixNano())
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return err
+	}
+
 	logger.Debug("creating volume-owner container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image:      "busybox:latest",
+			Image:      p.builderImageName,
 			Entrypoint: []string{"sh", "-c"},
 			Cmd: []string{
 				`chown "$2:$3" "$1" && chmod 0700 "$1"`,

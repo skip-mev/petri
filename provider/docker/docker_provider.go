@@ -26,6 +26,7 @@ type Provider struct {
 	dockerNetworkName string
 	networkMu         sync.RWMutex
 	listeners         map[string]Listeners
+	builderImageName  string
 }
 
 func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName string, dockerOpts ...client.Opt) (*Provider, error) {
@@ -41,10 +42,11 @@ func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName str
 	}
 
 	dockerProvider := &Provider{
-		dockerClient: dockerClient,
-		listeners:    map[string]Listeners{},
-		logger:       logger.Named("docker_provider"),
-		name:         providerName,
+		dockerClient:     dockerClient,
+		listeners:        map[string]Listeners{},
+		logger:           logger.Named("docker_provider"),
+		name:             providerName,
+		builderImageName: "busybox:latest",
 	}
 
 	dockerProvider.dockerNetworkName = fmt.Sprintf("petri-network-%s", util.RandomString(5))
