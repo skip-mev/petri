@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"math"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,8 @@ type Chain struct {
 	FaucetWallet petritypes.WalletI
 
 	ValidatorWallets []petritypes.WalletI
+
+	mu sync.RWMutex
 }
 
 var _ petritypes.ChainI = &Chain{}
@@ -38,6 +41,7 @@ var _ petritypes.ChainI = &Chain{}
 func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
 	var chain Chain
 
+	chain.mu = sync.RWMutex{}
 	chain.Config = config
 	chain.logger = logger.Named("chain").With(zap.String("chain_id", config.ChainId))
 
@@ -46,48 +50,69 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	validators := make([]petritypes.NodeI, 0)
 	nodes := make([]petritypes.NodeI, 0)
 
-	chain.logger.Info("creating validators", zap.Int("num_validators", config.NumValidators))
+	var eg errgroup.Group
+
+	chain.logger.Info("creating validators and nodes", zap.Int("num_validators", config.NumValidators), zap.Int("num_nodes", config.NumNodes))
 
 	for i := 0; i < config.NumValidators; i++ {
-		validatorName := fmt.Sprintf("%s-validator-%d", config.ChainId, i)
+		i := i
+		eg.Go(func() error {
+			validatorName := fmt.Sprintf("%s-validator-%d", config.ChainId, i)
 
-		logger.Info("creating validator", zap.String("name", validatorName))
+			logger.Info("creating validator", zap.String("name", validatorName))
 
-		validator, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
-			Index:       i,
-			Name:        validatorName,
-			IsValidator: true,
-			Provider:    infraProvider,
-			Chain:       &chain,
+			validator, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+				Index:       i,
+				Name:        validatorName,
+				IsValidator: true,
+				Provider:    infraProvider,
+				Chain:       &chain,
+			})
+
+			if err != nil {
+				return err
+			}
+
+			chain.mu.Lock()
+			validators = append(validators, validator)
+			chain.mu.Unlock()
+
+			return nil
 		})
-
-		if err != nil {
-			return nil, err
-		}
-
-		validators = append(validators, validator)
 	}
 
-	logger.Info("creating nodes", zap.Int("num_nodes", config.NumNodes))
+	logger.Info("creating nodes")
 
 	for i := 0; i < config.NumNodes; i++ {
-		nodeName := fmt.Sprintf("%s-node-%d", config.ChainId, i)
+		i := i
 
-		logger.Info("creating node", zap.String("name", nodeName))
+		eg.Go(func() error {
+			nodeName := fmt.Sprintf("%s-node-%d", config.ChainId, i)
 
-		node, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
-			Index:       i,
-			Name:        nodeName,
-			IsValidator: true,
-			Provider:    infraProvider,
-			Chain:       &chain,
+			logger.Info("creating node", zap.String("name", nodeName))
+
+			node, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+				Index:       i,
+				Name:        nodeName,
+				IsValidator: true,
+				Provider:    infraProvider,
+				Chain:       &chain,
+			})
+
+			if err != nil {
+				return err
+			}
+
+			chain.mu.Lock()
+			nodes = append(nodes, node)
+			chain.mu.Unlock()
+
+			return nil
 		})
+	}
 
-		if err != nil {
-			return nil, err
-		}
-
-		nodes = append(nodes, node)
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 
 	chain.Nodes = nodes

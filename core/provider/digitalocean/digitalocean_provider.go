@@ -3,6 +3,7 @@ package digitalocean
 import (
 	"fmt"
 	"github.com/digitalocean/godo"
+	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/util"
 	"go.uber.org/zap"
@@ -28,8 +29,9 @@ type Provider struct {
 
 	sshPubKey, sshPrivKey, sshFingerprint string
 
-	droplets   map[string]*godo.Droplet
-	containers map[string]string
+	droplets   *xsync.MapOf[string, *godo.Droplet]
+	containers *xsync.MapOf[string, string]
+
 	firewallID string
 }
 
@@ -50,8 +52,6 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 		return nil, err
 	}
 
-	userIPs = append(userIPs, "77.175.129.184")
-
 	digitalOceanProvider := &Provider{
 		logger:   logger.Named("digitalocean_provider"),
 		name:     providerName,
@@ -60,8 +60,8 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 
 		userIPs: userIPs,
 
-		droplets:   map[string]*godo.Droplet{},
-		containers: map[string]string{},
+		droplets:   xsync.NewMapOf[string, *godo.Droplet](),
+		containers: xsync.NewMapOf[string, string](),
 
 		sshPubKey:      sshPubKey,
 		sshPrivKey:     sshPrivKey,

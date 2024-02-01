@@ -71,12 +71,16 @@ func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []
 
 	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return err
+	}
+
 	logger.Debug("creating writefile container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: "busybox:latest",
+			Image: p.builderImageName,
 
 			Entrypoint: []string{"sh", "-c"},
 			Cmd: []string{
@@ -202,12 +206,16 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 
 	containerName := fmt.Sprintf("petri-getfile-%d", time.Now().UnixNano())
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return nil, err
+	}
+
 	logger.Debug("creating getfile container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: "busybox:latest",
+			Image: p.builderImageName,
 
 			Labels: map[string]string{
 				providerLabelName: p.name,
@@ -230,14 +238,14 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 
 	logger.Debug("created getfile container", zap.String("id", cc.ID))
 
-	//defer func() {
-	//	if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
-	//		Force: true,
-	//	}); err != nil {
-	//      logger.Error("failed cleaning up the getfile container", zap.Error(err))
-	//		// todo fix logging
-	//	}
-	//}()
+	defer func() {
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+			Force: true,
+		}); err != nil {
+			logger.Error("failed cleaning up the getfile container", zap.Error(err))
+			// todo fix logging
+		}
+	}()
 
 	logger.Debug("copying from container")
 	rc, _, err := p.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
@@ -259,7 +267,6 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 			return nil, fmt.Errorf("reading tar from container: %w", err)
 		}
 		if hdr.Name != wantPath {
-			// todo fix logging
 			continue
 		}
 
@@ -290,10 +297,14 @@ func (p *Provider) DownloadDir(ctx context.Context, id, relPath, localPath strin
 
 	logger.Debug("creating getdir container")
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return err
+	}
+
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: "busybox:latest",
+			Image: p.builderImageName,
 
 			Labels: map[string]string{
 				providerLabelName: p.name,
@@ -370,12 +381,16 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 
 	containerName := fmt.Sprintf("petri-setowner-%d", time.Now().UnixNano())
 
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return err
+	}
+
 	logger.Debug("creating volume-owner container")
 
 	cc, err := p.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image:      "busybox:latest",
+			Image:      p.builderImageName,
 			Entrypoint: []string{"sh", "-c"},
 			Cmd: []string{
 				`chown "$2:$3" "$1" && chmod 0700 "$1"`,
