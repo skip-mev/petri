@@ -94,7 +94,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 }
 
 func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
-	cachedDroplet, ok := p.droplets[name]
+	cachedDroplet, ok := p.droplets.Load(name)
 
 	if !ok {
 		return fmt.Errorf("could not find droplet %s", name)
@@ -114,7 +114,7 @@ func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
 }
 
 func (p *Provider) getDroplet(ctx context.Context, name string) (*godo.Droplet, error) {
-	cachedDroplet, ok := p.droplets[name]
+	cachedDroplet, ok := p.droplets.Load(name)
 
 	if !ok {
 		return nil, fmt.Errorf("could not find droplet %s", name)
