@@ -42,7 +42,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		return "", err
 	}
 
-	p.droplets[droplet.Name] = droplet
+	p.droplets.Store(droplet.Name, droplet)
 
 	ip, err := p.GetIP(ctx, droplet.Name)
 
@@ -92,7 +92,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		return "", err
 	}
 
-	p.containers[droplet.Name] = createdContainer.ID
+	p.containers.Store(droplet.Name, createdContainer.ID)
 
 	return droplet.Name, nil
 }
@@ -106,7 +106,7 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 		return err
 	}
 
-	containerID, ok := p.containers[taskName]
+	containerID, ok := p.containers.Load(taskName)
 
 	if !ok {
 		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
@@ -143,7 +143,7 @@ func (p *Provider) StopTask(ctx context.Context, taskName string) error {
 		return err
 	}
 
-	containerID, ok := p.containers[taskName]
+	containerID, ok := p.containers.Load(taskName)
 
 	if !ok {
 		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
@@ -185,7 +185,7 @@ func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider
 
 	defer dockerClient.Close()
 
-	id, ok := p.containers[taskName]
+	id, ok := p.containers.Load(taskName)
 
 	if !ok {
 		return provider.TASK_STATUS_UNDEFINED, fmt.Errorf("could not find container for %s with ID %s", taskName, id)
@@ -318,7 +318,7 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 
 	defer dockerClient.Close()
 
-	id, ok := p.containers[taskName]
+	id, ok := p.containers.Load(taskName)
 
 	if !ok {
 		return "", "", 0, fmt.Errorf("could not find container for %s with ID %s", taskName, id)
