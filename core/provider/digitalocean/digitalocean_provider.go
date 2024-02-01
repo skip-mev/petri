@@ -3,14 +3,9 @@ package digitalocean
 import (
 	"fmt"
 	"github.com/digitalocean/godo"
-<<<<<<< HEAD
 	"github.com/skip-mev/petri/core/provider"
 	"github.com/skip-mev/petri/core/util"
-=======
 	"github.com/puzpuzpuz/xsync/v3"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
->>>>>>> e28814c (fix(core/provider/digitalocean): make the droplets and containers map threadsafe)
 	"go.uber.org/zap"
 )
 
