@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"go.uber.org/zap"
+	"sync"
 )
 
 // TaskStatus defines the status of a task's underlying workload
@@ -23,8 +24,8 @@ type Task struct {
 	Definition TaskDefinition
 	Sidecars   []*Task
 
-	logger *zap.Logger
-
+	logger   *zap.Logger
+	mu       sync.RWMutex
 	PreStart func(context.Context, *Task) error
 	PostStop func(context.Context, *Task) error
 }
