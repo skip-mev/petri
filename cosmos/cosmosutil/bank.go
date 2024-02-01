@@ -6,7 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/types"
 )
 
 // bank queries

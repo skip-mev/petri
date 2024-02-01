@@ -6,7 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/provider"
 	"google.golang.org/grpc"
 )
 

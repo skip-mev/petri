@@ -8,8 +8,8 @@ import (
 
 	"github.com/docker/docker/client"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/provider"
+	"github.com/skip-mev/petri/core/util"
 )
 
 var _ provider.Provider = (*Provider)(nil)

@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/util"
 	"go.uber.org/zap"
 	"io"
 	"net"
@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/nat"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/provider"
 )
 
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {

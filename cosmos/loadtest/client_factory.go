@@ -6,9 +6,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/informalsystems/tm-load-test/pkg/loadtest"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
-	"github.com/skip-mev/petri/cosmos/v2/cosmosutil"
-	"github.com/skip-mev/petri/cosmos/v2/wallet"
+	petritypes "github.com/skip-mev/petri/core/types"
+	"github.com/skip-mev/petri/cosmos/cosmosutil"
+	"github.com/skip-mev/petri/cosmos/wallet"
 )
 
 // GenerateMsgs is a function that generates messages given an address for the DefaultClient

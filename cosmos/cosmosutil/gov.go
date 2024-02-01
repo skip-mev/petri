@@ -5,7 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	"github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/types"
 )
 
 // GovProposal fetches a proposal from the governance module
@@ -214,12 +214,13 @@ func (c *ChainClient) GovDepositOnProposal(ctx context.Context, proposalID uint6
 }
 
 // GovSubmitProposal submits a proposal using the address of the wallet proposer
+// Expedited is an unused parameter that is only used in Cosmos SDK >=v0.50
 func (c *ChainClient) GovSubmitProposal(ctx context.Context, proposer *InteractingWallet,
 	messages []sdk.Msg, initialDeposit sdk.Coins, gasSettings types.GasSettings, metadata,
 	title, summary string, expedited bool) (*sdk.TxResponse, error) {
 
 	msg, err := govtypes.NewMsgSubmitProposal(
-		messages, initialDeposit, proposer.FormattedAddress(), metadata, title, summary, expedited)
+		messages, initialDeposit, proposer.FormattedAddress(), metadata, title, summary)
 
 	if err != nil {
 		return nil, err

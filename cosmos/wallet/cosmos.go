@@ -4,7 +4,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/go-bip39"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
+	petritypes "github.com/skip-mev/petri/core/types"
 )
 
 // CosmosWallet implements the types.Wallet interface and represents a valid Cosmos SDK wallet

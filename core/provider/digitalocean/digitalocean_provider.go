@@ -3,8 +3,8 @@ package digitalocean
 import (
 	"fmt"
 	"github.com/digitalocean/godo"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/provider"
+	"github.com/skip-mev/petri/core/util"
 	"go.uber.org/zap"
 )
 

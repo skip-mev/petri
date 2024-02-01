@@ -13,8 +13,8 @@ import (
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
-	"github.com/skip-mev/petri/core/v2/util"
+	petritypes "github.com/skip-mev/petri/core/types"
+	"github.com/skip-mev/petri/core/util"
 	"strings"
 	"time"
 )
@@ -130,7 +130,6 @@ func (w *InteractingWallet) SignTx(ctx context.Context, tx sdk.Tx, accNum, seque
 	}
 
 	sigV2, err := clienttx.SignWithPrivKey(
-		ctx,
 		signing.SignMode(w.encodingConfig.TxConfig.SignModeHandler().DefaultMode()),
 		signerData,
 		txFactory,

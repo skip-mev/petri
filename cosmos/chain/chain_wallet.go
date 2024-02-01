@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/skip-mev/petri/core/v2/types"
-	"github.com/skip-mev/petri/cosmos/v2/wallet"
+	"github.com/skip-mev/petri/core/types"
+	"github.com/skip-mev/petri/cosmos/wallet"
 )
 
 // BuildWallet creates a wallet in the first available full node's keystore. If a mnemonic is not specificied,

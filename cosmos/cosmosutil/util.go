@@ -3,7 +3,7 @@ package cosmosutil
 import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/types"
 )
 
 // GetFeeAmountsFromGasSettings returns the fee amounts from the gas settings
