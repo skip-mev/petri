@@ -50,8 +50,6 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 		return nil, err
 	}
 
-	userIPs = append(userIPs, "77.175.129.184")
-
 	digitalOceanProvider := &Provider{
 		logger:   logger.Named("digitalocean_provider"),
 		name:     providerName,
