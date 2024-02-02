@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"fmt"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -9,6 +10,9 @@ import (
 	"github.com/skip-mev/petri/core/v2/provider"
 	"google.golang.org/grpc"
 )
+
+// GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes
+type GenesisModifier func([]byte) ([]byte, error)
 
 // ChainI is an interface for a logical chain
 type ChainI interface {
@@ -71,5 +75,60 @@ type ChainConfig struct {
 	NodeDefinitionModifier NodeDefinitionModifier // NodeDefinitionModifier is a function that modifies a node's definition
 }
 
-// GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes
-type GenesisModifier func([]byte) ([]byte, error)
+func (c *ChainConfig) ValidateBasic() error {
+	if c.Denom == "" {
+		return fmt.Errorf("denom cannot be empty")
+	}
+
+	if c.Decimals == 0 {
+		return fmt.Errorf("decimals cannot be 0")
+	}
+
+	if c.NumValidators == 0 {
+		return fmt.Errorf("num validators cannot be 0")
+	}
+
+	if c.BinaryName == "" {
+		return fmt.Errorf("binary name cannot be empty")
+	}
+
+	if c.GasPrices == "" {
+		return fmt.Errorf("gas prices cannot be empty")
+	}
+
+	if c.GasAdjustment == 0 {
+		return fmt.Errorf("gas adjustment cannot be 0")
+	}
+
+	if err := c.Image.ValidateBasic(); err != nil {
+		return fmt.Errorf("image definition is invalid: %w", err)
+	}
+
+	if c.SidecarImage.Image != "" {
+		if err := c.SidecarImage.ValidateBasic(); err != nil {
+			return fmt.Errorf("sidecar image definition is invalid: %w", err)
+		}
+	}
+
+	if c.Bech32Prefix == "" {
+		return fmt.Errorf("bech32 prefix cannot be empty")
+	}
+
+	if c.CoinType == "" {
+		return fmt.Errorf("coin type cannot be empty")
+	}
+
+	if c.HDPath == "" {
+		return fmt.Errorf("HD path cannot be empty")
+	}
+
+	if c.ChainId == "" {
+		return fmt.Errorf("chain ID cannot be empty")
+	}
+
+	if c.NodeCreator == nil {
+		return fmt.Errorf("node creator cannot be nil")
+	}
+
+	return nil
+}
