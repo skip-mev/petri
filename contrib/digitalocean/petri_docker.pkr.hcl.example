@@ -14,7 +14,7 @@ source "digitalocean" "petri" {
     size = "s-1vcpu-1gb"
     ssh_username = "root"
     snapshot_name = "petri-ubuntu-23-10-x64"
-    snapshot_regions = ["ams3", "nyc3"]
+    snapshot_regions = ["<REGIONS>"]
 }
 
 build {
