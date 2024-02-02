@@ -21,6 +21,10 @@ import (
 )
 
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
+	if err := definition.ValidateBasic(); err != nil {
+		return "", fmt.Errorf("failed to validate task definition: %w", err)
+	}
+
 	logger = logger.Named("docker_provider")
 
 	if err := p.pullImage(ctx, definition.Image.Image); err != nil {
@@ -222,6 +226,10 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 }
 
 func (p *Provider) RunCommandWhileStopped(ctx context.Context, id string, definition provider.TaskDefinition, command []string) (string, string, int, error) {
+	if err := definition.ValidateBasic(); err != nil {
+		return "", "", 0, fmt.Errorf("failed to validate task definition: %w", err)
+	}
+
 	p.logger.Debug("running command while stopped", zap.String("id", id), zap.Strings("command", command))
 
 	status, err := p.GetTaskStatus(ctx, id)

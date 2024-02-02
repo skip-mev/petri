@@ -3,12 +3,17 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.uber.org/zap"
 	"sync"
 )
 
 // CreateTask creates a task structure and sets up its underlying workload on a provider, including sidecars if there are any in the definition
 func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, definition TaskDefinition) (*Task, error) {
+	if err := definition.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("failed to validate task definition: %w", err)
+	}
+
 	task := &Task{
 		Provider:   provider,
 		Definition: definition,
