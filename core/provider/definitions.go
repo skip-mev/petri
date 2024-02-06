@@ -13,7 +13,7 @@ type VolumeDefinition struct {
 	Size      string
 }
 
-func (v VolumeDefinition) ValidateBasic() error {
+func (v *VolumeDefinition) ValidateBasic() error {
 	if v.Name == "" {
 		return fmt.Errorf("volume name cannot be empty")
 	}
@@ -45,7 +45,7 @@ type TaskDefinition struct {
 	ProviderSpecificConfig interface{}
 }
 
-func (t TaskDefinition) ValidateBasic() error {
+func (t *TaskDefinition) ValidateBasic() error {
 	if t.Name == "" {
 		return fmt.Errorf("name cannot be empty")
 	}
@@ -90,7 +90,7 @@ type ImageDefinition struct {
 	GID   string
 }
 
-func (i ImageDefinition) ValidateBasic() error {
+func (i *ImageDefinition) ValidateBasic() error {
 	if i.Image == "" {
 		return fmt.Errorf("image cannot be empty")
 	}
