@@ -17,6 +17,10 @@ import _ "embed"
 var dockerCloudInit string
 
 func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDefinition) (*godo.Droplet, error) {
+	if err := definition.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("failed to validate task definition: %w", err)
+	}
+
 	doConfig, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
 
 	if !ok {

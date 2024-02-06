@@ -22,6 +22,10 @@ import (
 
 // CreateVolume is an idempotent operation
 func (p *Provider) CreateVolume(ctx context.Context, definition provider.VolumeDefinition) (string, error) {
+	if err := definition.ValidateBasic(); err != nil {
+		return "", fmt.Errorf("failed to validate volume definition: %w", err)
+	}
+
 	p.logger.Debug("creating volume", zap.String("name", definition.Name), zap.String("size", definition.Size))
 
 	existingVolume, err := p.dockerClient.VolumeInspect(ctx, definition.Name)

@@ -28,6 +28,10 @@ var _ petritypes.NodeCreator = CreateNode
 
 // CreateNode creates a new logical node and creates the underlying workload for it
 func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
+	if err := nodeConfig.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("failed to validate node config: %w", err)
+	}
+
 	var node Node
 
 	node.logger = logger.Named("node")

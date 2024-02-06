@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"fmt"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/skip-mev/petri/core/provider"
@@ -18,6 +19,22 @@ type NodeConfig struct {
 
 	Chain    ChainI            // Chain is the chain this node is running on
 	Provider provider.Provider // Provider is the provider this node is running on
+}
+
+func (c NodeConfig) ValidateBasic() error {
+	if c.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	if c.Chain == nil {
+		return fmt.Errorf("chain cannot be nil")
+	}
+
+	if c.Provider == nil {
+		return fmt.Errorf("provider cannot be nil")
+	}
+
+	return nil
 }
 
 // NodeDefinitionModifier is a type of function that given a NodeConfig modifies the task definition. It usually
