@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
