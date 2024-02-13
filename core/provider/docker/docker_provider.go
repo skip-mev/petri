@@ -24,7 +24,7 @@ type Provider struct {
 	name              string
 	dockerNetworkID   string
 	dockerNetworkName string
-	networkMu         sync.RWMutex
+	networkMu         sync.Mutex
 	listeners         map[string]Listeners
 	builderImageName  string
 }
