@@ -62,7 +62,6 @@ type ChainConfig struct {
 	SidecarArgs    []string // SidecarArgs are the arguments to launch the chain sidecar
 
 	CoinType string // CoinType is the coin type of the chain (e.g. 118)
-	HDPath   string // HDPath is the HD path of the chain (e.g. m/44'/118'/0'/0/0)
 	ChainId  string // ChainId is the chain ID of the chain
 
 	ModifyGenesis GenesisModifier // ModifyGenesis is a function that modifies the genesis bytes of the chain
@@ -116,10 +115,6 @@ func (c *ChainConfig) ValidateBasic() error {
 
 	if c.CoinType == "" {
 		return fmt.Errorf("coin type cannot be empty")
-	}
-
-	if c.HDPath == "" {
-		return fmt.Errorf("HD path cannot be empty")
 	}
 
 	if c.ChainId == "" {
