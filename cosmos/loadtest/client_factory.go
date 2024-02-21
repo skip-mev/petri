@@ -2,6 +2,7 @@ package loadtest
 
 import (
 	"context"
+	"fmt"
 	"github.com/cometbft/cometbft/test/loadtime/payload"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -67,6 +68,9 @@ func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, 
 		GasDenom:    f.chain.GetConfig().Denom,
 		PricePerGas: 0, // todo(Zygimantass): get gas settings
 	}, true)
+	if err != nil {
+		return nil, fmt.Errorf("error seeding account %s from seeder %s: %v", interactingLoaderWallet.FormattedAddress(), f.seeder.FormattedAddress(), err)
+	}
 
 	msgs, gasSettings, err := f.msgGenerator(interactingLoaderWallet.Address())
 
@@ -77,7 +81,7 @@ func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, 
 	acc, err := interactingLoaderWallet.Account(context.Background())
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error in client initialization: sender account was not created %s", interactingLoaderWallet.FormattedAddress())
 	}
 
 	return NewDefaultClient(interactingLoaderWallet, f.chainClient, msgs, acc.GetSequence(), acc.GetAccountNumber(), gasSettings, &payload.Payload{
