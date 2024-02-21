@@ -22,6 +22,10 @@ import (
 )
 
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
+	if err := definition.ValidateBasic(); err != nil {
+		return "", fmt.Errorf("failed to validate task definition: %w", err)
+	}
+
 	if definition.ProviderSpecificConfig == nil {
 		return "", fmt.Errorf("digitalocean specific config is nil")
 	}
@@ -355,6 +359,10 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 }
 
 func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, definition provider.TaskDefinition, command []string) (string, string, int, error) {
+	if err := definition.ValidateBasic(); err != nil {
+		return "", "", 0, fmt.Errorf("failed to validate task definition: %w", err)
+	}
+
 	dockerClient, err := p.getDropletDockerClient(ctx, taskName)
 
 	if err != nil {
