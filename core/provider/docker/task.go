@@ -93,8 +93,11 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		listeners.CloseAll()
 		return "", err
 	}
-
+	
+	// network map is volatile, so we need to mutex update it
+	p.networkMu.Lock()
 	p.listeners[createdContainer.ID] = listeners
+	p.networkMu.Unlock()
 
 	return createdContainer.ID, nil
 }
@@ -118,8 +121,8 @@ func (p *Provider) pullImage(ctx context.Context, imageName string) error {
 
 func (p *Provider) StartTask(ctx context.Context, id string) error {
 	p.logger.Info("starting task", zap.String("id", id))
-	p.networkMu.RLock()
-	defer p.networkMu.RUnlock()
+	p.networkMu.Lock()
+	defer p.networkMu.Unlock()
 
 	if _, ok := p.listeners[id]; !ok {
 		return fmt.Errorf("task port listeners %s not found", id)
