@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"go.uber.org/zap"
 	"text/template"
+
+	"go.uber.org/zap"
+
+	"github.com/skip-mev/petri/core/v2/provider"
 )
 
 const DEFAULT_PROMETHEUS_URL = "http://prometheus:9090"
@@ -57,13 +59,11 @@ func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provid
 		},
 		ProviderSpecificConfig: opts.ProviderSpecificConfig,
 	})
-
 	if err != nil {
 		return nil, err
 	}
 
 	err = task.WriteFile(ctx, "grafana.ini", []byte(grafanaConfig))
-
 	if err != nil {
 		return nil, err
 	}
@@ -74,19 +74,16 @@ func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provid
 	}
 
 	err = task.WriteFile(ctx, "conf/provisioning/datasources/prometheus.yml", []byte(parsedGrafanaDatasourceConfig))
-
 	if err != nil {
 		return nil, err
 	}
 
 	err = task.WriteFile(ctx, "conf/provisioning/dashboards/dashboards.yml", []byte(grafanaDashboardProvisioningConfig))
-
 	if err != nil {
 		return nil, err
 	}
 
 	err = task.WriteFile(ctx, "conf/provisioning/dashboards/dashboard.json", []byte(opts.DashboardJSON))
-
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +93,6 @@ func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provid
 
 func parseGrafanaDatasourceTemplate(opts GrafanaOptions) (string, error) {
 	parsedGrafanaDatasourceTemplate, err := template.New("datasources.yml").Parse(grafanaDatasourceTemplate)
-
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +110,6 @@ func parseGrafanaDatasourceTemplate(opts GrafanaOptions) (string, error) {
 	}
 
 	err = parsedGrafanaDatasourceTemplate.Execute(&buf, variables)
-
 	if err != nil {
 		return "", err
 	}

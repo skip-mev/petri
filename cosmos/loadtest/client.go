@@ -2,16 +2,19 @@ package loadtest
 
 import (
 	"context"
-	"cosmossdk.io/math"
 	"encoding/base64"
 	"encoding/binary"
+
+	"cosmossdk.io/math"
+
 	"github.com/cometbft/cometbft/test/loadtime/payload"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 	petriutil "github.com/skip-mev/petri/core/v2/util"
 	"github.com/skip-mev/petri/cosmos/v2/cosmosutil"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // DefaultClient is a default tm-load-test client that implements the Client interface
@@ -67,19 +70,16 @@ func (c *DefaultClient) GenerateTx() ([]byte, error) {
 		memo,
 		c.msgs...,
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
 	signedTx, err := c.loader.SignTx(context.Background(), tx, c.accNum, c.seq)
-
 	if err != nil {
 		return nil, err
 	}
 
 	bz, err = c.chainClient.Chain.GetTxConfig().TxEncoder()(signedTx)
-
 	if err != nil {
 		return nil, err
 	}

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	toml "github.com/pelletier/go-toml/v2"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"reflect"
 	"time"
+
+	toml "github.com/pelletier/go-toml/v2"
+
+	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
 type Toml map[string]any

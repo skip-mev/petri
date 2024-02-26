@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 // CreateTask creates a task structure and sets up its underlying workload on a provider, including sidecars if there are any in the definition

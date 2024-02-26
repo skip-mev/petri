@@ -3,9 +3,10 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/icza/dyno"
 	"strconv"
 	"strings"
+
+	"github.com/icza/dyno"
 )
 
 // GenesisKV is used in ModifyGenesis to specify which keys have to be modified

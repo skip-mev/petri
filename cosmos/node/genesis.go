@@ -3,11 +3,13 @@ package node
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"go.uber.org/zap"
-	"time"
+
+	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
 // GenesisFileContent returns the genesis file on the node in byte format
@@ -15,7 +17,6 @@ func (n *Node) GenesisFileContent(ctx context.Context) ([]byte, error) {
 	n.logger.Info("reading genesis file", zap.String("node", n.Definition.Name))
 
 	bz, err := n.Task.ReadFile(ctx, "config/genesis.json")
-
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +29,6 @@ func (n *Node) CopyGenTx(ctx context.Context, dstNode petritypes.NodeI) error {
 	n.logger.Info("copying gen tx", zap.String("from", n.GetConfig().Name), zap.String("to", dstNode.GetConfig().Name))
 
 	nid, err := n.NodeId(ctx)
-
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,6 @@ func (n *Node) CopyGenTx(ctx context.Context, dstNode petritypes.NodeI) error {
 
 	n.logger.Debug("reading gen tx", zap.String("node", n.GetConfig().Name))
 	gentx, err := n.Task.ReadFile(context.Background(), path)
-
 	if err != nil {
 		return err
 	}

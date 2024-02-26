@@ -3,8 +3,9 @@ package docker
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"net"
+
+	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/nat"

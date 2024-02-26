@@ -1,9 +1,11 @@
 package provider_test
 
 import (
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/skip-mev/petri/core/v2/provider"
 )
 
 var validImageDefinition = provider.ImageDefinition{

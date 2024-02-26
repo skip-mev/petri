@@ -3,11 +3,13 @@ package node
 import (
 	"context"
 	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"go.uber.org/zap"
+
 	"github.com/skip-mev/petri/core/v2/types"
 	"github.com/skip-mev/petri/core/v2/util"
 	"github.com/skip-mev/petri/cosmos/v2/wallet"
-	"go.uber.org/zap"
 )
 
 // CreateWallet creates a new wallet on the node using a randomly generated mnemonic
@@ -15,13 +17,11 @@ func (n *Node) CreateWallet(ctx context.Context, name string, walletConfig types
 	n.logger.Info("creating wallet", zap.String("name", name))
 
 	keyWallet, err := wallet.NewGeneratedWallet(name, walletConfig) // todo: fix this to depend on WalletI
-
 	if err != nil {
 		return nil, err
 	}
 
 	err = n.RecoverKey(ctx, name, keyWallet.Mnemonic())
-
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,8 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 func (n *Node) KeyBech32(ctx context.Context, name, bech string) (string, error) {
 	chainConfig := n.chain.GetConfig()
 
-	command := []string{chainConfig.BinaryName,
+	command := []string{
+		chainConfig.BinaryName,
 		"keys", "show", name, "-a", "--keyring-backend", keyring.BackendTest, "--home", chainConfig.HomeDir,
 	}
 

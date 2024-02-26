@@ -7,11 +7,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/digitalocean/godo"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/digitalocean/godo"
+	"golang.org/x/crypto/ssh"
 )
 
 func makeSSHKeyPair() (string, string, string, error) {
@@ -42,7 +43,6 @@ func makeSSHKeyPair() (string, string, string, error) {
 
 func getUserIPs(ctx context.Context) (ips []string, err error) {
 	res, err := http.Get("https://ifconfig.io")
-
 	if err != nil {
 		return ips, err
 	}
@@ -50,7 +50,6 @@ func getUserIPs(ctx context.Context) (ips []string, err error) {
 	defer res.Body.Close()
 
 	ifconfigIoIp, err := io.ReadAll(res.Body)
-
 	if err != nil {
 		return ips, err
 	}
@@ -58,7 +57,6 @@ func getUserIPs(ctx context.Context) (ips []string, err error) {
 	ips = append(ips, strings.Trim(string(ifconfigIoIp), "\n"))
 
 	res, err = http.Get("https://ifconfig.co")
-
 	if err != nil {
 		return ips, err
 	}
@@ -66,7 +64,6 @@ func getUserIPs(ctx context.Context) (ips []string, err error) {
 	defer res.Body.Close()
 
 	ifconfigCoIp, err := io.ReadAll(res.Body)
-
 	if err != nil {
 		return ips, err
 	}
@@ -80,7 +77,6 @@ func (p *Provider) createSSHKey(ctx context.Context, pubKey string) (*godo.Key, 
 	req := &godo.KeyCreateRequest{PublicKey: pubKey, Name: fmt.Sprintf("%s-key", p.petriTag)}
 
 	key, res, err := p.doClient.Keys.Create(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}

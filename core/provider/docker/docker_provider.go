@@ -3,8 +3,9 @@ package docker
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"sync"
+
+	"go.uber.org/zap"
 
 	"github.com/docker/docker/client"
 
@@ -38,7 +39,6 @@ func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName str
 	}
 
 	_, err = dockerClient.Ping(ctx)
-
 	if err != nil {
 		return nil, err
 	}
