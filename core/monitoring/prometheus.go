@@ -44,6 +44,9 @@ func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Pro
 		},
 		ProviderSpecificConfig: opts.ProviderSpecificConfig,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	parsedPrometheusConfig, err := parsePrometheusConfig(opts)
 	if err != nil {

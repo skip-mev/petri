@@ -16,6 +16,8 @@ import (
 	_ "embed"
 )
 
+// nolint
+//
 //go:embed files/docker-cloud-init.yaml
 var dockerCloudInit string
 

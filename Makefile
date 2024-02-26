@@ -12,13 +12,15 @@ govulncheck:
 	@go run golang.org/x/vuln/cmd/govulncheck -test ./...
 
 lint:
-	@echo "--> Running linter"
+	@echo "--> Running linter for core pkg..."
 	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --out-format=tab
+	@echo "--> Running linter for cosmos pkg..."
 	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --out-format=tab
 
 lint-fix:
-	@echo "--> Running linter"
+	@echo "--> Running linter for core pkg..."
 	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix --out-format=tab --issues-exit-code=0
+	@echo "--> Running linter for cosmos pkg..."
 	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix --out-format=tab --issues-exit-code=0
 
 format:

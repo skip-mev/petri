@@ -223,8 +223,10 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 	}
 
 	var stdout, stderr bytes.Buffer
-
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+	if err != nil {
+		return "", "", 0, err
+	}
 
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
 }
