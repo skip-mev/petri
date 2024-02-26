@@ -33,7 +33,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 	}
 
 	_, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
-
 	if !ok {
 		return "", fmt.Errorf("could not cast digitalocean specific config")
 	}
@@ -57,7 +56,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 	logger.Info("droplet created", zap.String("name", droplet.Name), zap.String("ip", ip))
 
 	dockerClient, err := p.getDropletDockerClient(ctx, droplet.Name)
-	defer dockerClient.Close()
+	defer dockerClient.Close() // nolint
 
 	if err != nil {
 		return "", err
@@ -102,15 +101,13 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 
 func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 	dockerClient, err := p.getDropletDockerClient(ctx, taskName)
-
-	defer dockerClient.Close()
-
 	if err != nil {
 		return err
 	}
 
-	containerID, ok := p.containers.Load(taskName)
+	defer dockerClient.Close() // nolint
 
+	containerID, ok := p.containers.Load(taskName)
 	if !ok {
 		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
 	}
@@ -138,22 +135,18 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 
 func (p *Provider) StopTask(ctx context.Context, taskName string) error {
 	dockerClient, err := p.getDropletDockerClient(ctx, taskName)
-
-	defer dockerClient.Close()
-
 	if err != nil {
 		return err
 	}
 
-	containerID, ok := p.containers.Load(taskName)
+	defer dockerClient.Close() // nolint
 
+	containerID, ok := p.containers.Load(taskName)
 	if !ok {
 		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
 	}
 
-	err = dockerClient.ContainerStop(ctx, containerID, container.StopOptions{})
-
-	return err
+	return dockerClient.ContainerStop(ctx, containerID, container.StopOptions{})
 }
 
 func (p *Provider) DestroyTask(ctx context.Context, taskName string) error {
@@ -340,6 +333,9 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 	var stdout, stderr bytes.Buffer
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+	if err != nil {
+		return "", "", 0, err
+	}
 
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
 }
@@ -383,6 +379,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
+	// nolint
 	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true})
 
 	err = dockerClient.ContainerStart(ctx, createdContainer.ID, types.ContainerStartOptions{})
@@ -412,8 +409,10 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 	}
 
 	var stdout, stderr bytes.Buffer
-
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+	if err != nil {
+		return "", "", 0, err
+	}
 
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
 }
