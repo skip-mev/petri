@@ -3,15 +3,17 @@ package node
 import (
 	"context"
 	"fmt"
+	"time"
+
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/p2p"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	libclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
-	"github.com/skip-mev/petri/core/v2/provider"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"time"
+
+	"github.com/skip-mev/petri/core/v2/provider"
 
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
@@ -70,7 +72,6 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 	}
 
 	task, err := provider.CreateTask(ctx, node.logger, nodeConfig.Provider, def)
-
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +89,6 @@ func (n *Node) GetTask() *provider.Task {
 // GetTMClient returns a CometBFT HTTP client for the node
 func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 	addr, err := n.Task.GetExternalAddress(ctx, "26657")
-
 	if err != nil {
 		panic(err)
 	}
@@ -129,13 +129,11 @@ func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 func (n *Node) Height(ctx context.Context) (uint64, error) {
 	n.logger.Debug("getting height", zap.String("node", n.Definition.Name))
 	client, err := n.GetTMClient(ctx)
-
 	if err != nil {
 		return 0, err
 	}
 
 	block, err := client.Block(ctx, nil)
-
 	if err != nil {
 		return 0, err
 	}

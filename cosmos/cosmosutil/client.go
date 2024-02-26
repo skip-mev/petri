@@ -2,9 +2,11 @@ package cosmosutil
 
 import (
 	"context"
+
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
@@ -18,7 +20,6 @@ type ChainClient struct {
 //nolint:unused
 func (c *ChainClient) getAuthClient(ctx context.Context) (authtypes.QueryClient, error) {
 	cc, err := c.Chain.GetGRPCClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +30,6 @@ func (c *ChainClient) getAuthClient(ctx context.Context) (authtypes.QueryClient,
 //nolint:unused
 func (c *ChainClient) getBankClient(ctx context.Context) (banktypes.QueryClient, error) {
 	cc, err := c.Chain.GetGRPCClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,6 @@ func (c *ChainClient) getBankClient(ctx context.Context) (banktypes.QueryClient,
 //nolint:unused
 func (c *ChainClient) getGovClient(ctx context.Context) (govtypes.QueryClient, error) {
 	cc, err := c.Chain.GetGRPCClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}

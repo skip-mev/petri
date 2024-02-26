@@ -2,6 +2,7 @@ package cosmosutil
 
 import (
 	"context"
+
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 

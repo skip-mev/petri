@@ -3,9 +3,11 @@ package cosmosutil
 import (
 	"context"
 	"encoding/hex"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+
 	"github.com/skip-mev/petri/core/v2/types"
 )
 
@@ -14,7 +16,6 @@ import (
 // Balances returns the bank module token balances for a given address
 func (c *ChainClient) Balances(ctx context.Context, address string) (sdk.Coins, error) {
 	bankClient, err := c.getBankClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +30,6 @@ func (c *ChainClient) Balances(ctx context.Context, address string) (sdk.Coins, 
 				Key: nextToken,
 			},
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +53,6 @@ func (c *ChainClient) Balances(ctx context.Context, address string) (sdk.Coins, 
 // Balances returns the bank module token balance for a given address and denom
 func (c *ChainClient) Balance(ctx context.Context, address, denom string) (sdk.Coin, error) {
 	bankClient, err := c.getBankClient(ctx)
-
 	if err != nil {
 		return sdk.Coin{}, err
 	}
@@ -62,7 +61,6 @@ func (c *ChainClient) Balance(ctx context.Context, address, denom string) (sdk.C
 		Address: address,
 		Denom:   denom,
 	})
-
 	if err != nil {
 		return sdk.Coin{}, err
 	}
@@ -77,7 +75,6 @@ func (c *ChainClient) Balance(ctx context.Context, address, denom string) (sdk.C
 // DenomMetadata returns the bank module token metadata for a given denom
 func (c *ChainClient) DenomMetadata(ctx context.Context, denom string) (banktypes.Metadata, error) {
 	bankClient, err := c.getBankClient(ctx)
-
 	if err != nil {
 		return banktypes.Metadata{}, err
 	}
@@ -85,7 +82,6 @@ func (c *ChainClient) DenomMetadata(ctx context.Context, denom string) (banktype
 	res, err := bankClient.DenomMetadata(ctx, &banktypes.QueryDenomMetadataRequest{
 		Denom: denom,
 	})
-
 	if err != nil {
 		return banktypes.Metadata{}, err
 	}
@@ -96,7 +92,6 @@ func (c *ChainClient) DenomMetadata(ctx context.Context, denom string) (banktype
 // DenomsMetadata returns the bank module token metadata for all denoms
 func (c *ChainClient) DenomsMetadata(ctx context.Context) ([]banktypes.Metadata, error) {
 	bankClient, err := c.getBankClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +101,6 @@ func (c *ChainClient) DenomsMetadata(ctx context.Context) ([]banktypes.Metadata,
 
 	for {
 		res, err := bankClient.DenomsMetadata(ctx, &banktypes.QueryDenomsMetadataRequest{})
-
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +120,6 @@ func (c *ChainClient) DenomsMetadata(ctx context.Context) ([]banktypes.Metadata,
 // TotalSupplyAll returns the total supply of all tokens in the bank module
 func (c *ChainClient) TotalSupplyAll(ctx context.Context) (sdk.Coins, error) {
 	bankClient, err := c.getBankClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +129,6 @@ func (c *ChainClient) TotalSupplyAll(ctx context.Context) (sdk.Coins, error) {
 
 	for {
 		res, err := bankClient.TotalSupply(ctx, &banktypes.QueryTotalSupplyRequest{})
-
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +148,6 @@ func (c *ChainClient) TotalSupplyAll(ctx context.Context) (sdk.Coins, error) {
 // TotalSupplySingle returns the total supply of a single token in the bank module
 func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (sdk.Coin, error) {
 	bankClient, err := c.getBankClient(ctx)
-
 	if err != nil {
 		return sdk.Coin{}, err
 	}
@@ -164,7 +155,6 @@ func (c *ChainClient) BankTotalSupplySingle(ctx context.Context, denom string) (
 	res, err := bankClient.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{
 		Denom: denom,
 	})
-
 	if err != nil {
 		return sdk.Coin{}, err
 	}

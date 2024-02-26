@@ -3,6 +3,7 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+
 	"github.com/digitalocean/godo"
 )
 
@@ -12,7 +13,6 @@ func (p *Provider) createTag(ctx context.Context, tagName string) (*godo.Tag, er
 	}
 
 	tag, res, err := p.doClient.Tags.Create(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}

@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/skip-mev/petri/core/v2/util"
-	"go.uber.org/zap"
 	"io"
 	"net"
 	"time"
+
+	"github.com/docker/docker/pkg/stdcopy"
+	"go.uber.org/zap"
+
+	"github.com/skip-mev/petri/core/v2/util"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -51,7 +53,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 			Size:      "10GB",
 			MountPath: definition.DataDir,
 		})
-
 		if err != nil {
 			return "", fmt.Errorf("failed to create dataDir: %v", err)
 		}
@@ -93,7 +94,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		listeners.CloseAll()
 		return "", err
 	}
-	
+
 	// network map is volatile, so we need to mutex update it
 	p.networkMu.Lock()
 	p.listeners[createdContainer.ID] = listeners

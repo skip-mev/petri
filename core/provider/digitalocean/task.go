@@ -4,21 +4,23 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net"
+	"path"
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/pkg/sftp"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
 	"github.com/spf13/afero"
 	"github.com/spf13/afero/sftpfs"
 	"go.uber.org/zap"
-	"io"
-	"net"
-	"path"
-	"time"
+
+	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v2/util"
 )
 
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
@@ -41,7 +43,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 	logger.Info("creating droplet", zap.String("name", definition.Name))
 
 	droplet, err := p.CreateDroplet(ctx, definition)
-
 	if err != nil {
 		return "", err
 	}
@@ -49,7 +50,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 	p.droplets.Store(droplet.Name, droplet)
 
 	ip, err := p.GetIP(ctx, droplet.Name)
-
 	if err != nil {
 		return "", err
 	}
@@ -91,7 +91,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		},
 		NetworkMode: container.NetworkMode("host"),
 	}, nil, nil, definition.ContainerName)
-
 	if err != nil {
 		return "", err
 	}
@@ -117,7 +116,6 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 	}
 
 	err = dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
-
 	if err != nil {
 		return err
 	}
@@ -172,7 +170,6 @@ func (p *Provider) DestroyTask(ctx context.Context, taskName string) error {
 
 func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider.TaskStatus, error) {
 	droplet, err := p.getDroplet(ctx, taskName)
-
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
@@ -182,7 +179,6 @@ func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider
 	}
 
 	dockerClient, err := p.getDropletDockerClient(ctx, taskName)
-
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
@@ -224,7 +220,6 @@ func (p *Provider) WriteFile(ctx context.Context, taskName string, relPath strin
 	absPath := path.Join("/docker_volumes", relPath)
 
 	sshClient, err := p.getDropletSSHClient(ctx, taskName)
-
 	if err != nil {
 		return err
 	}
@@ -232,7 +227,6 @@ func (p *Provider) WriteFile(ctx context.Context, taskName string, relPath strin
 	defer sshClient.Close()
 
 	sftpClient, err := sftp.NewClient(sshClient)
-
 	if err != nil {
 		return err
 	}
@@ -240,19 +234,16 @@ func (p *Provider) WriteFile(ctx context.Context, taskName string, relPath strin
 	defer sftpClient.Close()
 
 	err = sftpClient.MkdirAll(path.Dir(absPath))
-
 	if err != nil {
 		return err
 	}
 
 	file, err := sftpClient.Create(absPath)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = file.Write(content)
-
 	if err != nil {
 		return err
 	}
@@ -264,7 +255,6 @@ func (p *Provider) ReadFile(ctx context.Context, taskName string, relPath string
 	absPath := path.Join("/docker_volumes", relPath)
 
 	sshClient, err := p.getDropletSSHClient(ctx, taskName)
-
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +262,6 @@ func (p *Provider) ReadFile(ctx context.Context, taskName string, relPath string
 	defer sshClient.Close()
 
 	sftpClient, err := sftp.NewClient(sshClient)
-
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +271,6 @@ func (p *Provider) ReadFile(ctx context.Context, taskName string, relPath string
 	fs := sftpfs.New(sftpClient)
 
 	content, err := afero.ReadFile(fs, absPath)
-
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +284,6 @@ func (p *Provider) DownloadDir(ctx context.Context, s string, s2 string, s3 stri
 
 func (p *Provider) GetIP(ctx context.Context, taskName string) (string, error) {
 	droplet, err := p.getDroplet(ctx, taskName)
-
 	if err != nil {
 		return "", err
 	}
@@ -306,7 +293,6 @@ func (p *Provider) GetIP(ctx context.Context, taskName string) (string, error) {
 
 func (p *Provider) GetExternalAddress(ctx context.Context, taskName string, port string) (string, error) {
 	ip, err := p.GetIP(ctx, taskName)
-
 	if err != nil {
 		return "", err
 	}
@@ -364,7 +350,6 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 	}
 
 	dockerClient, err := p.getDropletDockerClient(ctx, taskName)
-
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -394,7 +379,6 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		},
 		NetworkMode: container.NetworkMode("host"),
 	}, nil, nil, definition.ContainerName)
-
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -402,7 +386,6 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true})
 
 	err = dockerClient.ContainerStart(ctx, createdContainer.ID, types.ContainerStartOptions{})
-
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -412,13 +395,11 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		AttachStderr: true,
 		Cmd:          command,
 	})
-
 	if err != nil {
 		return "", "", 0, err
 	}
 
 	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
-
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -447,7 +428,6 @@ func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Cli
 	defer resp.Close()
 	// throw away the image pull stdout response
 	_, err = io.Copy(io.Discard, resp)
-
 	if err != nil {
 		return err
 	}

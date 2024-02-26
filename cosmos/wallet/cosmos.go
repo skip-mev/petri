@@ -4,6 +4,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/go-bip39"
+
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
@@ -21,7 +22,6 @@ var _ petritypes.WalletI = &CosmosWallet{}
 // NewWallet creates a new CosmosWallet from a mnemonic and a keyname
 func NewWallet(keyname string, mnemonic string, config petritypes.WalletConfig) (*CosmosWallet, error) {
 	derivedPrivKey, err := config.DerivationFn(mnemonic, "", config.HDPath.String())
-
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +40,11 @@ func NewWallet(keyname string, mnemonic string, config petritypes.WalletConfig) 
 // NewGeneratedWallet creates a new CosmosWallet from a randomly generated mnemonic and a keyname
 func NewGeneratedWallet(keyname string, config petritypes.WalletConfig) (*CosmosWallet, error) {
 	entropy, err := bip39.NewEntropy(128)
-
 	if err != nil {
 		return nil, err
 	}
 
 	mnemonic, err := bip39.NewMnemonic(entropy)
-
 	if err != nil {
 		return nil, err
 	}
