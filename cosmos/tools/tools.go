@@ -10,8 +10,5 @@ package tools
 
 //nolint:all
 import (
-	_ "github.com/client9/misspell/cmd/misspell"
-	_ "golang.org/x/tools/cmd/goimports"
-	_ "golang.org/x/vuln/cmd/govulncheck"
-	_ "mvdan.cc/gofumpt"
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 )
