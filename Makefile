@@ -1,8 +1,11 @@
 tidy:
 	@go mod tidy
+	@cd ./core && go mod tidy
+	@cd ./cosmos && go mod tidy
 
 test:
-	@go test ./... -race
+	@cd ./core && go test ./... -race
+	@cd ./cosmos && go test ./... -race
 
 govulncheck:
 	@echo "--> Running govulncheck"
@@ -11,6 +14,7 @@ govulncheck:
 lint:
 	@echo "--> Running linter"
 	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run ./... --out-format=tab
+
 lint-fix:
 	@echo "--> Running linter"
 	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix --out-format=tab --issues-exit-code=0
