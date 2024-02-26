@@ -3,10 +3,12 @@ package loadtest
 import (
 	"context"
 	"fmt"
+
 	"github.com/cometbft/cometbft/test/loadtime/payload"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/informalsystems/tm-load-test/pkg/loadtest"
+
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"github.com/skip-mev/petri/cosmos/v2/cosmosutil"
 	"github.com/skip-mev/petri/cosmos/v2/wallet"
@@ -73,13 +75,11 @@ func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, 
 	}
 
 	msgs, gasSettings, err := f.msgGenerator(interactingLoaderWallet.Address())
-
 	if err != nil {
 		return nil, err
 	}
 
 	acc, err := interactingLoaderWallet.Account(context.Background())
-
 	if err != nil {
 		return nil, fmt.Errorf("error in client initialization: sender account was not created %s", interactingLoaderWallet.FormattedAddress())
 	}

@@ -64,7 +64,6 @@ func (t *TaskDefinition) ValidateBasic() error {
 		}
 
 		portInt, err := strconv.ParseUint(port, 10, 64)
-
 		if err != nil {
 			return fmt.Errorf("port must be a valid unsigned integer")
 		}

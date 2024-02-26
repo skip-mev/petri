@@ -3,6 +3,7 @@ package cosmosutil
 import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/skip-mev/petri/core/v2/types"
 )
 

@@ -5,9 +5,9 @@ go 1.21.3
 require (
 	github.com/client9/misspell v0.3.4
 	github.com/golangci/golangci-lint v1.55.2
-	golang.org/x/tools v0.16.1
-	golang.org/x/vuln v1.0.1
-	mvdan.cc/gofumpt v0.5.0
+	golang.org/x/tools v0.18.0
+	golang.org/x/vuln v1.0.4
+	mvdan.cc/gofumpt v0.6.0
 )
 
 require (
@@ -178,9 +178,9 @@ require (
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/exp/typeparams v0.0.0-20230307190834-24139beb5833 // indirect
-	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/mod v0.15.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
