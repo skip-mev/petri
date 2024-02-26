@@ -18,8 +18,8 @@ lint:
 
 lint-fix:
 	@echo "--> Running linter"
-	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint run core cosmos/... --fix --out-format=tab --issues-exit-code=0
-	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint run core cosmos/... --fix --out-format=tab --issues-exit-code=0
+	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix --out-format=tab --issues-exit-code=0
+	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix --out-format=tab --issues-exit-code=0
 
 format:
 	@find . -name '*.go' -type f -not -path "*.git*" | xargs go run mvdan.cc/gofumpt -w .
