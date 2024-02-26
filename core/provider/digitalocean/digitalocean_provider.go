@@ -1,9 +1,8 @@
 package digitalocean
 
 import (
-	"fmt"
-
 	"context"
+	"fmt"
 
 	"github.com/digitalocean/godo"
 	"github.com/puzpuzpuz/xsync/v3"
