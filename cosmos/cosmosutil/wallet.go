@@ -191,7 +191,7 @@ func (w *InteractingWallet) BroadcastTx(ctx context.Context, tx sdk.Tx, blocking
 }
 
 // Account returns the account of the wallet from the auth module
-func (w *InteractingWallet) Account(ctx context.Context) (authtypes.AccountI, error) {
+func (w *InteractingWallet) Account(ctx context.Context) (sdk.AccountI, error) {
 	cc, err := w.chain.GetGRPCClient(ctx)
 	if err != nil {
 		return nil, err
@@ -208,8 +208,7 @@ func (w *InteractingWallet) Account(ctx context.Context) (authtypes.AccountI, er
 		return nil, err
 	}
 
-	var acc authtypes.AccountI
-
+	var acc sdk.AccountI
 	err = w.encodingConfig.InterfaceRegistry.UnpackAny(res.Account, &acc)
 	if err != nil {
 		return nil, err
