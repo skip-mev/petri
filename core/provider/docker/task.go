@@ -145,7 +145,7 @@ func (p *Provider) StartTask(ctx context.Context, id string) error {
 		if status == provider.TASK_RUNNING {
 			return nil
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 100)
 	}
 }
 

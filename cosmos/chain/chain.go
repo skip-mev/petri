@@ -178,8 +178,9 @@ func (c *Chain) Init(ctx context.Context) error {
 		v := v
 		idx := idx
 		eg.Go(func() error {
+			c.logger.Info("setting up validator home dir", zap.String("validator", v.GetTask().Definition.Name))
 			if err := v.InitHome(ctx); err != nil {
-				return err
+				return fmt.Errorf("error initializing home dir: %v", err)
 			}
 
 			validatorWallet, err := v.CreateWallet(ctx, petritypes.ValidatorKeyName, c.Config.WalletConfig)
@@ -210,6 +211,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		n := n
 
 		eg.Go(func() error {
+			c.logger.Info("setting up node home dir", zap.String("node", n.GetTask().Definition.Name))
 			if err := n.InitHome(ctx); err != nil {
 				return err
 			}
@@ -222,6 +224,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		return err
 	}
 
+	c.logger.Info("adding faucet genesis")
 	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "", c.Config.WalletConfig)
 	if err != nil {
 		return err
@@ -242,6 +245,7 @@ func (c *Chain) Init(ctx context.Context) error {
 			return err
 		}
 
+		c.logger.Info("setting up validator keys", zap.String("validator", validatorN.GetTask().Definition.Name), zap.String("address", bech32))
 		if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
 			return err
 		}
@@ -281,6 +285,7 @@ func (c *Chain) Init(ctx context.Context) error {
 	}
 
 	for _, v := range c.Validators {
+		c.logger.Info("overwriting genesis for validator", zap.String("validator", v.GetTask().Definition.Name))
 		if err := v.OverwriteGenesisFile(ctx, genbz); err != nil {
 			return err
 		}
@@ -293,12 +298,14 @@ func (c *Chain) Init(ctx context.Context) error {
 	}
 
 	for _, v := range c.Validators {
+		c.logger.Info("starting validator task", zap.String("validator", v.GetTask().Definition.Name))
 		if err := v.GetTask().Start(ctx, true); err != nil {
 			return err
 		}
 	}
 
 	for _, n := range c.Nodes {
+		c.logger.Info("overwriting node genesis", zap.String("node", n.GetTask().Definition.Name))
 		if err := n.OverwriteGenesisFile(ctx, genbz); err != nil {
 			return err
 		}
@@ -311,6 +318,7 @@ func (c *Chain) Init(ctx context.Context) error {
 	}
 
 	for _, n := range c.Nodes {
+		c.logger.Info("starting node task", zap.String("node", n.GetTask().Definition.Name))
 		if err := n.GetTask().Start(ctx, true); err != nil {
 			return err
 		}
@@ -423,6 +431,7 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 
 		height, err := c.Height(ctx)
 		if err != nil {
+			c.logger.Error("failed to get height", zap.Error(err))
 			time.Sleep(2 * time.Second)
 			continue
 		}
