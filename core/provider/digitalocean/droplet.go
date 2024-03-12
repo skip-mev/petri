@@ -54,7 +54,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	start := time.Now()
 
-	err = util.WaitForCondition(ctx, time.Second*600, time.Second*2, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*100, time.Millisecond*100, func() (bool, error) {
 		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
 
 		if err != nil {
@@ -74,6 +74,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
 
 		if err != nil {
+			p.logger.Error("failed to create docker client", zap.Error(err))
 			return false, err
 		}
 
@@ -82,7 +83,8 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		if err != nil {
 			return false, nil
 		}
-
+		
+		p.logger.Info("droplet is active", zap.Duration("after", time.Since(start)), zap.String("task", definition.Name))
 		return true, nil
 	})
 

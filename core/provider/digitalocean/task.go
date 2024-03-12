@@ -3,7 +3,13 @@ package digitalocean
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net"
+	"path"
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -15,10 +21,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/afero/sftpfs"
 	"go.uber.org/zap"
-	"io"
-	"net"
-	"path"
-	"time"
 )
 
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
@@ -27,7 +29,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 	}
 
 	if definition.ProviderSpecificConfig == nil {
-		return "", fmt.Errorf("digitalocean specific config is nil")
+		return "", fmt.Errorf("digitalocean specific config is nil for %s", definition.Name)
 	}
 
 	_, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
@@ -122,12 +124,13 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 		return err
 	}
 
-	err = util.WaitForCondition(ctx, time.Second*300, time.Second*2, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond * 100, func() (bool, error) {
 		status, err := p.GetTaskStatus(ctx, taskName)
 		if err != nil {
 			return false, err
 		}
 
+		p.logger.Info("task status for", zap.String("task", taskName), zap.Int("status", int(status)))
 		if status == provider.TASK_RUNNING {
 			return true, nil
 		}
@@ -178,6 +181,7 @@ func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider
 	}
 
 	if droplet.Status != "active" {
+		p.logger.Info("droplet status", zap.Stringer("droplet", droplet))
 		return provider.TASK_STOPPED, nil
 	}
 
@@ -200,6 +204,9 @@ func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
 
+	bz, err := json.Marshal(container.State)
+
+	p.logger.Info("inspecting docker client on droplet", zap.String("task", taskName), zap.String("container", string(bz)))
 	switch state := container.State.Status; state {
 	case "created":
 		return provider.TASK_STOPPED, nil
@@ -366,6 +373,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 	dockerClient, err := p.getDropletDockerClient(ctx, taskName)
 
 	if err != nil {
+		p.logger.Error("failed to get docker client", zap.Error(err), zap.String("taskName", taskName))
 		return "", "", 0, err
 	}
 
@@ -396,30 +404,32 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 	}, nil, nil, definition.ContainerName)
 
 	if err != nil {
+		p.logger.Error("failed to create container", zap.Error(err), zap.String("taskName", taskName))
 		return "", "", 0, err
 	}
 
 	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true})
 
-	err = dockerClient.ContainerStart(ctx, createdContainer.ID, types.ContainerStartOptions{})
-
-	if err != nil {
+	if err := startContainerWithBlock(ctx, dockerClient, createdContainer.ID); err != nil {
+		p.logger.Error("failed to start container", zap.Error(err), zap.String("taskName", taskName))
 		return "", "", 0, err
 	}
 
+	// wait for container start
 	exec, err := dockerClient.ContainerExecCreate(ctx, createdContainer.ID, types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          command,
 	})
-
 	if err != nil {
+		p.logger.Error("failed to create exec", zap.Error(err), zap.String("taskName", taskName))
 		return "", "", 0, err
 	}
 
 	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
 
 	if err != nil {
+		p.logger.Error("failed to attach to exec", zap.Error(err), zap.String("taskName", taskName))
 		return "", "", 0, err
 	}
 
@@ -427,6 +437,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 	execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
 	if err != nil {
+		p.logger.Error("failed to inspect exec", zap.Error(err), zap.String("taskName", taskName))
 		return "", "", 0, err
 	}
 
@@ -434,7 +445,35 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
 
-	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
+	return stdout.String(), stderr.String(), execInspect.ExitCode, err
+}
+
+func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Client, containerID string) error {
+	// start container
+	if err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+		return err
+	}
+	
+	// cancel container after a minute
+	waitCtx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("error waiting for container to start: %v", waitCtx.Err())
+		case <-ticker.C:
+			container, err := dockerClient.ContainerInspect(ctx, containerID)
+			if err != nil {
+				return err
+			}
+			
+			// if the container is running, we're done
+			if container.State.Running {
+				return nil
+			}
+		}
+	}
 }
 
 func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Client, image string) error {
