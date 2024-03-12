@@ -24,6 +24,7 @@ type PrometheusOptions struct {
 func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts PrometheusOptions) (*provider.Task, error) {
 	task, err := provider.CreateTask(ctx, logger, p, provider.TaskDefinition{
 		Name: "prometheus",
+		ContainerName: "prometheus",
 		Image: provider.ImageDefinition{
 			Image: "prom/prometheus:v2.46.0",
 			UID:   "65534",
@@ -42,6 +43,9 @@ func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Pro
 		},
 		ProviderSpecificConfig: opts.ProviderSpecificConfig,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	parsedPrometheusConfig, err := parsePrometheusConfig(opts)
 	if err != nil {
