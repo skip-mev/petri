@@ -83,7 +83,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		if err != nil {
 			return false, nil
 		}
-		
+
 		p.logger.Info("droplet is active", zap.Duration("after", time.Since(start)), zap.String("task", definition.Name))
 		return true, nil
 	})
@@ -159,6 +159,18 @@ func (p *Provider) getDropletDockerClient(ctx context.Context, taskName string) 
 }
 
 func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.Client, error) {
+	if _, ok := p.droplets.Load(taskName); !ok {
+		return nil, fmt.Errorf("droplet %s does not exist", taskName)
+	}
+
+	if client, ok := p.sshClients.Load(taskName); ok {
+		status, _, err := client.SendRequest("ping", true, []byte("ping"))
+
+		if err == nil && status {
+			return client, nil
+		}
+	}
+
 	ip, err := p.GetIP(ctx, taskName)
 
 	if err != nil {
@@ -188,6 +200,8 @@ func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*s
 	if err != nil {
 		return nil, err
 	}
+
+	p.sshClients.Store(taskName, client)
 
 	return client, nil
 }
