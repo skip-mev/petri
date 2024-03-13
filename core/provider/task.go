@@ -30,9 +30,9 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 
 	var eg errgroup.Group
 
-	for _, sidecar := range definition.Sidecars {
+	for i := range definition.Sidecars {
+		sidecar := definition.Sidecars[i]
 		eg.Go(func() error {
-			sidecar := sidecar
 			if len(sidecar.Sidecars) > 0 {
 				return errors.New("sidecar cannot have sidecar")
 			}
@@ -54,23 +54,23 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 		})
 	}
 
-	task.Sidecars = sidecarTasks
-
+	
 	eg.Go(func() error {
 		id, err := provider.CreateTask(ctx, logger, definition)
 		if err != nil {
 			return err
 		}
-
+		
 		task.ID = id
-
+		
 		return nil
 	})
-
+	
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-
+	
+	task.Sidecars = sidecarTasks
 	return task, nil
 }
 
