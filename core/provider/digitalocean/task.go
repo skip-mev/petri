@@ -174,7 +174,7 @@ func (p *Provider) DestroyTask(ctx context.Context, taskName string) error {
 }
 
 func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider.TaskStatus, error) {
-	droplet, err := p.getDroplet(ctx, taskName)
+	droplet, err := p.getDroplet(ctx, taskName, false)
 
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
@@ -302,7 +302,7 @@ func (p *Provider) DownloadDir(ctx context.Context, s string, s2 string, s3 stri
 }
 
 func (p *Provider) GetIP(ctx context.Context, taskName string) (string, error) {
-	droplet, err := p.getDroplet(ctx, taskName)
+	droplet, err := p.getDroplet(ctx, taskName, true)
 
 	if err != nil {
 		return "", err

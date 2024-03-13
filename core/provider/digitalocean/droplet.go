@@ -54,7 +54,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	start := time.Now()
 
-	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond*100, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*300, time.Second, func() (bool, error) {
 		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
 
 		if err != nil {
@@ -119,11 +119,14 @@ func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
 	return nil
 }
 
-func (p *Provider) getDroplet(ctx context.Context, name string) (*godo.Droplet, error) {
+func (p *Provider) getDroplet(ctx context.Context, name string, returnOnCacheHit bool) (*godo.Droplet, error) {
 	cachedDroplet, ok := p.droplets.Load(name)
-
 	if !ok {
 		return nil, fmt.Errorf("could not find droplet %s", name)
+	}
+
+	if ok && returnOnCacheHit {
+		return cachedDroplet, nil
 	}
 
 	droplet, res, err := p.doClient.Droplets.Get(ctx, cachedDroplet.ID)
