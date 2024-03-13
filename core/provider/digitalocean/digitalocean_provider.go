@@ -10,6 +10,7 @@ import (
 
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/util"
+	"golang.org/x/crypto/ssh"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -30,6 +31,7 @@ type Provider struct {
 
 	droplets   *xsync.MapOf[string, *godo.Droplet]
 	containers *xsync.MapOf[string, string]
+	sshClients *xsync.MapOf[string, *ssh.Client]
 
 	firewallID string
 }
@@ -59,6 +61,7 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 
 		droplets:   xsync.NewMapOf[string, *godo.Droplet](),
 		containers: xsync.NewMapOf[string, string](),
+		sshClients: xsync.NewMapOf[string, *ssh.Client](),
 
 		sshPubKey:      sshPubKey,
 		sshPrivKey:     sshPrivKey,
