@@ -26,7 +26,6 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 	if !ok {
 		return nil, fmt.Errorf("could not cast provider specific config to DigitalOceanConfig")
 	}
-
 	req := &godo.DropletCreateRequest{
 		Name:   fmt.Sprintf("%s-%s", p.petriTag, definition.Name),
 		Region: doConfig.Region,
@@ -85,6 +84,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		p.logger.Info("droplet is active", zap.Duration("after", time.Since(start)), zap.String("task", definition.Name))
+		droplet = d
 		return true, nil
 	})
 
