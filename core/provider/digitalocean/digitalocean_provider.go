@@ -67,6 +67,7 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 		sshPrivKey:     sshPrivKey,
 		sshFingerprint: sshFingerprint,
 	}
+
 	logger.Info("petri tag", zap.String("tag", digitalOceanProvider.petriTag))
 
 	_, err = digitalOceanProvider.createTag(ctx, digitalOceanProvider.petriTag)
