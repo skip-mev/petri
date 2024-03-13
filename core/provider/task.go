@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"sync"
 )
 
@@ -26,33 +27,48 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 
 	sidecarTasks := make([]*Task, 0)
 
+	var eg errgroup.Group
+
 	for _, sidecar := range definition.Sidecars {
-		if len(sidecar.Sidecars) > 0 {
-			return nil, errors.New("sidecar cannot have sidecar")
-		}
+		eg.Go(func() error {
+			sidecar := sidecar
+			if len(sidecar.Sidecars) > 0 {
+				return errors.New("sidecar cannot have sidecar")
+			}
 
-		id, err := provider.CreateTask(ctx, task.logger, sidecar)
-		if err != nil {
-			return nil, err
-		}
+			id, err := provider.CreateTask(ctx, task.logger, sidecar)
+			if err != nil {
+				return err
+			}
 
-		sidecarTasks = append(sidecarTasks, &Task{
-			Provider:   provider,
-			Definition: sidecar,
-			ID:         id,
-			Sidecars:   make([]*Task, 0),
-			logger:     task.logger,
+			sidecarTasks = append(sidecarTasks, &Task{
+				Provider:   provider,
+				Definition: sidecar,
+				ID:         id,
+				Sidecars:   make([]*Task, 0),
+				logger:     task.logger,
+			})
+
+			return nil
 		})
 	}
 
 	task.Sidecars = sidecarTasks
 
-	id, err := provider.CreateTask(ctx, logger, definition)
-	if err != nil {
+	eg.Go(func() error {
+		id, err := provider.CreateTask(ctx, logger, definition)
+		if err != nil {
+			return err
+		}
+
+		task.ID = id
+
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-
-	task.ID = id
 
 	return task, nil
 }
