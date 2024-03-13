@@ -59,9 +59,6 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 
 // Start starts the underlying task's workload including its sidecars if startSidecars is set to true
 func (t *Task) Start(ctx context.Context, startSidecars bool) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if startSidecars {
 		for _, sidecar := range t.Sidecars {
 			err := sidecar.Start(ctx, startSidecars)

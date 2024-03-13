@@ -30,6 +30,10 @@ type Task struct {
 	PostStop func(context.Context, *Task) error
 }
 
+func (t Task) Logger() *zap.Logger {
+	return t.logger
+}
+
 // Provider is the representation of any infrastructure provider that can handle
 // running arbitrary Docker workloads
 type Provider interface {
