@@ -79,12 +79,11 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 	}
 
 	firewall, err := digitalOceanProvider.createFirewall(ctx, userIPs)
-
-	if err != nil {
-		return nil, err
+	if err == nil {
+		digitalOceanProvider.firewallID = firewall.ID
+	} else {
+		logger.Error("failed to create firewall", zap.Error(err))
 	}
-
-	digitalOceanProvider.firewallID = firewall.ID
 
 	_, err = digitalOceanProvider.createSSHKey(ctx, sshPubKey)
 
@@ -129,6 +128,10 @@ func (p *Provider) teardownTasks(ctx context.Context) error {
 }
 
 func (p *Provider) teardownFirewall(ctx context.Context) error {
+	if p.firewallID == "" {
+		return nil
+	}
+
 	res, err := p.doClient.Firewalls.Delete(ctx, p.firewallID)
 
 	if err != nil {

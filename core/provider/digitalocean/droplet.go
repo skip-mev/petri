@@ -54,7 +54,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	start := time.Now()
 
-	err = util.WaitForCondition(ctx, time.Second*100, time.Millisecond*100, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond*100, func() (bool, error) {
 		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
 
 		if err != nil {
