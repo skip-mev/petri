@@ -435,7 +435,7 @@ func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Cli
 	}
 
 	// cancel container after a minute
-	waitCtx, cancel := context.WithTimeout(ctx, time.Minute)
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
