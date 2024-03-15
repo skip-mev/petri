@@ -45,16 +45,12 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 		return nil, err
 	}
 
-	fmt.Println("ssh public-key", sshPubKey)
-	fmt.Println("ssh private-key", sshPrivKey)
-	fmt.Println("ssh fingerprint", sshFingerprint)
-
 	userIPs, err := getUserIPs(ctx)
 
 	if err != nil {
 		return nil, err
 	}
-	userIPs = append(userIPs, "24.127.118.49")
+	userIPs = append(userIPs)
 
 	digitalOceanProvider := &Provider{
 		logger:   logger.Named("digitalocean_provider"),
