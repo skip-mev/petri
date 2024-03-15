@@ -41,7 +41,6 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 	doClient := godo.NewFromToken(token)
 
 	sshPubKey, sshPrivKey, sshFingerprint, err := makeSSHKeyPair()
-
 	if err != nil {
 		return nil, err
 	}

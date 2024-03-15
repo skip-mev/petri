@@ -161,18 +161,21 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 func (t *Task) RunCommand(ctx context.Context, command []string) (string, string, int, error) {
 	status, err := t.Provider.GetTaskStatus(ctx, t.ID)
 	if err != nil {
+		t.logger.Error("failed to get task status", zap.Error(err), zap.Any("definition", t.Definition))
 		return "", "", 0, err
 	}
 
 	if status == TASK_RUNNING {
 		t.mu.Lock()
 		defer t.mu.Unlock()
+		t.logger.Info("running command", zap.Strings("command", command), zap.String("status", "running"))
 		return t.Provider.RunCommand(ctx, t.ID, command)
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	t.logger.Info("running command", zap.Strings("command", command), zap.String("status", "not running"))
 	return t.Provider.RunCommandWhileStopped(ctx, t.ID, t.Definition, command)
 }
 

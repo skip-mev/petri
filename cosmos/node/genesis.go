@@ -60,7 +60,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 		amount += fmt.Sprintf("%s%s", coin.Amount.String(), coin.Denom)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
 	var command []string
