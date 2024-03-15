@@ -1,6 +1,7 @@
 package digitalocean
 
 import (
+	"time"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -10,6 +11,7 @@ import (
 	"github.com/digitalocean/godo"
 	"golang.org/x/crypto/ssh"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 )
@@ -41,40 +43,70 @@ func makeSSHKeyPair() (string, string, string, error) {
 }
 
 func getUserIPs(ctx context.Context) (ips []string, err error) {
-	res, err := http.Get("https://ifconfig.io")
+	ipv4s, err := getUserIPForNetwork(ctx, TCP4)
 
-	if err != nil {
-		return ips, err
+	errs := make([]error, 0)
+
+	if err == nil {
+		ips = append(ips, ipv4s...)
+	} else {
+		errs = append(errs, err)
 	}
 
-	defer res.Body.Close()
-
-	ifconfigIoIp, err := io.ReadAll(res.Body)
-
-	if err != nil {
-		return ips, err
+	ipv6s, err := getUserIPForNetwork(ctx, TCP6)
+	if err == nil {
+		ips = append(ips, ipv6s...)
+	} else {
+		errs = append(errs, err)
 	}
 
-	ips = append(ips, strings.Trim(string(ifconfigIoIp), "\n"))
-
-	res, err = http.Get("https://ifconfig.co")
-
-	if err != nil {
-		return ips, err
+	if len(ips) == 0 {
+		err = fmt.Errorf("failed to get user IP: %v", errs)
 	}
 
-	defer res.Body.Close()
-
-	ifconfigCoIp, err := io.ReadAll(res.Body)
-
-	if err != nil {
-		return ips, err
-	}
-
-	ips = append(ips, strings.Trim(string(ifconfigCoIp), "\n"))
-
-	return removeDuplicateStr(ips), nil
+	return ips, nil
 }
+
+type Network string
+
+const (
+	TCP6 Network = "tcp6"
+	TCP4 Network = "tcp4"
+)
+
+func getUserIPForNetwork(ctx context.Context, network Network) ([]string, error) {
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				dialer := net.Dialer{}
+				return dialer.DialContext(ctx, string(network), "https://ifconfig.io")
+			},
+		},
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://ifconfig.io", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	ips := make([]string, 0)
+	ips = append(ips, strings.Trim(string(body), "\n"))
+
+	return ips, nil
+}
+
 
 func (p *Provider) createSSHKey(ctx context.Context, pubKey string) (*godo.Key, error) {
 	req := &godo.KeyCreateRequest{PublicKey: pubKey, Name: fmt.Sprintf("%s-key", p.petriTag)}
