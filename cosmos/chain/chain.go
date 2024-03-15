@@ -436,7 +436,7 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 	c.logger.Info("waiting for height", zap.Uint64("desired_height", desiredHeight))
 	for {
 		c.logger.Debug("waiting for height", zap.Uint64("desired_height", desiredHeight))
-		
+
 		height, err := c.Height(ctx)
 		if err != nil {
 			c.logger.Error("failed to get height", zap.Error(err))
@@ -447,7 +447,7 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 		if height >= desiredHeight {
 			break
 		}
-		
+
 		// We assume the chain will eventually return a non-zero height, otherwise
 		// this may block indefinitely.
 		if height == 0 {

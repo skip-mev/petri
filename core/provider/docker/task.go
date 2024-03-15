@@ -93,7 +93,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		listeners.CloseAll()
 		return "", err
 	}
-	
+
 	// network map is volatile, so we need to mutex update it
 	p.networkMu.Lock()
 	p.listeners[createdContainer.ID] = listeners

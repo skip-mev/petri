@@ -3,7 +3,6 @@ package digitalocean
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -124,7 +123,7 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 		return err
 	}
 
-	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond * 100, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond*100, func() (bool, error) {
 		status, err := p.GetTaskStatus(ctx, taskName)
 		if err != nil {
 			return false, err
