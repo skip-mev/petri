@@ -83,7 +83,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		if err != nil {
 			return false, nil
 		}
-		
+
 		p.logger.Info("droplet is active", zap.Duration("after", time.Since(start)), zap.String("task", definition.Name))
 		return true, nil
 	})

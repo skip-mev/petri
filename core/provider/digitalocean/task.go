@@ -124,7 +124,6 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 			return false, err
 		}
 
-		p.logger.Info("task status for", zap.String("task", taskName), zap.Int("status", int(status)))
 		if status == provider.TASK_RUNNING {
 			return true, nil
 		}
@@ -170,7 +169,6 @@ func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider
 	}
 
 	if droplet.Status != "active" {
-		p.logger.Info("droplet status", zap.Stringer("droplet", droplet))
 		return provider.TASK_STOPPED, nil
 	}
 
@@ -192,9 +190,6 @@ func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
 
-	bz, err := json.Marshal(container.State)
-
-	p.logger.Info("inspecting docker client on droplet", zap.String("task", taskName), zap.String("container", string(bz)))
 	switch state := container.State.Status; state {
 	case "created":
 		return provider.TASK_STOPPED, nil
@@ -439,7 +434,7 @@ func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Cli
 	if err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
-	
+
 	// cancel container after a minute
 	waitCtx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
@@ -453,7 +448,7 @@ func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Cli
 			if err != nil {
 				return err
 			}
-			
+
 			// if the container is running, we're done
 			if container.State.Running {
 				return nil
