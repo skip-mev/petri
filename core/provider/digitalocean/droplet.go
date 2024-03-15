@@ -37,7 +37,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		Region: doConfig.Region,
 		Size:   doConfig.Size,
 		Image: godo.DropletCreateImage{
-			ID: 148794370,
+			ID: doConfig.ImageID,
 		},
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
