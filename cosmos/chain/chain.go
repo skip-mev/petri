@@ -246,16 +246,16 @@ func (c *Chain) Init(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-	
+
 			c.logger.Info("setting up validator keys", zap.String("validator", validatorN.GetTask().Definition.Name), zap.String("address", bech32))
 			if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
 				return err
 			}
-	
+
 			if err := firstValidator.AddGenesisAccount(ctx, validatorWalletAddress, genesisAmounts); err != nil {
 				return err
 			}
-	
+
 			if err := validatorN.CopyGenTx(ctx, firstValidator); err != nil {
 				return err
 			}
@@ -305,7 +305,7 @@ func (c *Chain) Init(ctx context.Context) error {
 			return nil
 		})
 	}
-	
+
 	for i := range c.Nodes {
 		n := c.Nodes[i]
 		eg.Go(func() error {
@@ -457,7 +457,7 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 	c.logger.Info("waiting for height", zap.Uint64("desired_height", desiredHeight))
 	for {
 		c.logger.Debug("waiting for height", zap.Uint64("desired_height", desiredHeight))
-		
+
 		height, err := c.Height(ctx)
 		if err != nil {
 			c.logger.Error("failed to get height", zap.Error(err))
@@ -468,7 +468,7 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 		if height >= desiredHeight {
 			break
 		}
-		
+
 		// We assume the chain will eventually return a non-zero height, otherwise
 		// this may block indefinitely.
 		if height == 0 {
