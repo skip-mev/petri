@@ -159,14 +159,16 @@ func (c *Chain) Init(ctx context.Context) error {
 	decimalPow := int64(math.Pow10(int(c.Config.Decimals)))
 
 	genesisCoin := types.Coin{
-		Amount: sdkmath.NewInt(10_000_000).MulRaw(decimalPow),
+		Amount: sdkmath.NewIntFromBigInt(c.GetConfig().GetGenesisBalance()).MulRaw(decimalPow),
 		Denom:  c.Config.Denom,
 	}
+	c.logger.Info("creating genesis accounts", zap.String("coin", genesisCoin.String()))
 
 	genesisSelfDelegation := types.Coin{
-		Amount: sdkmath.NewInt(5_000_000).MulRaw(decimalPow),
+		Amount: sdkmath.NewIntFromBigInt(c.GetConfig().GetGenesisDelegation()).MulRaw(decimalPow),
 		Denom:  c.Config.Denom,
 	}
+	c.logger.Info("creating genesis self-delegations", zap.String("coin", genesisSelfDelegation.String()))
 
 	genesisAmounts := []types.Coin{genesisCoin}
 
@@ -425,26 +427,19 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 // WaitForHeight blocks until the chain reaches block height desiredHeight
 func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 	c.logger.Info("waiting for height", zap.Uint64("desired_height", desiredHeight))
-
-	height, err := c.Height(ctx)
-
-	if err != nil {
-		return err
-	}
-
 	for {
-		c.logger.Debug("waiting for height", zap.Uint64("desired_height", desiredHeight), zap.Uint64("current_height", height))
-
-		if height >= desiredHeight {
-			break
-		}
-
-		height, err = c.Height(ctx)
+		c.logger.Debug("waiting for height", zap.Uint64("desired_height", desiredHeight))
+		
+		height, err := c.Height(ctx)
 		if err != nil {
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
+		if height >= desiredHeight {
+			break
+		}
+		
 		// We assume the chain will eventually return a non-zero height, otherwise
 		// this may block indefinitely.
 		if height == 0 {

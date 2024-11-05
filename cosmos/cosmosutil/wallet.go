@@ -3,6 +3,9 @@ package cosmosutil
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	clienttx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -15,8 +18,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	petritypes "github.com/skip-mev/petri/core/types"
 	"github.com/skip-mev/petri/core/util"
-	"strings"
-	"time"
 )
 
 // EncodingConfig is a struct that packs all the necessary encoding information
@@ -63,7 +64,6 @@ func (w *InteractingWallet) CreateSignedTx(ctx context.Context, gas int64, fees 
 	}
 
 	acc, err := w.Account(ctx)
-
 	if err != nil {
 		return nil, err
 	}

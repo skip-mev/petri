@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"fmt"
+	"math/big"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -62,7 +63,6 @@ type ChainConfig struct {
 	SidecarArgs    []string // SidecarArgs are the arguments to launch the chain sidecar
 
 	CoinType string // CoinType is the coin type of the chain (e.g. 118)
-	HDPath   string // HDPath is the HD path of the chain (e.g. m/44'/118'/0'/0/0)
 	ChainId  string // ChainId is the chain ID of the chain
 
 	ModifyGenesis GenesisModifier // ModifyGenesis is a function that modifies the genesis bytes of the chain
@@ -73,7 +73,29 @@ type ChainConfig struct {
 
 	NodeCreator            NodeCreator            // NodeCreator is a function that creates a node
 	NodeDefinitionModifier NodeDefinitionModifier // NodeDefinitionModifier is a function that modifies a node's definition
+	// number of tokens to allocate per account in the genesis state (unscaled). This value defaults to 10_000_000 if not set.
+	// if not set.
+	GenesisDelegation *big.Int
+	// number of tokens to allocate to the genesis account. This value defaults to 5_000_000 if not set.
+	GenesisBalance *big.Int
 }
+
+func (c ChainConfig) GetGenesisBalance() *big.Int {
+	if c.GenesisBalance == nil {
+		return big.NewInt(10_000_000)
+	}
+	return c.GenesisBalance
+}
+
+func (c ChainConfig) GetGenesisDelegation() *big.Int {
+	if c.GenesisDelegation == nil {
+		return big.NewInt(5_000_000)
+	}
+	return c.GenesisDelegation
+}
+
+// GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes
+type GenesisModifier func([]byte) ([]byte, error)
 
 func (c *ChainConfig) ValidateBasic() error {
 	if c.Denom == "" {
@@ -118,7 +140,7 @@ func (c *ChainConfig) ValidateBasic() error {
 		return fmt.Errorf("coin type cannot be empty")
 	}
 
-	if c.HDPath == "" {
+  if c.HDPath == "" {
 		return fmt.Errorf("HD path cannot be empty")
 	}
 
