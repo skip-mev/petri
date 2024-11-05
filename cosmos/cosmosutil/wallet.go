@@ -227,7 +227,7 @@ func (w *InteractingWallet) getTxResponse(ctx context.Context, txHash string) (s
 
 	clientCtx := client.Context{Client: cc, TxConfig: w.chain.GetTxConfig(), InterfaceRegistry: w.chain.GetInterfaceRegistry()}
 
-	err = util.WaitForCondition(ctx, time.Second*60, time.Millisecond * 100, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*60, time.Millisecond*100, func() (bool, error) {
 		res, err := authtx.QueryTx(clientCtx, txHash)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
