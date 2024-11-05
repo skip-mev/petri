@@ -40,7 +40,7 @@ func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Pro
 			"--web.console.libraries=/usr/share/prometheus/console_libraries",
 			"--web.console.templates=/usr/share/prometheus/consoles",
 		},
-		ContainerName: "prometheus",
+		ContainerName:          "prometheus",
 		ProviderSpecificConfig: opts.ProviderSpecificConfig,
 	})
 	if err != nil {
