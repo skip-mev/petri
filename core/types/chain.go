@@ -74,7 +74,7 @@ type ChainConfig struct {
 
 	NodeCreator            NodeCreator            // NodeCreator is a function that creates a node
 	NodeDefinitionModifier NodeDefinitionModifier // NodeDefinitionModifier is a function that modifies a node's definition
-	// number of tokens to allocate per account in the genesis state (unscaled). This value defaults to 10_000_000 if not set. 
+	// number of tokens to allocate per account in the genesis state (unscaled). This value defaults to 10_000_000 if not set.
 	// if not set.
 	GenesisDelegation *big.Int
 	// number of tokens to allocate to the genesis account. This value defaults to 5_000_000 if not set.

@@ -32,7 +32,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		Region: doConfig.Region,
 		Size:   doConfig.Size,
 		Image: godo.DropletCreateImage{
-			ID: 148794370,
+			ID: doConfig.ImageID,
 		},
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
@@ -54,7 +54,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	start := time.Now()
 
-	err = util.WaitForCondition(ctx, time.Second*600, time.Second*2, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond*300, func() (bool, error) {
 		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
 
 		if err != nil {
@@ -74,6 +74,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
 
 		if err != nil {
+			p.logger.Error("failed to create docker client", zap.Error(err))
 			return false, err
 		}
 
@@ -83,6 +84,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 			return false, nil
 		}
 
+		p.logger.Info("droplet is active", zap.Duration("after", time.Since(start)), zap.String("task", definition.Name))
 		return true, nil
 	})
 
@@ -117,11 +119,14 @@ func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
 	return nil
 }
 
-func (p *Provider) getDroplet(ctx context.Context, name string) (*godo.Droplet, error) {
+func (p *Provider) getDroplet(ctx context.Context, name string, returnOnCacheHit bool) (*godo.Droplet, error) {
 	cachedDroplet, ok := p.droplets.Load(name)
-
 	if !ok {
 		return nil, fmt.Errorf("could not find droplet %s", name)
+	}
+
+	if ok && returnOnCacheHit {
+		return cachedDroplet, nil
 	}
 
 	droplet, res, err := p.doClient.Droplets.Get(ctx, cachedDroplet.ID)
