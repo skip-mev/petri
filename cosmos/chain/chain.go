@@ -39,6 +39,10 @@ var _ petritypes.ChainI = &Chain{}
 
 // CreateChain creates the Chain object and initializes the node tasks, their backing compute and the validator wallets
 func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
+	if err := config.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("failed to validate chain config: %w", err)
+	}
+
 	var chain Chain
 
 	chain.mu = sync.RWMutex{}
