@@ -12,6 +12,9 @@ import (
 	"google.golang.org/grpc"
 )
 
+// GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes
+type GenesisModifier func([]byte) ([]byte, error)
+
 // ChainI is an interface for a logical chain
 type ChainI interface {
 	Init(context.Context) error
@@ -90,9 +93,6 @@ func (c ChainConfig) GetGenesisDelegation() *big.Int {
 	}
 	return c.GenesisDelegation
 }
-
-// GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes
-type GenesisModifier func([]byte) ([]byte, error)
 
 func (c *ChainConfig) ValidateBasic() error {
 	if c.Denom == "" {
