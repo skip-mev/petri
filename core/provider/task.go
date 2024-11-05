@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 // CreateTask creates a task structure and sets up its underlying workload on a provider, including sidecars if there are any in the definition
@@ -27,42 +28,55 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 
 	sidecarTasks := make([]*Task, 0)
 
-	for _, sidecar := range definition.Sidecars {
-		if len(sidecar.Sidecars) > 0 {
-			return nil, errors.New("sidecar cannot have sidecar")
-		}
+	var eg errgroup.Group
 
-		id, err := provider.CreateTask(ctx, task.logger, sidecar)
-		if err != nil {
-			return nil, err
-		}
+	for i := range definition.Sidecars {
+		sidecar := definition.Sidecars[i]
+		eg.Go(func() error {
+			if len(sidecar.Sidecars) > 0 {
+				return errors.New("sidecar cannot have sidecar")
+			}
 
-		sidecarTasks = append(sidecarTasks, &Task{
-			Provider:   provider,
-			Definition: sidecar,
-			ID:         id,
-			Sidecars:   make([]*Task, 0),
-			logger:     task.logger,
+			id, err := provider.CreateTask(ctx, task.logger, sidecar)
+			if err != nil {
+				return err
+			}
+
+			sidecarTasks = append(sidecarTasks, &Task{
+				Provider:   provider,
+				Definition: sidecar,
+				ID:         id,
+				Sidecars:   make([]*Task, 0),
+				logger:     task.logger,
+			})
+
+			return nil
 		})
 	}
 
-	task.Sidecars = sidecarTasks
+	eg.Go(func() error {
+		id, err := provider.CreateTask(ctx, logger, definition)
+		if err != nil {
+			return err
+		}
 
-	id, err := provider.CreateTask(ctx, logger, definition)
-	if err != nil {
+		task.ID = id
+
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
 
-	task.ID = id
-
+	task.Sidecars = sidecarTasks
 	return task, nil
 }
 
-// Start starts the underlying task's workload including its sidecars if startSidecars is set to true
+// Start starts the underlying task's workload including its sidecars if startSidecars is set to true.
+// This method does not take a lock on the provider, hence 2 threads may simultaneously call Start on the same task,
+// this is not thread-safe: PLEASE DON'T DO THAT.
 func (t *Task) Start(ctx context.Context, startSidecars bool) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if startSidecars {
 		for _, sidecar := range t.Sidecars {
 			err := sidecar.Start(ctx, startSidecars)
@@ -162,18 +176,21 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 func (t *Task) RunCommand(ctx context.Context, command []string) (string, string, int, error) {
 	status, err := t.Provider.GetTaskStatus(ctx, t.ID)
 	if err != nil {
+		t.logger.Error("failed to get task status", zap.Error(err), zap.Any("definition", t.Definition))
 		return "", "", 0, err
 	}
 
 	if status == TASK_RUNNING {
 		t.mu.Lock()
 		defer t.mu.Unlock()
+		t.logger.Info("running command", zap.Strings("command", command), zap.String("status", "running"))
 		return t.Provider.RunCommand(ctx, t.ID, command)
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	t.logger.Info("running command", zap.Strings("command", command), zap.String("status", "not running"))
 	return t.Provider.RunCommandWhileStopped(ctx, t.ID, t.Definition, command)
 }
 

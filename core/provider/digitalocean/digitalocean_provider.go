@@ -7,6 +7,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/puzpuzpuz/xsync/v3"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/util"
@@ -30,6 +31,7 @@ type Provider struct {
 
 	droplets   *xsync.MapOf[string, *godo.Droplet]
 	containers *xsync.MapOf[string, string]
+	sshClients *xsync.MapOf[string, *ssh.Client]
 
 	firewallID string
 }
@@ -59,11 +61,14 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 
 		droplets:   xsync.NewMapOf[string, *godo.Droplet](),
 		containers: xsync.NewMapOf[string, string](),
+		sshClients: xsync.NewMapOf[string, *ssh.Client](),
 
 		sshPubKey:      sshPubKey,
 		sshPrivKey:     sshPrivKey,
 		sshFingerprint: sshFingerprint,
 	}
+
+	logger.Debug("petri tag", zap.String("tag", digitalOceanProvider.petriTag))
 
 	_, err = digitalOceanProvider.createTag(ctx, digitalOceanProvider.petriTag)
 	if err != nil {
@@ -72,11 +77,10 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 
 	firewall, err := digitalOceanProvider.createFirewall(ctx, userIPs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
 	digitalOceanProvider.firewallID = firewall.ID
-
 	_, err = digitalOceanProvider.createSSHKey(ctx, sshPubKey)
 	if err != nil {
 		return nil, err
