@@ -72,7 +72,6 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 				Provider:    infraProvider,
 				Chain:       &chain,
 			})
-
 			if err != nil {
 				return err
 			}
@@ -178,8 +177,9 @@ func (c *Chain) Init(ctx context.Context) error {
 		v := v
 		idx := idx
 		eg.Go(func() error {
+			c.logger.Info("setting up validator home dir", zap.String("validator", v.GetTask().Definition.Name))
 			if err := v.InitHome(ctx); err != nil {
-				return err
+				return fmt.Errorf("error initializing home dir: %v", err)
 			}
 
 			validatorWallet, err := v.CreateWallet(ctx, petritypes.ValidatorKeyName, c.Config.WalletConfig)
@@ -212,6 +212,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		n := n
 
 		eg.Go(func() error {
+			c.logger.Info("setting up node home dir", zap.String("node", n.GetTask().Definition.Name))
 			if err := n.InitHome(ctx); err != nil {
 				return err
 			}
@@ -224,6 +225,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		return err
 	}
 
+	c.logger.Info("adding faucet genesis")
 	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "", c.Config.WalletConfig)
 
 	if err != nil {
@@ -240,23 +242,32 @@ func (c *Chain) Init(ctx context.Context) error {
 
 	for i := 1; i < len(c.Validators); i++ {
 		validatorN := c.Validators[i]
-		bech32, err := validatorN.KeyBech32(ctx, petritypes.ValidatorKeyName, "acc")
+		validatorWalletAddress := c.ValidatorWallets[i].FormattedAddress()
+		eg.Go(func() error {
+			bech32, err := validatorN.KeyBech32(ctx, petritypes.ValidatorKeyName, "acc")
+			if err != nil {
+				return err
+			}
 
-		if err != nil {
-			return err
-		}
+			c.logger.Info("setting up validator keys", zap.String("validator", validatorN.GetTask().Definition.Name), zap.String("address", bech32))
+			if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
+				return err
+			}
 
-		if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
-			return err
-		}
+			if err := firstValidator.AddGenesisAccount(ctx, validatorWalletAddress, genesisAmounts); err != nil {
+				return err
+			}
 
-		if err := firstValidator.AddGenesisAccount(ctx, c.ValidatorWallets[i].FormattedAddress(), genesisAmounts); err != nil {
-			return err
-		}
+			if err := validatorN.CopyGenTx(ctx, firstValidator); err != nil {
+				return err
+			}
 
-		if err := validatorN.CopyGenTx(ctx, firstValidator); err != nil {
-			return err
-		}
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return err
 	}
 
 	if err := firstValidator.CollectGenTxs(ctx); err != nil {
@@ -264,7 +275,6 @@ func (c *Chain) Init(ctx context.Context) error {
 	}
 
 	genbz, err := firstValidator.GenesisFileContent(ctx)
-
 	if err != nil {
 		return err
 	}
@@ -282,44 +292,68 @@ func (c *Chain) Init(ctx context.Context) error {
 		return err
 	}
 
-	if err != nil {
+	for i := range c.Validators {
+		v := c.Validators[i]
+		eg.Go(func() error {
+			c.logger.Info("overwriting genesis for validator", zap.String("validator", v.GetTask().Definition.Name))
+			if err := v.OverwriteGenesisFile(ctx, genbz); err != nil {
+				return err
+			}
+			if err := v.SetDefaultConfigs(ctx); err != nil {
+				return err
+			}
+			if err := v.SetPersistentPeers(ctx, peers); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	for i := range c.Nodes {
+		n := c.Nodes[i]
+		eg.Go(func() error {
+			c.logger.Info("overwriting node genesis", zap.String("node", n.GetTask().Definition.Name))
+			if err := n.OverwriteGenesisFile(ctx, genbz); err != nil {
+				return err
+			}
+			if err := n.SetDefaultConfigs(ctx); err != nil {
+				return err
+			}
+			if err := n.SetPersistentPeers(ctx, peers); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
 		return err
 	}
 
-	for _, v := range c.Validators {
-		if err := v.OverwriteGenesisFile(ctx, genbz); err != nil {
-			return err
-		}
-		if err := v.SetDefaultConfigs(ctx); err != nil {
-			return err
-		}
-		if err := v.SetPersistentPeers(ctx, peers); err != nil {
-			return err
-		}
+	for i := range c.Validators {
+		v := c.Validators[i]
+		eg.Go(func() error {
+			c.logger.Info("starting validator task", zap.String("validator", v.GetTask().Definition.Name))
+			if err := v.GetTask().Start(ctx, true); err != nil {
+				return err
+			}
+			return nil
+		})
 	}
 
-	for _, v := range c.Validators {
-		if err := v.GetTask().Start(ctx, true); err != nil {
-			return err
-		}
+	for i := range c.Nodes {
+		n := c.Nodes[i]
+		eg.Go(func() error {
+			c.logger.Info("starting node task", zap.String("node", n.GetTask().Definition.Name))
+			if err := n.GetTask().Start(ctx, true); err != nil {
+				return err
+			}
+			return nil
+		})
 	}
 
-	for _, n := range c.Nodes {
-		if err := n.OverwriteGenesisFile(ctx, genbz); err != nil {
-			return err
-		}
-		if err := n.SetDefaultConfigs(ctx); err != nil {
-			return err
-		}
-		if err := n.SetPersistentPeers(ctx, peers); err != nil {
-			return err
-		}
-	}
-
-	for _, n := range c.Nodes {
-		if err := n.GetTask().Start(ctx, true); err != nil {
-			return err
-		}
+	if err := eg.Wait(); err != nil {
+		return err
 	}
 
 	return nil
@@ -429,9 +463,10 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 	c.logger.Info("waiting for height", zap.Uint64("desired_height", desiredHeight))
 	for {
 		c.logger.Debug("waiting for height", zap.Uint64("desired_height", desiredHeight))
-		
+
 		height, err := c.Height(ctx)
 		if err != nil {
+			c.logger.Error("failed to get height", zap.Error(err))
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -439,7 +474,7 @@ func (c *Chain) WaitForHeight(ctx context.Context, desiredHeight uint64) error {
 		if height >= desiredHeight {
 			break
 		}
-		
+
 		// We assume the chain will eventually return a non-zero height, otherwise
 		// this may block indefinitely.
 		if height == 0 {

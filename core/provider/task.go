@@ -57,11 +57,10 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 	return task, nil
 }
 
-// Start starts the underlying task's workload including its sidecars if startSidecars is set to true
+// Start starts the underlying task's workload including its sidecars if startSidecars is set to true.
+// This method does not take a lock on the provider, hence 2 threads may simultaneously call Start on the same task,
+// this is not thread-safe: PLEASE DON'T DO THAT.
 func (t *Task) Start(ctx context.Context, startSidecars bool) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if startSidecars {
 		for _, sidecar := range t.Sidecars {
 			err := sidecar.Start(ctx, startSidecars)
@@ -161,18 +160,21 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 func (t *Task) RunCommand(ctx context.Context, command []string) (string, string, int, error) {
 	status, err := t.Provider.GetTaskStatus(ctx, t.ID)
 	if err != nil {
+		t.logger.Error("failed to get task status", zap.Error(err), zap.Any("definition", t.Definition))
 		return "", "", 0, err
 	}
 
 	if status == TASK_RUNNING {
 		t.mu.Lock()
 		defer t.mu.Unlock()
+		t.logger.Info("running command", zap.Strings("command", command), zap.String("status", "running"))
 		return t.Provider.RunCommand(ctx, t.ID, command)
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	t.logger.Info("running command", zap.Strings("command", command), zap.String("status", "not running"))
 	return t.Provider.RunCommandWhileStopped(ctx, t.ID, t.Definition, command)
 }
 
