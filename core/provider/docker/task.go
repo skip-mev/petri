@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/skip-mev/petri/core/v2/util"
-	"go.uber.org/zap"
 	"io"
 	"net"
 	"time"
+
+	"github.com/docker/docker/pkg/stdcopy"
+	"go.uber.org/zap"
+
+	"github.com/skip-mev/petri/core/v2/util"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -51,7 +53,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 			Size:      "10GB",
 			MountPath: definition.DataDir,
 		})
-
 		if err != nil {
 			return "", fmt.Errorf("failed to create dataDir: %v", err)
 		}
@@ -222,8 +223,10 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 	}
 
 	var stdout, stderr bytes.Buffer
-
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+	if err != nil {
+		return "", "", 0, err
+	}
 
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
 }

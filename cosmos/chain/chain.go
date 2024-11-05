@@ -2,21 +2,23 @@ package chain
 
 import (
 	"context"
-	sdkmath "cosmossdk.io/math"
 	"fmt"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/skip-mev/petri/core/v2/provider"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 	"math"
 	"strings"
 	"sync"
 	"time"
+
+	sdkmath "cosmossdk.io/math"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	sdkclient "github.com/cosmos/cosmos-sdk/client"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/types"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+
+	"github.com/skip-mev/petri/core/v2/provider"
+	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
 // Chain is a logical representation of a Cosmos-based blockchain
@@ -101,7 +103,6 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 				Provider:    infraProvider,
 				Chain:       &chain,
 			})
-
 			if err != nil {
 				return err
 			}
@@ -144,7 +145,6 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 	}
 
 	status, err := client.Status(context.Background())
-
 	if err != nil {
 		return 0, err
 	}
@@ -183,7 +183,6 @@ func (c *Chain) Init(ctx context.Context) error {
 			}
 
 			validatorWallet, err := v.CreateWallet(ctx, petritypes.ValidatorKeyName, c.Config.WalletConfig)
-
 			if err != nil {
 				return err
 			}
@@ -191,7 +190,6 @@ func (c *Chain) Init(ctx context.Context) error {
 			c.ValidatorWallets[idx] = validatorWallet
 
 			bech32, err := v.KeyBech32(ctx, petritypes.ValidatorKeyName, "acc")
-
 			if err != nil {
 				return err
 			}
@@ -227,7 +225,6 @@ func (c *Chain) Init(ctx context.Context) error {
 
 	c.logger.Info("adding faucet genesis")
 	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "", c.Config.WalletConfig)
-
 	if err != nil {
 		return err
 	}
@@ -287,7 +284,6 @@ func (c *Chain) Init(ctx context.Context) error {
 	}
 
 	peers, err := c.PeerStrings(ctx)
-
 	if err != nil {
 		return err
 	}
@@ -385,13 +381,11 @@ func (c *Chain) PeerStrings(ctx context.Context) (string, error) {
 
 	for _, n := range append(c.Validators, c.Nodes...) {
 		ip, err := n.GetIP(ctx)
-
 		if err != nil {
 			return "", err
 		}
 
 		nodeId, err := n.NodeId(ctx)
-
 		if err != nil {
 			return "", err
 		}
@@ -427,7 +421,6 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 	c.logger.Info("waiting for blocks", zap.Uint64("delta", delta))
 
 	start, err := c.Height(ctx)
-
 	if err != nil {
 		return err
 	}

@@ -5,10 +5,12 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"go.uber.org/zap"
 	"strings"
 	"text/template"
+
+	"go.uber.org/zap"
+
+	"github.com/skip-mev/petri/core/v2/provider"
 )
 
 //go:embed files/prometheus/config/prometheus.yml
@@ -53,7 +55,6 @@ func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Pro
 	}
 
 	err = task.WriteFile(ctx, "prometheus.yml", []byte(parsedPrometheusConfig))
-
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,6 @@ func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Pro
 
 func parsePrometheusConfig(opts PrometheusOptions) (string, error) {
 	parsedPrometheusConfig, err := template.New("prometheus.yml").Parse(prometheusConfigTemplate)
-
 	if err != nil {
 		return "", err
 	}
@@ -77,7 +77,6 @@ func parsePrometheusConfig(opts PrometheusOptions) (string, error) {
 	}
 
 	err = parsedPrometheusConfig.Execute(&buf, variables)
-
 	if err != nil {
 		return "", err
 	}

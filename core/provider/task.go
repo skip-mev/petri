@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"sync"
 )
 
 // CreateTask creates a task structure and sets up its underlying workload on a provider, including sidecars if there are any in the definition
@@ -53,22 +54,21 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 		})
 	}
 
-	
 	eg.Go(func() error {
 		id, err := provider.CreateTask(ctx, logger, definition)
 		if err != nil {
 			return err
 		}
-		
+
 		task.ID = id
-		
+
 		return nil
 	})
-	
+
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-	
+
 	task.Sidecars = sidecarTasks
 	return task, nil
 }

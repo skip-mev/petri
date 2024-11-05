@@ -9,8 +9,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
-	"github.com/skip-mev/petri/core/v2/provider"
 	"google.golang.org/grpc"
+
+	"github.com/skip-mev/petri/core/v2/provider"
 )
 
 // GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes

@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -56,7 +57,6 @@ func (p *Provider) DestroyVolume(ctx context.Context, id string) error {
 // taken from strangelove-ventures/interchain-test
 func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []byte) error {
 	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
-
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,6 @@ func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []
 
 func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, error) {
 	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
-
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +281,6 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 
 func (p *Provider) DownloadDir(ctx context.Context, id, relPath, localPath string) error {
 	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
-
 	if err != nil {
 		return err
 	}

@@ -2,8 +2,9 @@ package provider
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 // TaskStatus defines the status of a task's underlying workload

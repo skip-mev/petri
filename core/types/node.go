@@ -3,11 +3,13 @@ package types
 import (
 	"context"
 	"fmt"
+
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/skip-mev/petri/core/v2/provider"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+
+	"github.com/skip-mev/petri/core/v2/provider"
 )
 
 // NodeConfig is the configuration structure for a logical node.

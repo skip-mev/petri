@@ -3,16 +3,21 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/digitalocean/godo"
 	dockerclient "github.com/docker/docker/client"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
-	"time"
-)
-import _ "embed"
 
+	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v2/util"
+
+	_ "embed"
+)
+
+// nolint
+//
 //go:embed files/docker-cloud-init.yaml
 var dockerCloudInit string
 
@@ -42,7 +47,6 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 	}
 
 	droplet, res, err := p.doClient.Droplets.Create(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +59,6 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond*300, func() (bool, error) {
 		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
-
 		if err != nil {
 			return false, err
 		}
@@ -65,20 +68,17 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		ip, err := d.PublicIPv4()
-
 		if err != nil {
 			return false, nil
 		}
 
 		dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
-
 		if err != nil {
 			p.logger.Error("failed to create docker client", zap.Error(err))
 			return false, err
 		}
 
 		_, err = dockerClient.Ping(ctx)
-
 		if err != nil {
 			return false, nil
 		}
@@ -87,7 +87,6 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		droplet = d
 		return true, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +106,6 @@ func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
 	}
 
 	res, err := p.doClient.Droplets.Delete(ctx, cachedDroplet.ID)
-
 	if err != nil {
 		return err
 	}
@@ -130,7 +128,6 @@ func (p *Provider) getDroplet(ctx context.Context, name string, returnOnCacheHit
 	}
 
 	droplet, res, err := p.doClient.Droplets.Get(ctx, cachedDroplet.ID)
-
 	if err != nil {
 		return nil, err
 	}
@@ -144,13 +141,11 @@ func (p *Provider) getDroplet(ctx context.Context, name string, returnOnCacheHit
 
 func (p *Provider) getDropletDockerClient(ctx context.Context, taskName string) (*dockerclient.Client, error) {
 	ip, err := p.GetIP(ctx, taskName)
-
 	if err != nil {
 		return nil, err
 	}
 
 	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
-
 	if err != nil {
 		return nil, err
 	}
@@ -172,13 +167,11 @@ func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*s
 	}
 
 	ip, err := p.GetIP(ctx, taskName)
-
 	if err != nil {
 		return nil, err
 	}
 
 	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(p.sshPrivKey))
-
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +189,6 @@ func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*s
 	}
 
 	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", ip), sshConfig)
-
 	if err != nil {
 		return nil, err
 	}

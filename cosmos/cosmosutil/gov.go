@@ -2,16 +2,17 @@ package cosmosutil
 
 import (
 	"context"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+
 	"github.com/skip-mev/petri/core/v2/types"
 )
 
 // GovProposal fetches a proposal from the governance module
 func (c *ChainClient) GovProposal(ctx context.Context, proposalID uint64) (*govtypes.Proposal, error) {
 	govClient, err := c.getGovClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -19,7 +20,6 @@ func (c *ChainClient) GovProposal(ctx context.Context, proposalID uint64) (*govt
 	res, err := govClient.Proposal(ctx, &govtypes.QueryProposalRequest{
 		ProposalId: proposalID,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,6 @@ func (c *ChainClient) GovProposal(ctx context.Context, proposalID uint64) (*govt
 // GovProposals fetches all proposals from the governance module
 func (c *ChainClient) GovProposals(ctx context.Context) ([]*govtypes.Proposal, error) {
 	govClient, err := c.getGovClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +43,6 @@ func (c *ChainClient) GovProposals(ctx context.Context) ([]*govtypes.Proposal, e
 				Key: nextToken,
 			},
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +61,6 @@ func (c *ChainClient) GovProposals(ctx context.Context) ([]*govtypes.Proposal, e
 // GovProposalVotes fetches all votes for a given proposal from the governance module
 func (c *ChainClient) GovProposalVotes(ctx context.Context, proposalID uint64) ([]*govtypes.Vote, error) {
 	govClient, err := c.getGovClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +75,6 @@ func (c *ChainClient) GovProposalVotes(ctx context.Context, proposalID uint64) (
 				Key: nextToken,
 			},
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +93,6 @@ func (c *ChainClient) GovProposalVotes(ctx context.Context, proposalID uint64) (
 // GovProposalVote fetches a vote for a given proposal from the governance module
 func (c *ChainClient) GovProposalVote(ctx context.Context, proposalID uint64, voter string) (*govtypes.Vote, error) {
 	govClient, err := c.getGovClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +101,6 @@ func (c *ChainClient) GovProposalVote(ctx context.Context, proposalID uint64, vo
 		ProposalId: proposalID,
 		Voter:      voter,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +111,6 @@ func (c *ChainClient) GovProposalVote(ctx context.Context, proposalID uint64, vo
 // GovProposalDeposits fetches all deposits for a given proposal from the governance module
 func (c *ChainClient) GovProposalDeposits(ctx context.Context, proposalID uint64) ([]*govtypes.Deposit, error) {
 	govClient, err := c.getGovClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +125,6 @@ func (c *ChainClient) GovProposalDeposits(ctx context.Context, proposalID uint64
 				Key: nextToken,
 			},
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +143,6 @@ func (c *ChainClient) GovProposalDeposits(ctx context.Context, proposalID uint64
 // GovProposalDeposit fetches a deposit for a given proposal and depositor from the governance module
 func (c *ChainClient) GovProposalDeposit(ctx context.Context, proposalID uint64, depositor string) (*govtypes.Deposit, error) {
 	govClient, err := c.getGovClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +151,6 @@ func (c *ChainClient) GovProposalDeposit(ctx context.Context, proposalID uint64,
 		ProposalId: proposalID,
 		Depositor:  depositor,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +161,6 @@ func (c *ChainClient) GovProposalDeposit(ctx context.Context, proposalID uint64,
 // GovTallyResult fetches the tally result for a given proposal from the governance module
 func (c *ChainClient) GovTallyResult(ctx context.Context, proposalID uint64) (*govtypes.TallyResult, error) {
 	govClient, err := c.getGovClient(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +168,6 @@ func (c *ChainClient) GovTallyResult(ctx context.Context, proposalID uint64) (*g
 	res, err := govClient.TallyResult(ctx, &govtypes.QueryTallyResultRequest{
 		ProposalId: proposalID,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +180,6 @@ func (c *ChainClient) GovVoteOnProposal(ctx context.Context, proposalID uint64, 
 	msg := govtypes.NewMsgVote(sdk.AccAddress(voter.FormattedAddress()), proposalID, option, "")
 
 	txResp, err := voter.CreateAndBroadcastTx(ctx, true, gasSettings.Gas, GetFeeAmountsFromGasSettings(gasSettings), 0, "", msg)
-
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +192,6 @@ func (c *ChainClient) GovDepositOnProposal(ctx context.Context, proposalID uint6
 	msg := govtypes.NewMsgDeposit(sdk.AccAddress(depositor.FormattedAddress()), proposalID, amount)
 
 	txResp, err := depositor.CreateAndBroadcastTx(ctx, true, gasSettings.Gas, GetFeeAmountsFromGasSettings(gasSettings), 0, "", msg)
-
 	if err != nil {
 		return nil, err
 	}
@@ -216,17 +202,15 @@ func (c *ChainClient) GovDepositOnProposal(ctx context.Context, proposalID uint6
 // GovSubmitProposal submits a proposal using the address of the wallet proposer
 func (c *ChainClient) GovSubmitProposal(ctx context.Context, proposer *InteractingWallet,
 	messages []sdk.Msg, initialDeposit sdk.Coins, gasSettings types.GasSettings, metadata,
-	title, summary string, expedited bool) (*sdk.TxResponse, error) {
-
+	title, summary string, expedited bool,
+) (*sdk.TxResponse, error) {
 	msg, err := govtypes.NewMsgSubmitProposal(
 		messages, initialDeposit, proposer.FormattedAddress(), metadata, title, summary, expedited)
-
 	if err != nil {
 		return nil, err
 	}
 
 	txResp, err := proposer.CreateAndBroadcastTx(ctx, true, gasSettings.Gas, GetFeeAmountsFromGasSettings(gasSettings), 0, "", msg)
-
 	if err != nil {
 		return nil, err
 	}

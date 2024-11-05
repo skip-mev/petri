@@ -1,17 +1,16 @@
 package digitalocean
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/digitalocean/godo"
 	"github.com/puzpuzpuz/xsync/v3"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
-)
 
-import (
-	"context"
+	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v2/util"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -48,7 +47,6 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 	}
 
 	userIPs, err := getUserIPs(ctx)
-
 	if err != nil {
 		return nil, err
 	}
@@ -73,20 +71,17 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 	logger.Debug("petri tag", zap.String("tag", digitalOceanProvider.petriTag))
 
 	_, err = digitalOceanProvider.createTag(ctx, digitalOceanProvider.petriTag)
-
 	if err != nil {
 		return nil, err
 	}
 
 	firewall, err := digitalOceanProvider.createFirewall(ctx, userIPs)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
 	digitalOceanProvider.firewallID = firewall.ID
 	_, err = digitalOceanProvider.createSSHKey(ctx, sshPubKey)
-
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +110,6 @@ func (p *Provider) Teardown(ctx context.Context) error {
 
 func (p *Provider) teardownTasks(ctx context.Context) error {
 	res, err := p.doClient.Droplets.DeleteByTag(ctx, p.petriTag)
-
 	if err != nil {
 		return err
 	}
@@ -129,7 +123,6 @@ func (p *Provider) teardownTasks(ctx context.Context) error {
 
 func (p *Provider) teardownFirewall(ctx context.Context) error {
 	res, err := p.doClient.Firewalls.Delete(ctx, p.firewallID)
-
 	if err != nil {
 		return err
 	}
@@ -143,7 +136,6 @@ func (p *Provider) teardownFirewall(ctx context.Context) error {
 
 func (p *Provider) teardownSSHKey(ctx context.Context) error {
 	res, err := p.doClient.Keys.DeleteByFingerprint(ctx, p.sshFingerprint)
-
 	if err != nil {
 		return err
 	}
@@ -157,7 +149,6 @@ func (p *Provider) teardownSSHKey(ctx context.Context) error {
 
 func (p *Provider) teardownTag(ctx context.Context) error {
 	res, err := p.doClient.Tags.Delete(ctx, p.petriTag)
-
 	if err != nil {
 		return err
 	}
