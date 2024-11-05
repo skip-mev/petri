@@ -57,11 +57,10 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 	return task, nil
 }
 
-// Start starts the underlying task's workload including its sidecars if startSidecars is set to true
+// Start starts the underlying task's workload including its sidecars if startSidecars is set to true.
+// This method does not take a lock on the provider, hence 2 threads may simultaneously call Start on the same task,
+// this is not thread-safe: PLEASE DON'T DO THAT.
 func (t *Task) Start(ctx context.Context, startSidecars bool) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if startSidecars {
 		for _, sidecar := range t.Sidecars {
 			err := sidecar.Start(ctx, startSidecars)
