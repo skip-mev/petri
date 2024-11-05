@@ -3,16 +3,11 @@ package node
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"reflect"
-	"time"
-
 	toml "github.com/pelletier/go-toml/v2"
 
-	"math/rand"
-	"strings"
-
 	petritypes "github.com/skip-mev/petri/core/v2/types"
+	"reflect"
+	"time"
 )
 
 type Toml map[string]any
@@ -169,12 +164,8 @@ func (n *Node) SetDefaultConfigs(ctx context.Context) error {
 func (n *Node) SetPersistentPeers(ctx context.Context, peers string) error {
 	cometBftConfig := make(Toml)
 
-	allPeers := strings.Split(peers, ",")
-
 	p2pConfig := make(Toml)
-
-	// return the filtered peers
-	p2pConfig["persistent_peers"] = filterPeers(allPeers)
+	p2pConfig["persistent_peers"] = peers
 
 	cometBftConfig["p2p"] = p2pConfig
 
@@ -183,19 +174,4 @@ func (n *Node) SetPersistentPeers(ctx context.Context, peers string) error {
 		"config/config.toml",
 		cometBftConfig,
 	)
-}
-
-// filter peers returns a random subset of the given peers. The subset is determined as follows:
-// 1. If the number of peers is less than or equal to 20, return all peers.
-// 2. If the number of peers is greater than 20, return a random subset of 20 peers.
-func filterPeers(allPeers []string) string {
-	if len(allPeers) <= 20 {
-		return strings.Join(allPeers, ",")
-	}
-
-	rand.Shuffle(len(allPeers), func(i, j int) {
-		allPeers[i], allPeers[j] = allPeers[j], allPeers[i]
-	})
-
-	return strings.Join(allPeers[:20], ",")
 }
