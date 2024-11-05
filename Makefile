@@ -13,15 +13,15 @@ govulncheck:
 
 lint:
 	@echo "--> Running linter for core pkg..."
-	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --out-format=tab
+	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --out-format=tab
 	@echo "--> Running linter for cosmos pkg..."
-	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --out-format=tab
+	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --out-format=tab
 
 lint-fix:
 	@echo "--> Running linter for core pkg..."
-	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix --out-format=tab --issues-exit-code=0
+	@cd ./core && go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fix --out-format=tab --issues-exit-code=0
 	@echo "--> Running linter for cosmos pkg..."
-	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix --out-format=tab --issues-exit-code=0
+	@cd ./cosmos && go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --fix --out-format=tab --issues-exit-code=0
 
 format:
 	@find . -name '*.go' -type f -not -path "*.git*" | xargs go run mvdan.cc/gofumpt -w .
