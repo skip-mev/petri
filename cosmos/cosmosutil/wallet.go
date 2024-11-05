@@ -16,15 +16,8 @@ import (
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-<<<<<<< HEAD
 	petritypes "github.com/skip-mev/petri/core/types"
 	"github.com/skip-mev/petri/core/util"
-	"strings"
-	"time"
-=======
-	petritypes "github.com/skip-mev/petri/core/v2/types"
-	"github.com/skip-mev/petri/core/v2/util"
->>>>>>> 08711a7 (fixes for dydx loadtests)
 )
 
 // EncodingConfig is a struct that packs all the necessary encoding information

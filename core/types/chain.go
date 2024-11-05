@@ -2,12 +2,9 @@ package types
 
 import (
 	"context"
-<<<<<<< HEAD
-=======
 	"fmt"
 	"math/big"
 
->>>>>>> 08711a7 (fixes for dydx loadtests)
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -74,7 +71,7 @@ type ChainConfig struct {
 
 	NodeCreator            NodeCreator            // NodeCreator is a function that creates a node
 	NodeDefinitionModifier NodeDefinitionModifier // NodeDefinitionModifier is a function that modifies a node's definition
-	// number of tokens to allocate per account in the genesis state (unscaled). This value defaults to 10_000_000 if not set. 
+	// number of tokens to allocate per account in the genesis state (unscaled). This value defaults to 10_000_000 if not set.
 	// if not set.
 	GenesisDelegation *big.Int
 	// number of tokens to allocate to the genesis account. This value defaults to 5_000_000 if not set.
@@ -95,10 +92,9 @@ func (c ChainConfig) GetGenesisDelegation() *big.Int {
 	return c.GenesisDelegation
 }
 
-<<<<<<< HEAD
 // GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes
 type GenesisModifier func([]byte) ([]byte, error)
-=======
+
 func (c *ChainConfig) ValidateBasic() error {
 	if c.Denom == "" {
 		return fmt.Errorf("denom cannot be empty")
@@ -152,4 +148,3 @@ func (c *ChainConfig) ValidateBasic() error {
 
 	return nil
 }
->>>>>>> c2400e5 (remove hd path from chain config)
