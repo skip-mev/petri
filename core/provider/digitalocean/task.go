@@ -163,7 +163,6 @@ func (p *Provider) DestroyTask(ctx context.Context, taskName string) error {
 
 func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider.TaskStatus, error) {
 	droplet, err := p.getDroplet(ctx, taskName, false)
-
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
