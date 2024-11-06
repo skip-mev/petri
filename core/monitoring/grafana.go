@@ -30,7 +30,8 @@ var grafanaDashboardProvisioningConfig string
 // Additionally, it creates a Prometheus datasource and a dashboard (given the DashboardJSON in GrafanaOptions).
 func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts GrafanaOptions) (*provider.Task, error) {
 	task, err := provider.CreateTask(ctx, logger, p, provider.TaskDefinition{
-		Name: "grafana",
+		Name:          "grafana",
+		ContainerName: "grafana",
 		Image: provider.ImageDefinition{
 			Image: "grafana/grafana:main",
 			UID:   "472",
