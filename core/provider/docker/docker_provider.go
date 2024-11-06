@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 	"github.com/cilium/ipam/service/ipallocator"
 	"github.com/skip-mev/petri/core/v2/util"
@@ -11,6 +12,15 @@ import (
 	"sync"
 
 >>>>>>> 7ca1fb6 (feat(docker): statically allocate a network and IP addresses)
+=======
+	"net"
+	"sync"
+
+	"github.com/cilium/ipam/service/ipallocator"
+
+	"github.com/skip-mev/petri/core/v2/util"
+
+>>>>>>> 889bebb (fix: imports)
 	"go.uber.org/zap"
 	"sync"
 
@@ -73,7 +83,6 @@ func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName str
 	dockerProvider.dockerNetworkID = network.ID
 
 	_, cidrMask, err := net.ParseCIDR(network.IPAM.Config[0].Subnet)
-
 	if err != nil {
 		return nil, err
 	}

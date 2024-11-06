@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/skip-mev/petri/core/util"
 =======
@@ -13,9 +14,17 @@ import (
 	"github.com/skip-mev/petri/core/v2/util"
 >>>>>>> 7ca1fb6 (feat(docker): statically allocate a network and IP addresses)
 	"go.uber.org/zap"
+=======
+>>>>>>> 889bebb (fix: imports)
 	"io"
 	"net"
 	"time"
+
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/pkg/stdcopy"
+	"go.uber.org/zap"
+
+	"github.com/skip-mev/petri/core/v2/util"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -112,7 +121,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 			},
 		},
 	}, nil, definition.ContainerName)
-
 	if err != nil {
 		listeners.CloseAll()
 		return "", err
@@ -300,8 +308,6 @@ func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	//hostname := bytes.TrimPrefix([]byte(container.Name), []byte("/"))
 
 	ip := container.NetworkSettings.Networks[p.dockerNetworkName].IPAMConfig.IPv4Address
 

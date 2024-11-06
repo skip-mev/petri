@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+	"net"
+
+>>>>>>> 889bebb (fix: imports)
 	"github.com/docker/docker/api/types/network"
 >>>>>>> 7ca1fb6 (feat(docker): statically allocate a network and IP addresses)
 	"go.uber.org/zap"
-	"net"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/nat"
@@ -48,7 +52,6 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (types
 	}
 
 	networkInfo, err := p.dockerClient.NetworkInspect(ctx, networkResponse.ID, types.NetworkInspectOptions{})
-
 	if err != nil {
 		return types.NetworkResource{}, err
 	}
