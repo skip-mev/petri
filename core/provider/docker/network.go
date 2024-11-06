@@ -3,9 +3,10 @@ package docker
 import (
 	"context"
 	"fmt"
+	"net"
+
 	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
-	"net"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/nat"
@@ -45,7 +46,6 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (types
 	}
 
 	networkInfo, err := p.dockerClient.NetworkInspect(ctx, networkResponse.ID, types.NetworkInspectOptions{})
-
 	if err != nil {
 		return types.NetworkResource{}, err
 	}
