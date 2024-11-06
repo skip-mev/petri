@@ -40,7 +40,6 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (types
 			},
 		},
 	})
-
 	if err != nil {
 		return types.NetworkResource{}, err
 	}
