@@ -3,10 +3,12 @@ package docker
 import (
 	"context"
 	"fmt"
-	"github.com/cilium/ipam/service/ipallocator"
-	"github.com/skip-mev/petri/core/v2/util"
 	"net"
 	"sync"
+
+	"github.com/cilium/ipam/service/ipallocator"
+
+	"github.com/skip-mev/petri/core/v2/util"
 
 	"go.uber.org/zap"
 
@@ -63,7 +65,6 @@ func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName str
 	dockerProvider.dockerNetworkID = network.ID
 
 	_, cidrMask, err := net.ParseCIDR(network.IPAM.Config[0].Subnet)
-
 	if err != nil {
 		return nil, err
 	}
