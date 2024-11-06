@@ -3,6 +3,9 @@ package docker
 import (
 	"context"
 	"fmt"
+	"github.com/cilium/ipam/service/ipallocator"
+	"github.com/skip-mev/petri/core/v2/util"
+	"net"
 	"sync"
 
 	"go.uber.org/zap"
@@ -10,7 +13,6 @@ import (
 	"github.com/docker/docker/client"
 
 	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -20,14 +22,15 @@ const (
 )
 
 type Provider struct {
-	logger            *zap.Logger
-	dockerClient      *client.Client
-	name              string
-	dockerNetworkID   string
-	dockerNetworkName string
-	networkMu         sync.Mutex
-	listeners         map[string]Listeners
-	builderImageName  string
+	logger                 *zap.Logger
+	dockerClient           *client.Client
+	name                   string
+	dockerNetworkID        string
+	dockerNetworkName      string
+	dockerNetworkAllocator *ipallocator.Range
+	networkMu              sync.Mutex
+	listeners              map[string]Listeners
+	builderImageName       string
 }
 
 // NewDockerProvider creates a provider that implements the Provider interface for Docker. It uses the default
@@ -52,12 +55,24 @@ func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName str
 	}
 
 	dockerProvider.dockerNetworkName = fmt.Sprintf("petri-network-%s", util.RandomString(5))
-	networkID, err := dockerProvider.createNetwork(ctx, dockerProvider.dockerNetworkName)
+	network, err := dockerProvider.createNetwork(ctx, dockerProvider.dockerNetworkName)
 	if err != nil {
 		return nil, err
 	}
 
-	dockerProvider.dockerNetworkID = networkID
+	dockerProvider.dockerNetworkID = network.ID
+
+	_, cidrMask, err := net.ParseCIDR(network.IPAM.Config[0].Subnet)
+
+	if err != nil {
+		return nil, err
+	}
+
+	dockerProvider.dockerNetworkAllocator, err = ipallocator.NewCIDRRange(cidrMask)
+
+	if err != nil {
+		return nil, err
+	}
 
 	return dockerProvider, nil
 }

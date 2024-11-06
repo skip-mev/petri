@@ -3,6 +3,7 @@ module github.com/skip-mev/petri/core/v2
 go 1.21.3
 
 require (
+	github.com/cilium/ipam v0.0.0-20230509084518-fd66eae7909b
 	github.com/cometbft/cometbft v0.38.12
 	github.com/cosmos/cosmos-sdk v0.50.10
 	github.com/digitalocean/godo v1.108.0
