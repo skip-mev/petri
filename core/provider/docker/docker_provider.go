@@ -69,7 +69,6 @@ func NewDockerProvider(ctx context.Context, logger *zap.Logger, providerName str
 	}
 
 	dockerProvider.dockerNetworkAllocator, err = ipallocator.NewCIDRRange(cidrMask)
-
 	if err != nil {
 		return nil, err
 	}
