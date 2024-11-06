@@ -9,6 +9,11 @@ require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/go-rod/rod v0.114.6
+<<<<<<< HEAD
+=======
+	github.com/golangci/golangci-lint v1.56.2
+	github.com/pkg/errors v0.9.1
+>>>>>>> 3fb56b0 (fix(digitalocean): increase instance startup timeout to 600 seconds and add additional error checks)
 	github.com/pkg/sftp v1.13.6
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
 	github.com/spf13/afero v1.11.0
@@ -124,6 +129,7 @@ require (
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
+<<<<<<< HEAD
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/petermattis/goid v0.0.0-20230904192822-1876fd5063bc // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -132,6 +138,20 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
+=======
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
+	github.com/petermattis/goid v0.0.0-20231207134359-e60b3f734c67 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/polyfloyd/go-errorlint v1.4.8 // indirect
+	github.com/prometheus/client_golang v1.20.1 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.55.0 // indirect
+	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/quasilyte/go-ruleguard v0.4.0 // indirect
+	github.com/quasilyte/gogrep v0.5.0 // indirect
+	github.com/quasilyte/regex/syntax v0.0.0-20210819130434-b3f0c404a727 // indirect
+	github.com/quasilyte/stdinfo v0.0.0-20220114132959-f7386bf02567 // indirect
+>>>>>>> 3fb56b0 (fix(digitalocean): increase instance startup timeout to 600 seconds and add additional error checks)
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/rs/cors v1.8.3 // indirect

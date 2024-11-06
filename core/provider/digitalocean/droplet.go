@@ -3,6 +3,12 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+<<<<<<< HEAD
+=======
+	"github.com/pkg/errors"
+	"time"
+
+>>>>>>> 3fb56b0 (fix(digitalocean): increase instance startup timeout to 600 seconds and add additional error checks)
 	"github.com/digitalocean/godo"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/skip-mev/petri/core/v2/provider"
@@ -54,7 +60,11 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	start := time.Now()
 
+<<<<<<< HEAD
 	err = util.WaitForCondition(ctx, time.Second*600, time.Second*2, func() (bool, error) {
+=======
+	err = util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
+>>>>>>> 3fb56b0 (fix(digitalocean): increase instance startup timeout to 600 seconds and add additional error checks)
 		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
 
 		if err != nil {
@@ -87,7 +97,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to wait for droplet to become active")
 	}
 
 	end := time.Now()

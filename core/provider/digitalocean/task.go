@@ -434,7 +434,43 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
 
+<<<<<<< HEAD
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
+=======
+	return stdout.String(), stderr.String(), execInspect.ExitCode, err
+}
+
+func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Client, containerID string) error {
+	// start container
+	if err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+		return err
+	}
+
+	// cancel container after a minute
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("error waiting for container to start: %v", waitCtx.Err())
+		case <-ticker.C:
+			container, err := dockerClient.ContainerInspect(ctx, containerID)
+			if err != nil {
+				return err
+			}
+
+			// if the container is running, we're done
+			if container.State.Running {
+				return nil
+			}
+
+			if container.State.Status == "exited" && container.State.ExitCode != 0 {
+				return fmt.Errorf("container exited with status %d", container.State.ExitCode)
+			}
+		}
+	}
+>>>>>>> 3fb56b0 (fix(digitalocean): increase instance startup timeout to 600 seconds and add additional error checks)
 }
 
 func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Client, image string) error {
