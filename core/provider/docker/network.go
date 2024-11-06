@@ -3,6 +3,10 @@ package docker
 import (
 	"context"
 	"fmt"
+<<<<<<< HEAD
+=======
+	"github.com/docker/docker/api/types/network"
+>>>>>>> 7ca1fb6 (feat(docker): statically allocate a network and IP addresses)
 	"go.uber.org/zap"
 	"net"
 
@@ -12,9 +16,9 @@ import (
 
 type Listeners []net.Listener
 
-func (p *Provider) createNetwork(ctx context.Context, networkName string) (string, error) {
+func (p *Provider) createNetwork(ctx context.Context, networkName string) (types.NetworkResource, error) {
 	p.logger.Info("creating network", zap.String("name", networkName))
-	network, err := p.dockerClient.NetworkCreate(ctx, networkName, types.NetworkCreate{
+	networkResponse, err := p.dockerClient.NetworkCreate(ctx, networkName, types.NetworkCreate{
 		Scope:  "local",
 		Driver: "bridge",
 		Options: map[string]string{ // https://docs.docker.com/engine/reference/commandline/network_create/#bridge-driver-options
@@ -29,12 +33,28 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (strin
 		Labels: map[string]string{
 			providerLabelName: p.name,
 		},
+		IPAM: &network.IPAM{
+			Driver: "default",
+			Config: []network.IPAMConfig{
+				{
+					Subnet:  "192.192.192.0/24",
+					Gateway: "192.192.192.1",
+				},
+			},
+		},
 	})
+
 	if err != nil {
-		return "", err
+		return types.NetworkResource{}, err
 	}
 
-	return network.ID, nil
+	networkInfo, err := p.dockerClient.NetworkInspect(ctx, networkResponse.ID, types.NetworkInspectOptions{})
+
+	if err != nil {
+		return types.NetworkResource{}, err
+	}
+
+	return networkInfo, nil
 }
 
 func (p *Provider) destroyNetwork(ctx context.Context, networkID string) error {
