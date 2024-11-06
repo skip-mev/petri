@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+<<<<<<< HEAD
+=======
+	"github.com/docker/docker/api/types/network"
+>>>>>>> 7ca1fb6 (feat(docker): statically allocate a network and IP addresses)
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/skip-mev/petri/core/v2/util"
 	"go.uber.org/zap"
@@ -73,6 +77,15 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 
 	logger.Debug("creating container", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
 
+	// network map is volatile, so we need to mutex update it
+	p.networkMu.Lock()
+	ip, err := p.dockerNetworkAllocator.AllocateNext()
+	p.networkMu.Unlock()
+
+	if err != nil {
+		return "", err
+	}
+
 	createdContainer, err := p.dockerClient.ContainerCreate(ctx, &container.Config{
 		Image:      definition.Image.Image,
 		Entrypoint: definition.Entrypoint,
@@ -88,7 +101,16 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		PortBindings:    portBindings,
 		PublishAllPorts: true,
 		NetworkMode:     container.NetworkMode(p.dockerNetworkName),
-	}, nil, nil, definition.ContainerName)
+	}, &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			p.dockerNetworkName: {
+				IPAMConfig: &network.EndpointIPAMConfig{
+					IPv4Address: ip.String(),
+				},
+			},
+		},
+	}, nil, definition.ContainerName)
+
 	if err != nil {
 		listeners.CloseAll()
 		return "", err
@@ -277,9 +299,11 @@ func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
 		return "", err
 	}
 
-	hostname := bytes.TrimPrefix([]byte(container.Name), []byte("/"))
+	//hostname := bytes.TrimPrefix([]byte(container.Name), []byte("/"))
 
-	return string(hostname), nil
+	ip := container.NetworkSettings.Networks[p.dockerNetworkName].IPAMConfig.IPv4Address
+
+	return ip, nil
 }
 
 func (p *Provider) GetExternalAddress(ctx context.Context, id string, port string) (string, error) {

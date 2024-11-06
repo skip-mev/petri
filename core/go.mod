@@ -3,8 +3,14 @@ module github.com/skip-mev/petri/core/v2
 go 1.21.3
 
 require (
+<<<<<<< HEAD
 	github.com/cometbft/cometbft v0.38.2
 	github.com/cosmos/cosmos-sdk v0.50.2
+=======
+	github.com/cilium/ipam v0.0.0-20230509084518-fd66eae7909b
+	github.com/cometbft/cometbft v0.38.12
+	github.com/cosmos/cosmos-sdk v0.50.10
+>>>>>>> 7ca1fb6 (feat(docker): statically allocate a network and IP addresses)
 	github.com/digitalocean/godo v1.108.0
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.0
