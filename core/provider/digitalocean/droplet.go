@@ -3,6 +3,7 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"time"
 
 	"github.com/digitalocean/godo"
@@ -57,7 +58,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	start := time.Now()
 
-	err = util.WaitForCondition(ctx, time.Second*300, time.Millisecond*300, func() (bool, error) {
+	err = util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
 		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
 		if err != nil {
 			return false, err
@@ -88,7 +89,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		return true, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to wait for droplet to become active")
 	}
 
 	end := time.Now()
