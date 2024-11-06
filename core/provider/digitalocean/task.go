@@ -447,6 +447,10 @@ func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Cli
 			if container.State.Running {
 				return nil
 			}
+
+			if container.State.Status == "exited" && container.State.ExitCode != 0 {
+				return fmt.Errorf("container exited with status %d", container.State.ExitCode)
+			}
 		}
 	}
 }
