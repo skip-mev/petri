@@ -4,8 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+<<<<<<< HEAD
 	"github.com/docker/docker/api/types"
+=======
+	"io"
+	"net"
+	"path"
+	"time"
+
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -116,8 +125,12 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
 	}
 
+<<<<<<< HEAD
 	err = dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
 
+=======
+	err = dockerClient.ContainerStart(ctx, containerID, container.StartOptions{})
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 	if err != nil {
 		return err
 	}
@@ -330,7 +343,7 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 
 	p.logger.Debug("running command", zap.String("id", id), zap.Strings("command", command))
 
-	exec, err := dockerClient.ContainerExecCreate(ctx, id, types.ExecConfig{
+	exec, err := dockerClient.ContainerExecCreate(ctx, id, container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          command,
@@ -339,7 +352,7 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 		return "", "", 0, err
 	}
 
-	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
+	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -399,7 +412,12 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
+<<<<<<< HEAD
 	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true})
+=======
+	// nolint
+	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, container.RemoveOptions{Force: true})
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 
 	err = dockerClient.ContainerStart(ctx, createdContainer.ID, types.ContainerStartOptions{})
 
@@ -407,7 +425,12 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
+<<<<<<< HEAD
 	exec, err := dockerClient.ContainerExecCreate(ctx, createdContainer.ID, types.ExecConfig{
+=======
+	// wait for container start
+	exec, err := dockerClient.ContainerExecCreate(ctx, createdContainer.ID, container.ExecOptions{
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          command,
@@ -417,8 +440,12 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
+<<<<<<< HEAD
 	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
 
+=======
+	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -434,12 +461,48 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
 
+<<<<<<< HEAD
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
+=======
+	return stdout.String(), stderr.String(), execInspect.ExitCode, err
 }
 
-func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Client, image string) error {
-	p.logger.Info("pulling image", zap.String("image", image))
-	resp, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Client, containerID string) error {
+	// start container
+	if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+		return err
+	}
+
+	// cancel container after a minute
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("error waiting for container to start: %v", waitCtx.Err())
+		case <-ticker.C:
+			container, err := dockerClient.ContainerInspect(ctx, containerID)
+			if err != nil {
+				return err
+			}
+
+			// if the container is running, we're done
+			if container.State.Running {
+				return nil
+			}
+
+			if container.State.Status == "exited" && container.State.ExitCode != 0 {
+				return fmt.Errorf("container exited with status %d", container.State.ExitCode)
+			}
+		}
+	}
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
+}
+
+func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Client, img string) error {
+	p.logger.Info("pulling image", zap.String("image", img))
+	resp, err := dockerClient.ImagePull(ctx, img, image.PullOptions{})
 	if err != nil {
 		return err
 	}

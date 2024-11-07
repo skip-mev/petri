@@ -12,7 +12,12 @@ import (
 	"path/filepath"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/docker/docker/api/types"
+=======
+	"go.uber.org/zap"
+
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
@@ -125,7 +130,7 @@ func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []
 		}
 
 		// nolint // will fix later
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			// TODO fix logging
@@ -160,13 +165,13 @@ func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []
 		cc.ID,
 		mountPath,
 		&buf,
-		types.CopyToContainerOptions{},
+		container.CopyToContainerOptions{},
 	); err != nil {
 		return fmt.Errorf("copying tar to container: %w", err)
 	}
 
 	logger.Debug("starting writefile container")
-	if err := p.dockerClient.ContainerStart(ctx, cc.ID, types.ContainerStartOptions{}); err != nil {
+	if err := p.dockerClient.ContainerStart(ctx, cc.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("starting write-file container: %w", err)
 	}
 
@@ -243,7 +248,7 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 	logger.Debug("created getfile container", zap.String("id", cc.ID))
 
 	defer func() {
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getfile container", zap.Error(err))
@@ -331,7 +336,7 @@ func (p *Provider) DownloadDir(ctx context.Context, id, relPath, localPath strin
 
 	defer func() {
 		// nolint // will fix later
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getdir container", zap.Error(err))
@@ -428,7 +433,7 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 		}
 
 		// nolint // will fix later
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the volume-owner container", zap.Error(err))
@@ -436,7 +441,7 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 	}()
 
 	logger.Debug("starting volume-owner container")
-	if err := p.dockerClient.ContainerStart(ctx, cc.ID, types.ContainerStartOptions{}); err != nil {
+	if err := p.dockerClient.ContainerStart(ctx, cc.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("starting volume-owner container: %w", err)
 	}
 
