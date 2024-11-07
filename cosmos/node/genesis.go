@@ -75,7 +75,11 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 	n.logger.Debug("add-genesis-account", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to add genesis account: %w", err)
+	}
+
+	if exitCode != 0 {
+		return fmt.Errorf("failed to add genesis account (exitcode=%d): %s", exitCode, stderr)
 	}
 
 	return nil
@@ -102,11 +106,15 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
 	n.logger.Debug("gentx", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
-	if exitCode != 0 {
-		return fmt.Errorf("failed to generate genesis transaction: %s (exitcode=%d)", stderr, exitCode)
+	if err != nil {
+		return fmt.Errorf("failed to generate genesis transaction: %w", err)
 	}
 
-	return err
+	if exitCode != 0 {
+		return fmt.Errorf("failed to generate genesis transaction (exitcode=%d): %s", exitCode, stderr)
+	}
+
+	return nil
 }
 
 // CollectGenTxs collects the genesis transactions from the node and create a finalized genesis file
@@ -124,7 +132,15 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, n.BinCommand(command...))
 	n.logger.Debug("collect-gentxs", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to collect genesis transactions: %w", err)
+	}
+
+	if exitCode != 0 {
+		return fmt.Errorf("failed to collect genesis transactions (exitcode=%d): %s", exitCode, stderr)
+	}
+
+	return nil
 }
 
 // OverwriteGenesisFile overwrites the genesis file on the node with the provided genesis file
