@@ -381,8 +381,16 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
-	// nolint
-	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true})
+	defer func() {
+		if _, err := dockerClient.ContainerInspect(ctx, createdContainer.ID); err != nil && dockerclient.IsErrNotFound(err) {
+			// auto-removed, but not detected as autoremoved
+			return
+		}
+
+		if err := dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
+			p.logger.Error("failed to remove container", zap.Error(err), zap.String("taskName", taskName), zap.String("id", createdContainer.ID))
+		}
+	}()
 
 	if err := startContainerWithBlock(ctx, dockerClient, createdContainer.ID); err != nil {
 		p.logger.Error("failed to start container", zap.Error(err), zap.String("taskName", taskName))
