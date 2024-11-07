@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/client"
 
 	"github.com/skip-mev/petri/core/v2/provider"
 )
@@ -123,11 +124,15 @@ func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []
 			return
 		}
 
-		// nolint // will fix later
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if _, err := p.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+			// auto-removed, but not detected as autoremoved
+			return
+		}
+
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
-			// TODO fix logging
+			logger.Error("failed to remove writefile container", zap.String("id", cc.ID), zap.Error(err))
 		}
 	}()
 
@@ -241,11 +246,15 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 	logger.Debug("created getfile container", zap.String("id", cc.ID))
 
 	defer func() {
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if _, err := p.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+			// auto-removed, but not detected as autoremoved
+			return
+		}
+
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getfile container", zap.Error(err))
-			// todo fix logging
 		}
 	}()
 
@@ -327,8 +336,11 @@ func (p *Provider) DownloadDir(ctx context.Context, id, relPath, localPath strin
 	}
 
 	defer func() {
-		// nolint // will fix later
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if _, err := p.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+			return
+		}
+
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getdir container", zap.Error(err))
@@ -407,8 +419,8 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 			User: "0",
 		},
 		&container.HostConfig{
-			Binds: []string{volumeName + ":" + mountPath},
-			// AutoRemove: true,
+			Binds:      []string{volumeName + ":" + mountPath},
+			AutoRemove: true,
 		},
 		nil, // No networking necessary.
 		nil,
@@ -424,8 +436,12 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 			return
 		}
 
-		// nolint // will fix later
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if _, err := p.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+			// auto-removed, but not detected as autoremoved
+			return
+		}
+
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the volume-owner container", zap.Error(err))

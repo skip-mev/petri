@@ -276,12 +276,8 @@ func (p *Provider) DownloadDir(ctx context.Context, s string, s2 string, s3 stri
 }
 
 func (p *Provider) GetIP(ctx context.Context, taskName string) (string, error) {
-<<<<<<< HEAD
-	droplet, err := p.getDroplet(ctx, taskName)
-=======
 	droplet, err := p.getDroplet(ctx, taskName, true)
 
->>>>>>> bbaca50 (allow caching of static droplet ips)
 	if err != nil {
 		return "", err
 	}
@@ -386,16 +382,19 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
-	// nolint
-	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, container.RemoveOptions{Force: true})
+	defer func() {
+		if _, err := dockerClient.ContainerInspect(ctx, createdContainer.ID); err != nil && dockerclient.IsErrNotFound(err) {
+			// auto-removed, but not detected as autoremoved
+			return
+		}
 
-<<<<<<< HEAD
-	err = dockerClient.ContainerStart(ctx, createdContainer.ID, types.ContainerStartOptions{})
-	if err != nil {
-=======
+		if err := dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
+			p.logger.Error("failed to remove container", zap.Error(err), zap.String("taskName", taskName), zap.String("id", createdContainer.ID))
+		}
+	}()
+
 	if err := startContainerWithBlock(ctx, dockerClient, createdContainer.ID); err != nil {
 		p.logger.Error("failed to start container", zap.Error(err), zap.String("taskName", taskName))
->>>>>>> 59b09e5 (fixes)
 		return "", "", 0, err
 	}
 
