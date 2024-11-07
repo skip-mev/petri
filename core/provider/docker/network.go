@@ -6,15 +6,20 @@ import (
 	"go.uber.org/zap"
 	"net"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/nat"
 )
 
 type Listeners []net.Listener
 
+<<<<<<< HEAD
 func (p *Provider) createNetwork(ctx context.Context, networkName string) (string, error) {
 	p.logger.Info("creating network", zap.String("name", networkName))
 	network, err := p.dockerClient.NetworkCreate(ctx, networkName, types.NetworkCreate{
+=======
+func (p *Provider) createNetwork(ctx context.Context, networkName string) (network.Inspect, error) {
+	p.logger.Info("creating network", zap.String("name", networkName))
+	networkResponse, err := p.dockerClient.NetworkCreate(ctx, networkName, network.CreateOptions{
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 		Scope:  "local",
 		Driver: "bridge",
 		Options: map[string]string{ // https://docs.docker.com/engine/reference/commandline/network_create/#bridge-driver-options
@@ -31,10 +36,22 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (strin
 		},
 	})
 	if err != nil {
+<<<<<<< HEAD
 		return "", err
 	}
 
 	return network.ID, nil
+=======
+		return network.Inspect{}, err
+	}
+
+	networkInfo, err := p.dockerClient.NetworkInspect(ctx, networkResponse.ID, network.InspectOptions{})
+	if err != nil {
+		return network.Inspect{}, err
+	}
+
+	return networkInfo, nil
+>>>>>>> 5a07fe1 (Upgrade deps, fix lint failures)
 }
 
 func (p *Provider) destroyNetwork(ctx context.Context, networkID string) error {

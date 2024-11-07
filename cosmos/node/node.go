@@ -117,7 +117,7 @@ func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 	}
 
 	// create the client
-	cc, err := grpc.Dial(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cc, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
