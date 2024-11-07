@@ -14,9 +14,9 @@ import (
 
 	"github.com/skip-mev/petri/core/v2/util"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/nat"
 
@@ -125,7 +125,7 @@ func (p *Provider) pullImage(ctx context.Context, imageName string) error {
 	_, _, err := p.dockerClient.ImageInspectWithRaw(ctx, imageName)
 	if err != nil {
 		p.logger.Info("image not found, pulling", zap.String("image", imageName))
-		resp, err := p.dockerClient.ImagePull(ctx, imageName, types.ImagePullOptions{})
+		resp, err := p.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (p *Provider) StartTask(ctx context.Context, id string) error {
 
 	p.listeners[id].CloseAll()
 
-	err := p.dockerClient.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err := p.dockerClient.ContainerStart(ctx, id, container.StartOptions{})
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (p *Provider) StopTask(ctx context.Context, id string) error {
 
 func (p *Provider) DestroyTask(ctx context.Context, id string) error {
 	p.logger.Info("destroying task", zap.String("id", id))
-	err := p.dockerClient.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+	err := p.dockerClient.ContainerRemove(ctx, id, container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})
@@ -219,7 +219,7 @@ func (p *Provider) GetTaskStatus(ctx context.Context, id string) (provider.TaskS
 func (p *Provider) RunCommand(ctx context.Context, id string, command []string) (string, string, int, error) {
 	p.logger.Debug("running command", zap.String("id", id), zap.Strings("command", command))
 
-	exec, err := p.dockerClient.ContainerExecCreate(ctx, id, types.ExecConfig{
+	exec, err := p.dockerClient.ContainerExecCreate(ctx, id, container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          command,
@@ -228,7 +228,7 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 		return "", "", 0, err
 	}
 
-	resp, err := p.dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
+	resp, err := p.dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -325,7 +325,7 @@ func (p *Provider) GetExternalAddress(ctx context.Context, id string, port strin
 func (p *Provider) teardownTasks(ctx context.Context) error {
 	p.logger.Info("tearing down tasks")
 
-	containers, err := p.dockerClient.ContainerList(ctx, types.ContainerListOptions{
+	containers, err := p.dockerClient.ContainerList(ctx, container.ListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.name))),
 	})
