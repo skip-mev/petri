@@ -9,8 +9,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -112,7 +112,7 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
 	}
 
-	err = dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
+	err = dockerClient.ContainerStart(ctx, containerID, container.StartOptions{})
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 
 	p.logger.Debug("running command", zap.String("id", id), zap.Strings("command", command))
 
-	exec, err := dockerClient.ContainerExecCreate(ctx, id, types.ExecConfig{
+	exec, err := dockerClient.ContainerExecCreate(ctx, id, container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          command,
@@ -323,7 +323,7 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 		return "", "", 0, err
 	}
 
-	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
+	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -387,7 +387,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 	}
 
 	// nolint
-	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true})
+	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, container.RemoveOptions{Force: true})
 
 <<<<<<< HEAD
 	err = dockerClient.ContainerStart(ctx, createdContainer.ID, types.ContainerStartOptions{})
@@ -400,7 +400,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 	}
 
 	// wait for container start
-	exec, err := dockerClient.ContainerExecCreate(ctx, createdContainer.ID, types.ExecConfig{
+	exec, err := dockerClient.ContainerExecCreate(ctx, createdContainer.ID, container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          command,
@@ -410,7 +410,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
-	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, types.ExecStartCheck{})
+	resp, err := dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
 	if err != nil {
 		p.logger.Error("failed to attach to exec", zap.Error(err), zap.String("taskName", taskName))
 		return "", "", 0, err
@@ -435,7 +435,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Client, containerID string) error {
 	// start container
-	if err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+	if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return err
 	}
 
@@ -465,9 +465,9 @@ func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Cli
 	}
 }
 
-func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Client, image string) error {
-	p.logger.Info("pulling image", zap.String("image", image))
-	resp, err := dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Client, img string) error {
+	p.logger.Info("pulling image", zap.String("image", img))
+	resp, err := dockerClient.ImagePull(ctx, img, image.PullOptions{})
 	if err != nil {
 		return err
 	}
