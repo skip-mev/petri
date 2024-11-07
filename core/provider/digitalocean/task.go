@@ -346,16 +346,39 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 
 	defer resp.Close()
 
-	execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+	lastExitCode := 0
+
+	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
+		execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if execInspect.Running {
+			return false, nil
+		}
+
+		lastExitCode = execInspect.ExitCode
+
+		return true, nil
+	})
+
 	if err != nil {
-		return "", "", 0, err
+		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("taskName", taskName))
+		return "", "", lastExitCode, err
 	}
 
 	var stdout, stderr bytes.Buffer
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+<<<<<<< HEAD
+=======
+	if err != nil {
+		return "", "", lastExitCode, err
+	}
+>>>>>>> 4a67052 (fix(provider): improve recognition of exit codes)
 
-	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
+	return stdout.String(), stderr.String(), lastExitCode, nil
 }
 
 func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, definition provider.TaskDefinition, command []string) (string, string, int, error) {
@@ -425,16 +448,73 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 	defer resp.Close()
 
-	execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+	lastExitCode := 0
+
+	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
+		execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if execInspect.Running {
+			return false, nil
+		}
+
+		lastExitCode = execInspect.ExitCode
+
+		return true, nil
+	})
+
 	if err != nil {
+<<<<<<< HEAD
 		return "", "", 0, err
+=======
+		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("taskName", taskName))
+		return "", "", lastExitCode, err
+>>>>>>> 4a67052 (fix(provider): improve recognition of exit codes)
 	}
 
 	var stdout, stderr bytes.Buffer
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
 
+<<<<<<< HEAD
 	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
+=======
+	return stdout.String(), stderr.String(), lastExitCode, err
+}
+
+func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Client, containerID string) error {
+	// start container
+	if err := dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
+		return err
+	}
+
+	// cancel container after a minute
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("error waiting for container to start: %v", waitCtx.Err())
+		case <-ticker.C:
+			container, err := dockerClient.ContainerInspect(ctx, containerID)
+			if err != nil {
+				return err
+			}
+
+			// if the container is running, we're done
+			if container.State.Running {
+				return nil
+			}
+
+			if container.State.Status == "exited" && container.State.ExitCode != 0 {
+				return fmt.Errorf("container exited with status %d", container.State.ExitCode)
+			}
+		}
+	}
+>>>>>>> 4a67052 (fix(provider): improve recognition of exit codes)
 }
 
 func (p *Provider) pullImage(ctx context.Context, dockerClient *dockerclient.Client, image string) error {

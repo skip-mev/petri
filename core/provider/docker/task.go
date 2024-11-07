@@ -216,16 +216,39 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 
 	defer resp.Close()
 
-	execInspect, err := p.dockerClient.ContainerExecInspect(ctx, exec.ID)
+	lastExitCode := 0
+
+	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
+		execInspect, err := p.dockerClient.ContainerExecInspect(ctx, exec.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if execInspect.Running {
+			return false, nil
+		}
+
+		lastExitCode = execInspect.ExitCode
+
+		return true, nil
+	})
+
 	if err != nil {
-		return "", "", 0, err
+		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("id", id))
+		return "", "", lastExitCode, err
 	}
 
 	var stdout, stderr bytes.Buffer
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
+<<<<<<< HEAD
+=======
+	if err != nil {
+		return "", "", lastExitCode, err
+	}
+>>>>>>> 4a67052 (fix(provider): improve recognition of exit codes)
 
-	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
+	return stdout.String(), stderr.String(), lastExitCode, nil
 }
 
 func (p *Provider) RunCommandWhileStopped(ctx context.Context, id string, definition provider.TaskDefinition, command []string) (string, string, int, error) {
