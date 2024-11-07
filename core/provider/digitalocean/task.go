@@ -325,19 +325,36 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 
 	defer resp.Close()
 
-	execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+	lastExitCode := 0
+
+	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
+		execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if execInspect.Running {
+			return false, nil
+		}
+
+		lastExitCode = execInspect.ExitCode
+
+		return true, nil
+	})
+
 	if err != nil {
-		return "", "", 0, err
+		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("taskName", taskName))
+		return "", "", lastExitCode, err
 	}
 
 	var stdout, stderr bytes.Buffer
 
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
 	if err != nil {
-		return "", "", 0, err
+		return "", "", lastExitCode, err
 	}
 
-	return stdout.String(), stderr.String(), execInspect.ExitCode, nil
+	return stdout.String(), stderr.String(), lastExitCode, nil
 }
 
 func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, definition provider.TaskDefinition, command []string) (string, string, int, error) {
@@ -381,8 +398,16 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
-	// nolint
-	defer dockerClient.ContainerRemove(ctx, createdContainer.ID, container.RemoveOptions{Force: true})
+	defer func() {
+		if _, err := dockerClient.ContainerInspect(ctx, createdContainer.ID); err != nil && dockerclient.IsErrNotFound(err) {
+			// auto-removed, but not detected as autoremoved
+			return
+		}
+
+		if err := dockerClient.ContainerRemove(ctx, createdContainer.ID, container.RemoveOptions{Force: true}); err != nil {
+			p.logger.Error("failed to remove container", zap.Error(err), zap.String("taskName", taskName), zap.String("id", createdContainer.ID))
+		}
+	}()
 
 	if err := startContainerWithBlock(ctx, dockerClient, createdContainer.ID); err != nil {
 		p.logger.Error("failed to start container", zap.Error(err), zap.String("taskName", taskName))
@@ -408,10 +433,26 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 	defer resp.Close()
 
-	execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+	lastExitCode := 0
+
+	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
+		execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if execInspect.Running {
+			return false, nil
+		}
+
+		lastExitCode = execInspect.ExitCode
+
+		return true, nil
+	})
+
 	if err != nil {
-		p.logger.Error("failed to inspect exec", zap.Error(err), zap.String("taskName", taskName))
-		return "", "", 0, err
+		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("taskName", taskName))
+		return "", "", lastExitCode, err
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -420,7 +461,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 		return "", "", 0, err
 	}
 
-	return stdout.String(), stderr.String(), execInspect.ExitCode, err
+	return stdout.String(), stderr.String(), lastExitCode, err
 }
 
 func startContainerWithBlock(ctx context.Context, dockerClient *dockerclient.Client, containerID string) error {
