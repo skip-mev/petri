@@ -8,15 +8,14 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"go.uber.org/zap"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/nat"
 )
 
 type Listeners []net.Listener
 
-func (p *Provider) createNetwork(ctx context.Context, networkName string) (types.NetworkResource, error) {
+func (p *Provider) createNetwork(ctx context.Context, networkName string) (network.Inspect, error) {
 	p.logger.Info("creating network", zap.String("name", networkName))
-	networkResponse, err := p.dockerClient.NetworkCreate(ctx, networkName, types.NetworkCreate{
+	networkResponse, err := p.dockerClient.NetworkCreate(ctx, networkName, network.CreateOptions{
 		Scope:  "local",
 		Driver: "bridge",
 		Options: map[string]string{ // https://docs.docker.com/engine/reference/commandline/network_create/#bridge-driver-options
@@ -42,12 +41,12 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (types
 		},
 	})
 	if err != nil {
-		return types.NetworkResource{}, err
+		return network.Inspect{}, err
 	}
 
-	networkInfo, err := p.dockerClient.NetworkInspect(ctx, networkResponse.ID, types.NetworkInspectOptions{})
+	networkInfo, err := p.dockerClient.NetworkInspect(ctx, networkResponse.ID, network.InspectOptions{})
 	if err != nil {
-		return types.NetworkResource{}, err
+		return network.Inspect{}, err
 	}
 
 	return networkInfo, nil
