@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/cometbft/cometbft/test/loadtime/payload"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/informalsystems/tm-load-test/pkg/loadtest"
 	petritypes "github.com/skip-mev/petri/core/types"
 	"github.com/skip-mev/petri/cosmos/cosmosutil"
@@ -39,7 +38,7 @@ type ClientFactoryConfig struct {
 	MsgGenerator          GenerateMsgs
 }
 
-func NewDefaultClientFactory(cfg ClientFactoryConfig, mbm module.BasicManager) (*DefaultClientFactory, error) {
+func NewDefaultClientFactory(cfg ClientFactoryConfig) *DefaultClientFactory {
 	return &DefaultClientFactory{
 		chain:            cfg.Chain,
 		chainClient:      &cosmosutil.ChainClient{Chain: cfg.Chain},
@@ -49,7 +48,7 @@ func NewDefaultClientFactory(cfg ClientFactoryConfig, mbm module.BasicManager) (
 		walletConfig:     cfg.WalletConfig,
 		encodingConfig:   cfg.EncodingConfig,
 		msgGenerator:     cfg.MsgGenerator,
-	}, nil
+	}
 }
 
 // NewClient implements the ClientFactory's interface for creating new clients.
