@@ -64,13 +64,13 @@ func (f *DefaultClientFactory) NewClient(cfg loadtest.Config) (loadtest.Client, 
 
 	interactingLoaderWallet := cosmosutil.NewInteractingWallet(f.chain, loaderWallet, f.encodingConfig)
 
-	_, err = f.chainClient.BankSend(context.Background(), *f.seeder, interactingLoaderWallet.Address(), sdk.NewCoins(sdk.NewInt64Coin(f.chain.GetConfig().Denom, f.amtToSend)), petritypes.GasSettings{
+	resp, err := f.chainClient.BankSend(context.Background(), *f.seeder, interactingLoaderWallet.Address(), sdk.NewCoins(sdk.NewInt64Coin(f.chain.GetConfig().Denom, f.amtToSend)), petritypes.GasSettings{
 		Gas:         200000,
 		GasDenom:    f.chain.GetConfig().Denom,
-		PricePerGas: 0, // todo(Zygimantass): get gas settings
+		PricePerGas: 1,
 	}, true)
 	if err != nil {
-		return nil, fmt.Errorf("error seeding account %s from seeder %s: %v", interactingLoaderWallet.FormattedAddress(), f.seeder.FormattedAddress(), err)
+		return nil, fmt.Errorf("error seeding account %s from seeder %s: %v, resp: %v", interactingLoaderWallet.FormattedAddress(), f.seeder.FormattedAddress(), err, resp)
 	}
 
 	msgs, gasSettings, err := f.msgGenerator(interactingLoaderWallet.Address())
