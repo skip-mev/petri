@@ -48,7 +48,7 @@ build {
         inline = [
             "curl -fsSL https://get.docker.com | sh",
             "mkdir /docker_volumes",
-            "chmod 755 /docker_volumes",
+            "chmod 777 /docker_volumes",
             "chown root:docker /docker_volumes",
         ]
     }
