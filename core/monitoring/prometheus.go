@@ -32,10 +32,10 @@ func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Pro
 		Ports: []string{
 			"3000",
 		},
-		DataDir: "/prometheus_config",
+		DataDir: "/prometheus",
 		Entrypoint: []string{
 			"/bin/prometheus",
-			"--config.file=/prometheus_config/prometheus.yml",
+			"--config.file=/prometheus/prometheus.yml",
 			"--storage.tsdb.path=/prometheus",
 			"--web.console.libraries=/usr/share/prometheus/console_libraries",
 			"--web.console.templates=/usr/share/prometheus/consoles",
