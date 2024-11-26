@@ -28,6 +28,12 @@ var grafanaDatasourceTemplate string
 //go:embed files/grafana/config/dashboards.yml
 var grafanaDashboardProvisioningConfig string
 
+//go:embed files/grafana/config/dashboard.json
+var DefaultDashboardJSON string
+
+// DefaultDashboardUID is the UID of the dashboard in DefaultDashboardJSON
+var DefaultDashboardUID = "b8ff6e6f-5b4b-4d5e-bc50-91bbbf10f436"
+
 // SetupGrafanaTask sets up and configures (but does not start) a Grafana task.
 // Additionally, it creates a Prometheus datasource and a dashboard (given the DashboardJSON in GrafanaOptions).
 func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts GrafanaOptions) (*provider.Task, error) {
