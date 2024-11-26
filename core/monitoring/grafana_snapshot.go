@@ -89,8 +89,24 @@ func SnapshotGrafanaDashboard(ctx context.Context, uid, grafanaURL string) (stri
 		return "", err
 	}
 
+<<<<<<< HEAD
 	shareDashboardButton, err := page.Element("[data-testid='data-testid share-button']")
 
+=======
+	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
+		Width:             1920 * 5,
+		Height:            1080 * 5,
+		DeviceScaleFactor: 1,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// The page takes a long time to render, and if you create the snapshot before the data loads it will be empty.
+	time.Sleep(time.Second * 10)
+
+	shareDashboardButton, err := page.Element("[data-testid='data-testid Share dashboard']")
+>>>>>>> fb0f65b (Perf test changes)
 	if err != nil {
 		return "", err
 	}
@@ -101,8 +117,12 @@ func SnapshotGrafanaDashboard(ctx context.Context, uid, grafanaURL string) (stri
 		return "", err
 	}
 
+<<<<<<< HEAD
 	snapshotButton, err := page.Element("[aria-label='Tab Snapshot']")
 
+=======
+	snapshotButton, err := page.Element("[data-testid='data-testid Tab Snapshot']")
+>>>>>>> fb0f65b (Perf test changes)
 	if err != nil {
 		return "", err
 	}
