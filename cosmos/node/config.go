@@ -3,7 +3,8 @@ package node
 import (
 	"bytes"
 	"context"
-	toml "github.com/pelletier/go-toml/v2"
+	"fmt"
+	"github.com/pelletier/go-toml/v2"
 
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"reflect"
