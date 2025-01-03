@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"golang.org/x/sync/errgroup"
 	"sync"
@@ -30,31 +29,6 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 
 	var eg errgroup.Group
 
-	for i := range definition.Sidecars {
-		sidecar := definition.Sidecars[i]
-		eg.Go(func() error {
-			if len(sidecar.Sidecars) > 0 {
-				return errors.New("sidecar cannot have sidecar")
-			}
-
-			id, err := provider.CreateTask(ctx, task.logger, sidecar)
-			if err != nil {
-				return err
-			}
-
-			sidecarTasks = append(sidecarTasks, &Task{
-				Provider:   provider,
-				Definition: sidecar,
-				ID:         id,
-				Sidecars:   make([]*Task, 0),
-				logger:     task.logger,
-			})
-
-			return nil
-		})
-	}
-
-	
 	eg.Go(func() error {
 		id, err := provider.CreateTask(ctx, logger, definition)
 		if err != nil {
@@ -209,12 +183,6 @@ func (t *Task) Destroy(ctx context.Context, destroySidecars bool) error {
 	defer t.mu.Unlock()
 
 	if destroySidecars {
-		for _, sidecar := range t.Sidecars {
-			err := sidecar.Destroy(ctx, destroySidecars)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	err := t.Provider.DestroyTask(ctx, t.ID)

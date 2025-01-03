@@ -62,7 +62,6 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 		ContainerName: nodeConfig.Name,
 		Image:         chainConfig.Image,
 		Ports:         []string{"9090", "26656", "26657", "26660", "80"},
-		Sidecars:      sidecars,
 		Entrypoint:    []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
 		DataDir:       chainConfig.HomeDir,
 	}
