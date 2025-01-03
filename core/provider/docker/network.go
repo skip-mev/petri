@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 
 	"github.com/docker/docker/api/types/network"
@@ -15,6 +16,8 @@ type Listeners []net.Listener
 
 func (p *Provider) createNetwork(ctx context.Context, networkName string) (network.Inspect, error) {
 	p.logger.Info("creating network", zap.String("name", networkName))
+	subnet1 := rand.Intn(255)
+	subnet2 := rand.Intn(255)
 	networkResponse, err := p.dockerClient.NetworkCreate(ctx, networkName, network.CreateOptions{
 		Scope:  "local",
 		Driver: "bridge",
@@ -34,8 +37,8 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (netwo
 			Driver: "default",
 			Config: []network.IPAMConfig{
 				{
-					Subnet:  "192.192.192.0/24",
-					Gateway: "192.192.192.1",
+					Subnet:  fmt.Sprintf("192.%d.%d.0/24", subnet1, subnet2),
+					Gateway: fmt.Sprintf("192.%d.%d.1", subnet1, subnet2),
 				},
 			},
 		},

@@ -167,6 +167,10 @@ func (p *Provider) StartTask(ctx context.Context, id string) error {
 	}
 }
 
+func (p *Provider) ModifyTask(ctx context.Context, taskName string, definition provider.TaskDefinition) error {
+	return nil
+}
+
 func (p *Provider) StopTask(ctx context.Context, id string) error {
 	p.logger.Info("stopping task", zap.String("id", id))
 	err := p.dockerClient.ContainerStop(ctx, id, container.StopOptions{})
@@ -237,20 +241,29 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 
 	lastExitCode := 0
 
-	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
-		execInspect, err := p.dockerClient.ContainerExecInspect(ctx, exec.ID)
-		if err != nil {
-			return false, err
+	//TODO(Zygimantass): talk with Eric about best practices here
+	ticker := time.NewTicker(1 * time.Second)
+
+	//TODO(Zygimantass): i hate this
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			return "", "", lastExitCode, ctx.Err()
+		case <-ticker.C:
+			execInspect, err := p.dockerClient.ContainerExecInspect(ctx, exec.ID)
+			if err != nil {
+				return "", "", lastExitCode, err
+			}
+
+			if execInspect.Running {
+				continue
+			}
+
+			lastExitCode = execInspect.ExitCode
+			break loop
 		}
-
-		if execInspect.Running {
-			return false, nil
-		}
-
-		lastExitCode = execInspect.ExitCode
-
-		return true, nil
-	})
+	}
 
 	if err != nil {
 		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("id", id))

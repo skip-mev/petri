@@ -32,9 +32,11 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		return "", fmt.Errorf("digitalocean specific config is nil for %s", definition.Name)
 	}
 
-	_, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
-	if !ok {
-		return "", fmt.Errorf("could not cast digitalocean specific config")
+	var doConfig DigitalOceanTaskConfig
+	doConfig = definition.ProviderSpecificConfig
+
+	if err := doConfig.ValidateBasic(); err != nil {
+		return "", fmt.Errorf("could not cast digitalocean specific config: %w", err)
 	}
 
 	logger = logger.Named("digitalocean_provider")
@@ -45,8 +47,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 	if err != nil {
 		return "", err
 	}
-
-	p.droplets.Store(droplet.Name, droplet)
 
 	ip, err := p.GetIP(ctx, droplet.Name)
 	if err != nil {
@@ -70,7 +70,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		}
 	}
 
-	createdContainer, err := dockerClient.ContainerCreate(ctx, &container.Config{
+	_, err = dockerClient.ContainerCreate(ctx, &container.Config{
 		Image:      definition.Image.Image,
 		Entrypoint: definition.Entrypoint,
 		Cmd:        definition.Command,
@@ -94,8 +94,6 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		return "", err
 	}
 
-	p.containers.Store(droplet.Name, createdContainer.ID)
-
 	return droplet.Name, nil
 }
 
@@ -107,10 +105,19 @@ func (p *Provider) StartTask(ctx context.Context, taskName string) error {
 
 	defer dockerClient.Close() // nolint
 
-	containerID, ok := p.containers.Load(taskName)
-	if !ok {
-		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{
+		Limit: 1,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to retrieve containers: %w", err)
 	}
+
+	if len(containers) != 1 {
+		return fmt.Errorf("could not find container for %s", taskName)
+	}
+
+	containerID := containers[0].ID
 
 	err = dockerClient.ContainerStart(ctx, containerID, container.StartOptions{})
 	if err != nil {
@@ -140,13 +147,23 @@ func (p *Provider) StopTask(ctx context.Context, taskName string) error {
 	}
 
 	defer dockerClient.Close() // nolint
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{
+		Limit: 1,
+	})
 
-	containerID, ok := p.containers.Load(taskName)
-	if !ok {
-		return fmt.Errorf("could not find container for %s with ID %s", taskName, containerID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve containers: %w", err)
 	}
 
-	return dockerClient.ContainerStop(ctx, containerID, container.StopOptions{})
+	if len(containers) != 1 {
+		return fmt.Errorf("could not find container for %s", taskName)
+	}
+
+	return dockerClient.ContainerStop(ctx, containers[0].ID, container.StopOptions{})
+}
+
+func (p *Provider) ModifyTask(ctx context.Context, taskName string, definition provider.TaskDefinition) error {
+	return nil
 }
 
 func (p *Provider) DestroyTask(ctx context.Context, taskName string) error {
@@ -162,7 +179,7 @@ func (p *Provider) DestroyTask(ctx context.Context, taskName string) error {
 }
 
 func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider.TaskStatus, error) {
-	droplet, err := p.getDroplet(ctx, taskName, false)
+	droplet, err := p.getDroplet(ctx, taskName)
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
@@ -178,13 +195,19 @@ func (p *Provider) GetTaskStatus(ctx context.Context, taskName string) (provider
 
 	defer dockerClient.Close()
 
-	id, ok := p.containers.Load(taskName)
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{
+		Limit: 1,
+	})
 
-	if !ok {
-		return provider.TASK_STATUS_UNDEFINED, fmt.Errorf("could not find container for %s with ID %s", taskName, id)
+	if err != nil {
+		return provider.TASK_STATUS_UNDEFINED, fmt.Errorf("failed to retrieve containers: %w", err)
 	}
 
-	container, err := dockerClient.ContainerInspect(ctx, id)
+	if len(containers) != 1 {
+		return provider.TASK_STATUS_UNDEFINED, fmt.Errorf("could not find container for %s", taskName)
+	}
+
+	container, err := dockerClient.ContainerInspect(ctx, containers[0].ID)
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
@@ -276,7 +299,7 @@ func (p *Provider) DownloadDir(ctx context.Context, s string, s2 string, s3 stri
 }
 
 func (p *Provider) GetIP(ctx context.Context, taskName string) (string, error) {
-	droplet, err := p.getDroplet(ctx, taskName, true)
+	droplet, err := p.getDroplet(ctx, taskName)
 
 	if err != nil {
 		return "", err
@@ -301,12 +324,19 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 	}
 
 	defer dockerClient.Close()
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{
+		Limit: 1,
+	})
 
-	id, ok := p.containers.Load(taskName)
-
-	if !ok {
-		return "", "", 0, fmt.Errorf("could not find container for %s with ID %s", taskName, id)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("failed to retrieve containers: %w", err)
 	}
+
+	if len(containers) != 1 {
+		return "", "", 0, fmt.Errorf("could not find container for %s", taskName)
+	}
+
+	id := containers[0].ID
 
 	p.logger.Debug("running command", zap.String("id", id), zap.Strings("command", command))
 
@@ -328,24 +358,27 @@ func (p *Provider) RunCommand(ctx context.Context, taskName string, command []st
 
 	lastExitCode := 0
 
-	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
-		execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
-		if err != nil {
-			return false, err
+	ticker := time.NewTicker(100 * time.Millisecond)
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			return "", "", lastExitCode, ctx.Err()
+		case <-ticker.C:
+			execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+			if err != nil {
+				return "", "", lastExitCode, err
+			}
+
+			if execInspect.Running {
+				continue
+			}
+
+			lastExitCode = execInspect.ExitCode
+
+			break loop
 		}
-
-		if execInspect.Running {
-			return false, nil
-		}
-
-		lastExitCode = execInspect.ExitCode
-
-		return true, nil
-	})
-
-	if err != nil {
-		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("taskName", taskName))
-		return "", "", lastExitCode, err
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -405,7 +438,7 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 			return
 		}
 
-		if err := dockerClient.ContainerRemove(ctx, createdContainer.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
+		if err := dockerClient.ContainerRemove(ctx, createdContainer.ID, container.RemoveOptions{Force: true}); err != nil {
 			p.logger.Error("failed to remove container", zap.Error(err), zap.String("taskName", taskName), zap.String("id", createdContainer.ID))
 		}
 	}()
@@ -436,24 +469,27 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, taskName string, 
 
 	lastExitCode := 0
 
-	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
-		execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
-		if err != nil {
-			return false, err
+	ticker := time.NewTicker(100 * time.Millisecond)
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			return "", "", lastExitCode, ctx.Err()
+		case <-ticker.C:
+			execInspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
+			if err != nil {
+				return "", "", lastExitCode, err
+			}
+
+			if execInspect.Running {
+				continue
+			}
+
+			lastExitCode = execInspect.ExitCode
+
+			break loop
 		}
-
-		if execInspect.Running {
-			return false, nil
-		}
-
-		lastExitCode = execInspect.ExitCode
-
-		return true, nil
-	})
-
-	if err != nil {
-		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("taskName", taskName))
-		return "", "", lastExitCode, err
 	}
 
 	var stdout, stderr bytes.Buffer

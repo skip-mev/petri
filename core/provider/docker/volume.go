@@ -54,6 +54,133 @@ func (p *Provider) DestroyVolume(ctx context.Context, id string) error {
 	return p.dockerClient.VolumeRemove(ctx, id, true)
 }
 
+func (p *Provider) WriteTar(ctx context.Context, id, relPath string, localTarPath string) error {
+	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if len(dockerContainer.Mounts) == 0 {
+		return fmt.Errorf("no volumes found for container %s", id)
+	}
+
+	volumeName := dockerContainer.Mounts[0].Name
+
+	logger := p.logger.With(zap.String("volume", id), zap.String("path", relPath))
+
+	logger.Debug("writing file")
+
+	const mountPath = "/mnt/dockervolume"
+
+	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
+
+	if err := p.pullImage(ctx, p.builderImageName); err != nil {
+		return err
+	}
+
+	logger.Debug("creating writefile container")
+
+	cc, err := p.dockerClient.ContainerCreate(
+		ctx,
+		&container.Config{
+			Image: p.builderImageName,
+
+			Entrypoint: []string{"sh", "-c"},
+			Cmd: []string{
+				// Take the uid and gid of the mount path,
+				// and set that as the owner of the new relative path.
+				`chown -R "$(stat -c '%u:%g' "$1")" "$2"`,
+				"_", // Meaningless arg0 for sh -c with positional args.
+				mountPath,
+				mountPath,
+			},
+
+			Labels: map[string]string{
+				providerLabelName: p.name,
+			},
+
+			// Use root user to avoid permission issues when reading files from the volume.
+			User: "0:0",
+		},
+		&container.HostConfig{
+			Binds:      []string{volumeName + ":" + mountPath},
+			AutoRemove: true,
+		},
+		nil, // No networking necessary.
+		nil,
+		containerName,
+	)
+	if err != nil {
+		return fmt.Errorf("creating container: %w", err)
+	}
+
+	logger.Debug("created writefile container", zap.String("id", cc.ID))
+
+	autoRemoved := false
+	defer func() {
+		if autoRemoved {
+			// No need to attempt removing the container if we successfully started and waited for it to complete.
+			return
+		}
+
+		if _, err := p.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+			// auto-removed, but not detected as autoremoved
+			return
+		}
+
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+			Force: true,
+		}); err != nil {
+			logger.Error("failed to remove writefile container", zap.String("id", cc.ID), zap.Error(err))
+		}
+	}()
+
+	logger.Debug("copying file to container")
+
+	file, err := os.Open(localTarPath)
+
+	if err != nil {
+		return fmt.Errorf("opening file: %w", err)
+	}
+
+	defer file.Close()
+
+	if err := p.dockerClient.CopyToContainer(
+		ctx,
+		cc.ID,
+		mountPath,
+		file,
+		container.CopyToContainerOptions{},
+	); err != nil {
+		return fmt.Errorf("copying tar to container: %w", err)
+	}
+
+	logger.Debug("starting writefile container")
+	if err := p.dockerClient.ContainerStart(ctx, cc.ID, container.StartOptions{}); err != nil {
+		return fmt.Errorf("starting write-file container: %w", err)
+	}
+
+	waitCh, errCh := p.dockerClient.ContainerWait(ctx, cc.ID, container.WaitConditionNotRunning)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		return err
+	case res := <-waitCh:
+		autoRemoved = true
+
+		if res.Error != nil {
+			return fmt.Errorf("waiting for write-file container: %s", res.Error.Message)
+		}
+
+		if res.StatusCode != 0 {
+			return fmt.Errorf("chown on new file exited %d", res.StatusCode)
+		}
+	}
+
+	return nil
+}
+
 // taken from strangelove-ventures/interchain-test
 func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []byte) error {
 	dockerContainer, err := p.dockerClient.ContainerInspect(ctx, id)
@@ -129,7 +256,7 @@ func (p *Provider) WriteFile(ctx context.Context, id, relPath string, content []
 			return
 		}
 
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed to remove writefile container", zap.String("id", cc.ID), zap.Error(err))
@@ -251,7 +378,7 @@ func (p *Provider) ReadFile(ctx context.Context, id, relPath string) ([]byte, er
 			return
 		}
 
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getfile container", zap.Error(err))
@@ -340,7 +467,7 @@ func (p *Provider) DownloadDir(ctx context.Context, id, relPath, localPath strin
 			return
 		}
 
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getdir container", zap.Error(err))
@@ -441,7 +568,7 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 			return
 		}
 
-		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, types.ContainerRemoveOptions{
+		if err := p.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the volume-owner container", zap.Error(err))

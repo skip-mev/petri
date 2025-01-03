@@ -1,6 +1,7 @@
 package digitalocean
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -15,30 +16,51 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func makeSSHKeyPair() (string, string, string, error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+type SSHKeyPair struct {
+	PublicKey   string
+	PrivateKey  string
+	Fingerprint string
+}
+
+func ParseSSHKeyPair(privKey []byte) (*SSHKeyPair, error) {
+	block, _ := pem.Decode(privKey)
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		return "", "", "", err
-	}
-
-	// generate and write private key as PEM
-	var privKeyBuf strings.Builder
-
-	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
-	if err := pem.Encode(&privKeyBuf, privateKeyPEM); err != nil {
-		return "", "", "", err
+		return nil, err
 	}
 
 	// generate and write public key
 	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
 	if err != nil {
-		return "", "", "", err
+		return nil, err
 	}
 
 	var pubKeyBuf strings.Builder
 	pubKeyBuf.Write(ssh.MarshalAuthorizedKey(pub))
 
-	return pubKeyBuf.String(), privKeyBuf.String(), ssh.FingerprintLegacyMD5(pub), nil
+	return &SSHKeyPair{
+		PublicKey:   pubKeyBuf.String(),
+		PrivateKey:  string(privKey),
+		Fingerprint: ssh.FingerprintLegacyMD5(pub),
+	}, nil
+}
+
+func MakeSSHKeyPair() (*SSHKeyPair, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		return nil, err
+	}
+
+	// generate and write private key as PEM
+	var privKeyBuf bytes.Buffer
+
+	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
+	if err := pem.Encode(&privKeyBuf, privateKeyPEM); err != nil {
+		return nil, err
+	}
+
+	return ParseSSHKeyPair(privKeyBuf.Bytes())
 }
 
 func getUserIPs(ctx context.Context) (ips []string, err error) {
@@ -56,7 +78,7 @@ func getUserIPs(ctx context.Context) (ips []string, err error) {
 
 	ips = append(ips, strings.Trim(string(ifconfigIoIp), "\n"))
 
-	res, err = http.Get("https://ifconfig.co")
+	res, err = http.Get("https://ipinfo.io/ip")
 	if err != nil {
 		return ips, err
 	}

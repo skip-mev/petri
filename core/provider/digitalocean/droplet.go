@@ -14,6 +14,8 @@ import (
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/util"
 
+	"strconv"
+
 	_ "embed"
 )
 
@@ -27,21 +29,29 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		return nil, fmt.Errorf("failed to validate task definition: %w", err)
 	}
 
-	doConfig, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
+	var doConfig DigitalOceanTaskConfig
+	doConfig = definition.ProviderSpecificConfig
 
-	if !ok {
-		return nil, fmt.Errorf("could not cast provider specific config to DigitalOceanConfig")
+	if err := doConfig.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("could not cast digitalocean specific config: %w", err)
 	}
+
+	imageId, err := strconv.ParseInt(doConfig["image_id"], 10, 64)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse image ID: %w", err)
+	}
+
 	req := &godo.DropletCreateRequest{
 		Name:   fmt.Sprintf("%s-%s", p.petriTag, definition.Name),
-		Region: doConfig.Region,
-		Size:   doConfig.Size,
+		Region: doConfig["region"],
+		Size:   doConfig["size"],
 		Image: godo.DropletCreateImage{
-			ID: doConfig.ImageID,
+			ID: int(imageId),
 		},
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
-				Fingerprint: p.sshFingerprint,
+				Fingerprint: p.sshKeyPair.Fingerprint,
 			},
 		},
 		Tags: []string{p.petriTag},
@@ -100,13 +110,13 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 }
 
 func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
-	cachedDroplet, ok := p.droplets.Load(name)
+	droplet, err := p.getDroplet(ctx, name)
 
-	if !ok {
-		return fmt.Errorf("could not find droplet %s", name)
+	if err != nil {
+		return err
 	}
 
-	res, err := p.doClient.Droplets.Delete(ctx, cachedDroplet.ID)
+	res, err := p.doClient.Droplets.Delete(ctx, droplet.ID)
 	if err != nil {
 		return err
 	}
@@ -118,17 +128,11 @@ func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
 	return nil
 }
 
-func (p *Provider) getDroplet(ctx context.Context, name string, returnOnCacheHit bool) (*godo.Droplet, error) {
-	cachedDroplet, ok := p.droplets.Load(name)
-	if !ok {
-		return nil, fmt.Errorf("could not find droplet %s", name)
-	}
+func (p *Provider) getDroplet(ctx context.Context, name string) (*godo.Droplet, error) {
+	// TODO(Zygimantass): this change assumes that all Petri droplets are unique by name
+	// which should be technically true, but there might be edge cases where it's not.
+	droplets, res, err := p.doClient.Droplets.ListByName(ctx, name, nil)
 
-	if ok && returnOnCacheHit {
-		return cachedDroplet, nil
-	}
-
-	droplet, res, err := p.doClient.Droplets.Get(ctx, cachedDroplet.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +141,11 @@ func (p *Provider) getDroplet(ctx context.Context, name string, returnOnCacheHit
 		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
-	return droplet, nil
+	if len(droplets) == 0 {
+		return nil, fmt.Errorf("could not find droplet")
+	}
+
+	return &droplets[0], nil
 }
 
 func (p *Provider) getDropletDockerClient(ctx context.Context, taskName string) (*dockerclient.Client, error) {
@@ -155,7 +163,7 @@ func (p *Provider) getDropletDockerClient(ctx context.Context, taskName string) 
 }
 
 func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.Client, error) {
-	if _, ok := p.droplets.Load(taskName); !ok {
+	if _, err := p.getDroplet(ctx, taskName); err != nil {
 		return nil, fmt.Errorf("droplet %s does not exist", taskName)
 	}
 
@@ -172,7 +180,7 @@ func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*s
 		return nil, err
 	}
 
-	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(p.sshPrivKey))
+	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(p.sshKeyPair.PrivateKey))
 	if err != nil {
 		return nil, err
 	}

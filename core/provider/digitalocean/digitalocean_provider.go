@@ -3,10 +3,12 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/digitalocean/godo"
-	"github.com/puzpuzpuz/xsync/v3"
 	"go.uber.org/zap"
+
+	xsync "github.com/puzpuzpuz/xsync/v3"
 
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/util"
@@ -27,10 +29,8 @@ type Provider struct {
 
 	userIPs []string
 
-	sshPubKey, sshPrivKey, sshFingerprint string
+	sshKeyPair *SSHKeyPair
 
-	droplets   *xsync.MapOf[string, *godo.Droplet]
-	containers *xsync.MapOf[string, string]
 	sshClients *xsync.MapOf[string, *ssh.Client]
 
 	firewallID string
@@ -38,18 +38,23 @@ type Provider struct {
 
 // NewDigitalOceanProvider creates a provider that implements the Provider interface for DigitalOcean.
 // Token is the DigitalOcean API token
-func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerName string, token string) (*Provider, error) {
+func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerName string, token string, additionalUserIPS []string, sshKeyPair *SSHKeyPair) (*Provider, error) {
 	doClient := godo.NewFromToken(token)
 
-	sshPubKey, sshPrivKey, sshFingerprint, err := makeSSHKeyPair()
-	if err != nil {
-		return nil, err
+	if sshKeyPair == nil {
+		newSshKeyPair, err := MakeSSHKeyPair()
+		if err != nil {
+			return nil, err
+		}
+		sshKeyPair = newSshKeyPair
 	}
 
 	userIPs, err := getUserIPs(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	userIPs = append(userIPs, additionalUserIPS...)
 
 	digitalOceanProvider := &Provider{
 		logger:   logger.Named("digitalocean_provider"),
@@ -59,16 +64,9 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 
 		userIPs: userIPs,
 
-		droplets:   xsync.NewMapOf[string, *godo.Droplet](),
-		containers: xsync.NewMapOf[string, string](),
 		sshClients: xsync.NewMapOf[string, *ssh.Client](),
-
-		sshPubKey:      sshPubKey,
-		sshPrivKey:     sshPrivKey,
-		sshFingerprint: sshFingerprint,
+		sshKeyPair: sshKeyPair,
 	}
-
-	logger.Debug("petri tag", zap.String("tag", digitalOceanProvider.petriTag))
 
 	_, err = digitalOceanProvider.createTag(ctx, digitalOceanProvider.petriTag)
 	if err != nil {
@@ -81,9 +79,15 @@ func NewDigitalOceanProvider(ctx context.Context, logger *zap.Logger, providerNa
 	}
 
 	digitalOceanProvider.firewallID = firewall.ID
-	_, err = digitalOceanProvider.createSSHKey(ctx, sshPubKey)
-	if err != nil {
-		return nil, err
+
+	//TODO(Zygimantass): TOCTOU issue
+	if key, _, err := doClient.Keys.GetByFingerprint(ctx, sshKeyPair.Fingerprint); err != nil || key == nil {
+		_, err = digitalOceanProvider.createSSHKey(ctx, sshKeyPair.PublicKey)
+		if err != nil {
+			if !strings.Contains(err.Error(), "422") {
+				return nil, err
+			}
+		}
 	}
 
 	return digitalOceanProvider, nil
@@ -135,7 +139,7 @@ func (p *Provider) teardownFirewall(ctx context.Context) error {
 }
 
 func (p *Provider) teardownSSHKey(ctx context.Context) error {
-	res, err := p.doClient.Keys.DeleteByFingerprint(ctx, p.sshFingerprint)
+	res, err := p.doClient.Keys.DeleteByFingerprint(ctx, p.sshKeyPair.Fingerprint)
 	if err != nil {
 		return err
 	}
