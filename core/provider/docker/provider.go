@@ -223,6 +223,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	logger.Debug("creating container", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
 
+	// network map is volatile, so we need to mutex update it
 	ip, err := p.nextAvailableIP()
 	if err != nil {
 		return nil, err
