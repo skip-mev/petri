@@ -40,9 +40,8 @@ type TaskDefinition struct {
 	Entrypoint    []string
 	Command       []string
 	Args          []string
-	Sidecars      []TaskDefinition
 
-	ProviderSpecificConfig interface{}
+	ProviderSpecificConfig map[string]string
 }
 
 func (t *TaskDefinition) ValidateBasic() error {
@@ -70,12 +69,6 @@ func (t *TaskDefinition) ValidateBasic() error {
 
 		if portInt > 65535 {
 			return fmt.Errorf("port must be less than 65535")
-		}
-	}
-
-	for _, v := range t.Sidecars {
-		if err := v.ValidateBasic(); err != nil {
-			return fmt.Errorf("sidecar is invalid: %w", err)
 		}
 	}
 
