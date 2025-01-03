@@ -17,6 +17,7 @@ import (
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 const idAlphabet = "abcdefghijklqmnoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
@@ -107,6 +108,7 @@ func TestCreateTask(t *testing.T) {
 
 	p, err := docker.CreateProvider(context.Background(), logger, providerName)
 	require.NoError(t, err)
+	defer p.Teardown(context.Background())
 
 	defer func(ctx context.Context, p provider.ProviderI) {
 		require.NoError(t, p.Teardown(ctx))
@@ -183,6 +185,7 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
+	defer p.Teardown(ctx)
 
 	defer func(ctx context.Context, p provider.ProviderI) {
 		require.NoError(t, p.Teardown(ctx))
@@ -250,6 +253,7 @@ func TestProviderSerialization(t *testing.T) {
 
 	p1, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
+	defer p1.Teardown(ctx)
 
 	defer func(ctx context.Context, p provider.ProviderI) {
 		require.NoError(t, p.Teardown(ctx))
