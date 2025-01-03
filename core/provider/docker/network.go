@@ -139,6 +139,8 @@ func (p *Provider) nextAvailableIP() (string, error) {
 		return "", err
 	}
 
+	p.state.AllocatedIPs = append(p.state.AllocatedIPs, ip.To4().String())
+
 	return ip.String(), nil
 }
 
