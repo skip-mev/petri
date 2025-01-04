@@ -37,6 +37,8 @@ type TaskI interface {
 	Stop(context.Context) error
 	Destroy(context.Context) error
 
+	GetDefinition() TaskDefinition
+
 	GetStatus(context.Context) (TaskStatus, error)
 
 	Modify(context.Context, TaskDefinition) error
