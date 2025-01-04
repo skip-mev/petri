@@ -14,9 +14,9 @@ import (
 
 // GenesisFileContent returns the genesis file on the node in byte format
 func (n *Node) GenesisFileContent(ctx context.Context) ([]byte, error) {
-	n.logger.Info("reading genesis file", zap.String("node", n.Definition.Name))
+	n.logger.Info("reading genesis file", zap.String("node", n.GetDefinition().Name))
 
-	bz, err := n.Task.ReadFile(ctx, "config/genesis.json")
+	bz, err := n.ReadFile(ctx, "config/genesis.json")
 	if err != nil {
 		return nil, err
 	}
@@ -36,18 +36,18 @@ func (n *Node) CopyGenTx(ctx context.Context, dstNode petritypes.NodeI) error {
 	path := fmt.Sprintf("config/gentx/gentx-%s.json", nid)
 
 	n.logger.Debug("reading gen tx", zap.String("node", n.GetConfig().Name))
-	gentx, err := n.Task.ReadFile(context.Background(), path)
+	gentx, err := n.ReadFile(context.Background(), path)
 	if err != nil {
 		return err
 	}
 
 	n.logger.Debug("writing gen tx", zap.String("node", dstNode.GetConfig().Name))
-	return dstNode.GetTask().WriteFile(context.Background(), path, gentx)
+	return dstNode.WriteFile(context.Background(), path, gentx)
 }
 
 // AddGenesisAccount adds a genesis account to the node's local genesis file
 func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmounts []types.Coin) error {
-	n.logger.Debug("adding genesis account", zap.String("node", n.Definition.Name), zap.String("address", address))
+	n.logger.Debug("adding genesis account", zap.String("node", n.GetDefinition().Name), zap.String("address", address))
 
 	amount := ""
 
@@ -71,7 +71,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 	command = append(command, "add-genesis-account", address, amount)
 	command = n.BinCommand(command...)
 
-	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
 	n.logger.Debug("add-genesis-account", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
@@ -87,7 +87,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 
 // GenerateGenTx generates a genesis transaction for the node
 func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Coin) error {
-	n.logger.Info("generating genesis transaction", zap.String("node", n.Definition.Name))
+	n.logger.Info("generating genesis transaction", zap.String("node", n.GetDefinition().Name))
 
 	chainConfig := n.chain.GetConfig()
 
@@ -103,7 +103,7 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 
 	command = n.BinCommand(command...)
 
-	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
 	n.logger.Debug("gentx", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
@@ -119,7 +119,7 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 
 // CollectGenTxs collects the genesis transactions from the node and create a finalized genesis file
 func (n *Node) CollectGenTxs(ctx context.Context) error {
-	n.logger.Info("collecting genesis transactions", zap.String("node", n.Definition.Name))
+	n.logger.Info("collecting genesis transactions", zap.String("node", n.GetDefinition().Name))
 
 	command := []string{}
 
@@ -129,7 +129,7 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 
 	command = append(command, "collect-gentxs")
 
-	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, n.BinCommand(command...))
+	stdout, stderr, exitCode, err := n.RunCommand(ctx, n.BinCommand(command...))
 	n.logger.Debug("collect-gentxs", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
@@ -145,7 +145,7 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 
 // OverwriteGenesisFile overwrites the genesis file on the node with the provided genesis file
 func (n *Node) OverwriteGenesisFile(ctx context.Context, bz []byte) error {
-	n.logger.Info("overwriting genesis file", zap.String("node", n.Definition.Name))
+	n.logger.Info("overwriting genesis file", zap.String("node", n.GetDefinition().Name))
 
-	return n.Task.WriteFile(ctx, "config/genesis.json", bz)
+	return n.WriteFile(ctx, "config/genesis.json", bz)
 }

@@ -41,7 +41,7 @@ type Chain struct {
 var _ petritypes.ChainI = &Chain{}
 
 // CreateChain creates the Chain object and initializes the node tasks, their backing compute and the validator wallets
-func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.Provider, config petritypes.ChainConfig) (*Chain, error) {
+func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, config petritypes.ChainConfig) (*Chain, error) {
 	if err := config.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate chain config: %w", err)
 	}
@@ -68,11 +68,10 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
-			validator, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+			validator, err := config.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
 				Index:       i,
 				Name:        validatorName,
 				IsValidator: true,
-				Provider:    infraProvider,
 				Chain:       &chain,
 			})
 			if err != nil {
@@ -97,11 +96,10 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 
 			logger.Info("creating node", zap.String("name", nodeName))
 
-			node, err := config.NodeCreator(ctx, logger, petritypes.NodeConfig{
+			node, err := config.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
 				Index:       i,
 				Name:        nodeName,
 				IsValidator: true,
-				Provider:    infraProvider,
 				Chain:       &chain,
 			})
 			if err != nil {
@@ -139,7 +137,7 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 
 	client, err := node.GetTMClient(ctx)
 
-	c.logger.Debug("fetching height from", zap.String("node", node.GetTask().Definition.Name), zap.String("ip", client.Remote()))
+	c.logger.Debug("fetching height from", zap.String("node", node.GetDefinition().Name), zap.String("ip", client.Remote()))
 
 	if err != nil {
 		return 0, err
@@ -178,7 +176,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		v := v
 		idx := idx
 		eg.Go(func() error {
-			c.logger.Info("setting up validator home dir", zap.String("validator", v.GetTask().Definition.Name))
+			c.logger.Info("setting up validator home dir", zap.String("validator", v.GetDefinition().Name))
 			if err := v.InitHome(ctx); err != nil {
 				return fmt.Errorf("error initializing home dir: %v", err)
 			}
@@ -211,7 +209,7 @@ func (c *Chain) Init(ctx context.Context) error {
 		n := n
 
 		eg.Go(func() error {
-			c.logger.Info("setting up node home dir", zap.String("node", n.GetTask().Definition.Name))
+			c.logger.Info("setting up node home dir", zap.String("node", n.GetDefinition().Name))
 			if err := n.InitHome(ctx); err != nil {
 				return err
 			}
@@ -247,7 +245,7 @@ func (c *Chain) Init(ctx context.Context) error {
 				return err
 			}
 
-			c.logger.Info("setting up validator keys", zap.String("validator", validatorN.GetTask().Definition.Name), zap.String("address", bech32))
+			c.logger.Info("setting up validator keys", zap.String("validator", validatorN.GetDefinition().Name), zap.String("address", bech32))
 			if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
 				return err
 			}
@@ -292,7 +290,7 @@ func (c *Chain) Init(ctx context.Context) error {
 	for i := range c.Validators {
 		v := c.Validators[i]
 		eg.Go(func() error {
-			c.logger.Info("overwriting genesis for validator", zap.String("validator", v.GetTask().Definition.Name))
+			c.logger.Info("overwriting genesis for validator", zap.String("validator", v.GetDefinition().Name))
 			if err := v.OverwriteGenesisFile(ctx, genbz); err != nil {
 				return err
 			}
@@ -309,7 +307,7 @@ func (c *Chain) Init(ctx context.Context) error {
 	for i := range c.Nodes {
 		n := c.Nodes[i]
 		eg.Go(func() error {
-			c.logger.Info("overwriting node genesis", zap.String("node", n.GetTask().Definition.Name))
+			c.logger.Info("overwriting node genesis", zap.String("node", n.GetDefinition().Name))
 			if err := n.OverwriteGenesisFile(ctx, genbz); err != nil {
 				return err
 			}
@@ -330,8 +328,8 @@ func (c *Chain) Init(ctx context.Context) error {
 	for i := range c.Validators {
 		v := c.Validators[i]
 		eg.Go(func() error {
-			c.logger.Info("starting validator task", zap.String("validator", v.GetTask().Definition.Name))
-			if err := v.GetTask().Start(ctx, true); err != nil {
+			c.logger.Info("starting validator task", zap.String("validator", v.GetDefinition().Name))
+			if err := v.Start(ctx); err != nil {
 				return err
 			}
 			return nil
@@ -341,8 +339,8 @@ func (c *Chain) Init(ctx context.Context) error {
 	for i := range c.Nodes {
 		n := c.Nodes[i]
 		eg.Go(func() error {
-			c.logger.Info("starting node task", zap.String("node", n.GetTask().Definition.Name))
-			if err := n.GetTask().Start(ctx, true); err != nil {
+			c.logger.Info("starting node task", zap.String("node", n.GetDefinition().Name))
+			if err := n.Start(ctx); err != nil {
 				return err
 			}
 			return nil
@@ -361,13 +359,13 @@ func (c *Chain) Teardown(ctx context.Context) error {
 	c.logger.Info("tearing down chain", zap.String("name", c.Config.ChainId))
 
 	for _, v := range c.Validators {
-		if err := v.GetTask().Destroy(ctx, true); err != nil {
+		if err := v.Destroy(ctx); err != nil {
 			return err
 		}
 	}
 
 	for _, n := range c.Nodes {
-		if err := n.GetTask().Destroy(ctx, true); err != nil {
+		if err := n.Destroy(ctx); err != nil {
 			return err
 		}
 	}
