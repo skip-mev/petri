@@ -19,7 +19,7 @@ import (
 )
 
 type Node struct {
-	*provider.Task
+	provider.TaskI
 
 	logger *zap.Logger
 	config petritypes.NodeConfig
@@ -29,7 +29,7 @@ type Node struct {
 var _ petritypes.NodeCreator = CreateNode
 
 // CreateNode creates a new logical node and creates the underlying workload for it
-func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
+func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
 	if err := nodeConfig.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate node config: %w", err)
 	}
@@ -57,24 +57,19 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 		def = nodeConfig.Chain.GetConfig().NodeDefinitionModifier(def, nodeConfig)
 	}
 
-	task, err := provider.CreateTask(ctx, node.logger, nodeConfig.Provider, def)
+	task, err := infraProvider.CreateTask(ctx, def)
 	if err != nil {
 		return nil, err
 	}
 
-	node.Task = task
+	node.TaskI = task
 
 	return &node, nil
 }
 
-// GetTask returns the underlying task of the node
-func (n *Node) GetTask() *provider.Task {
-	return n.Task
-}
-
 // GetTMClient returns a CometBFT HTTP client for the node
 func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
-	addr, err := n.Task.GetExternalAddress(ctx, "26657")
+	addr, err := n.GetExternalAddress(ctx, "26657")
 	if err != nil {
 		panic(err)
 	}
@@ -113,7 +108,7 @@ func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 
 // Height returns the current block height of the node
 func (n *Node) Height(ctx context.Context) (uint64, error) {
-	n.logger.Debug("getting height", zap.String("node", n.Definition.Name))
+	n.logger.Debug("getting height", zap.String("node", n.GetDefinition().Name))
 	client, err := n.GetTMClient(ctx)
 	if err != nil {
 		return 0, err
@@ -129,7 +124,7 @@ func (n *Node) Height(ctx context.Context) (uint64, error) {
 
 // NodeId returns the node's p2p ID
 func (n *Node) NodeId(ctx context.Context) (string, error) {
-	j, err := n.Task.ReadFile(ctx, "config/node_key.json")
+	j, err := n.ReadFile(ctx, "config/node_key.json")
 	if err != nil {
 		return "", fmt.Errorf("getting node_key.json content: %w", err)
 	}

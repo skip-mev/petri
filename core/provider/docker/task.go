@@ -359,3 +359,7 @@ func (t *Task) ensureVolume(ctx context.Context) error {
 
 	return nil
 }
+
+func (t *Task) GetDefinition() provider.TaskDefinition {
+	return t.GetState().Definition
+}
