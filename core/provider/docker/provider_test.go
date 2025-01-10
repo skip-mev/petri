@@ -30,7 +30,8 @@ func setupTest(tb testing.TB, name string) func(testing.TB, string) {
 
 		if len(nets) != 0 {
 			for _, net := range nets {
-				client.NetworkRemove(context.Background(), net.ID)
+				err := client.NetworkRemove(context.Background(), net.ID)
+				require.NoError(tb, err)
 			}
 		}
 	}
@@ -46,7 +47,9 @@ func TestCreateProviderDuplicateNetwork(t *testing.T) {
 
 	p1, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p1.Teardown(ctx)
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p1)
 
 	p2, err := docker.CreateProvider(ctx, logger, providerName)
 	require.Error(t, err)
@@ -63,7 +66,9 @@ func TestCreateProvider(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	state := p.GetState()
 	assert.Equal(t, providerName, state.Name)
@@ -97,9 +102,14 @@ func TestRestoreProvider(t *testing.T) {
 func TestCreateTask(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	ctx := context.Background()
+
 	p, err := docker.CreateProvider(context.Background(), logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(context.Background())
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	tests := []struct {
 		name       string
@@ -169,9 +179,13 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	logger, _ := zap.NewDevelopment()
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	numTasks := 10
 	var wg sync.WaitGroup
@@ -232,9 +246,13 @@ func TestProviderSerialization(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+
 	p1, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p1.Teardown(ctx)
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p1)
 
 	_, err = p1.CreateTask(ctx, provider.TaskDefinition{
 		Name:          fmt.Sprintf("%s-test-task", providerName),
@@ -296,6 +314,7 @@ func TestRestoreTask(t *testing.T) {
 		Image:         provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
 		DataDir:       "/data",
 	})
+	require.NoError(t, err)
 
 	dockerTask := task.(*docker.Task)
 

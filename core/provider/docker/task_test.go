@@ -24,7 +24,10 @@ func TestTaskLifecycle(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
 		Name:          "test",
@@ -73,7 +76,10 @@ func TestTaskExposingPort(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
 		Name:          "test",
@@ -118,7 +124,10 @@ func TestTaskRunCommand(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
 		Name:          "test",
@@ -166,7 +175,10 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
 		Name:          "test",
@@ -211,7 +223,10 @@ func TestTaskReadWriteFile(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
 		Name:          "test",
