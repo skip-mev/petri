@@ -48,13 +48,14 @@ type TaskI interface {
 	GetExternalAddress(context.Context, string) (string, error)
 
 	RunCommand(context.Context, []string) (string, string, int, error)
-	RunCommandWhileStopped(context.Context, []string) (string, string, int, error)
 }
 
 type ProviderI interface {
 	CreateTask(context.Context, TaskDefinition) (TaskI, error) // should this create a TaskI or the resources behind it?
 	SerializeTask(context.Context, TaskI) ([]byte, error)
 	DeserializeTask(context.Context, []byte) (TaskI, error)
+
+	Teardown(context.Context) error
 
 	SerializeProvider(context.Context) ([]byte, error)
 }
