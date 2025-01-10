@@ -20,6 +20,7 @@ type TaskState struct {
 	Volume     *VolumeState            `json:"volumes"`
 	Definition provider.TaskDefinition `json:"definition"`
 	Status     provider.TaskStatus     `json:"status"`
+    IpAddress  string                  `json:"ip_address"` 
 }
 
 type VolumeState struct {
