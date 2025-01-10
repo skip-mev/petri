@@ -185,13 +185,13 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, state)
 
-	stdout, stderr, exitCode, err := task.RunCommandWhileStopped(ctx, []string{"sh", "-c", "echo hello"})
+	stdout, stderr, exitCode, err := task.RunCommand(ctx, []string{"sh", "-c", "echo hello"})
 	require.NoError(t, err)
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stderr)
 	require.Equal(t, "hello\n", stdout)
 
-	stdout, stderr, exitCode, err = task.RunCommandWhileStopped(ctx, []string{"sh", "-c", "echo hello >&2"})
+	stdout, stderr, exitCode, err = task.RunCommand(ctx, []string{"sh", "-c", "echo hello >&2"})
 	require.NoError(t, err)
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stdout)
@@ -234,7 +234,7 @@ func TestTaskReadWriteFile(t *testing.T) {
 	err = task.WriteFile(ctx, "test.txt", []byte("hello world"))
 	require.NoError(t, err)
 
-	stdout, stderr, exitCode, err := task.RunCommandWhileStopped(ctx, []string{"sh", "-c", "cat /data/test.txt"})
+	stdout, stderr, exitCode, err := task.RunCommand(ctx, []string{"sh", "-c", "cat /data/test.txt"})
 	require.NoError(t, err)
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stderr)
