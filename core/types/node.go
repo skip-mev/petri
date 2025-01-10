@@ -40,7 +40,7 @@ func (c NodeConfig) ValidateBasic() error {
 }
 
 // NodeDefinitionModifier is a type of function that given a NodeConfig modifies the task definition. It usually
-// adds additional sidecars or modifies the entrypoint. This function is typically called in NodeCreator
+// modifies the entrypoint. This function is typically called in NodeCreator
 // before the task is created
 type NodeDefinitionModifier func(provider.TaskDefinition, NodeConfig) provider.TaskDefinition
 
