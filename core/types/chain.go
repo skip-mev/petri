@@ -6,9 +6,6 @@ import (
 	"math/big"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	"github.com/cosmos/cosmos-sdk/client"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"google.golang.org/grpc"
 
 	"github.com/skip-mev/petri/core/v2/provider"
@@ -25,8 +22,6 @@ type ChainI interface {
 	GetConfig() ChainConfig
 	GetGRPCClient(context.Context) (*grpc.ClientConn, error)
 	GetTMClient(context.Context) (*rpchttp.HTTP, error)
-	GetTxConfig() client.TxConfig
-	GetInterfaceRegistry() codectypes.InterfaceRegistry
 
 	GetValidators() []NodeI
 	GetFaucetWallet() WalletI
@@ -49,20 +44,13 @@ type ChainConfig struct {
 
 	BinaryName string // BinaryName is the name of the chain binary in the Docker image
 
-	Image        provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
-	SidecarImage provider.ImageDefinition // SidecarImage is the Docker ImageDefinition of the chain sidecar
+	Image provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
 
-	GasPrices     string  // GasPrices are the minimum gas prices to set on the chain
-	GasAdjustment float64 // GasAdjustment is the margin by which to multiply the default gas prices
+	GasPrices string // GasPrices are the minimum gas prices to set on the chain
 
 	Bech32Prefix string // Bech32Prefix is the Bech32 prefix of the on-chain addresses
 
-	EncodingConfig testutil.TestEncodingConfig // EncodingConfig is the encoding config of the chain
-
-	HomeDir        string   // HomeDir is the home directory of the chain
-	SidecarHomeDir string   // SidecarHomeDir is the home directory of the chain sidecar
-	SidecarPorts   []string // SidecarPorts are the ports to expose on the chain sidecar
-	SidecarArgs    []string // SidecarArgs are the arguments to launch the chain sidecar
+	HomeDir string // HomeDir is the home directory of the chain
 
 	CoinType string // CoinType is the coin type of the chain (e.g. 118)
 	ChainId  string // ChainId is the chain ID of the chain
@@ -117,18 +105,8 @@ func (c *ChainConfig) ValidateBasic() error {
 		return fmt.Errorf("gas prices cannot be empty")
 	}
 
-	if c.GasAdjustment == 0 {
-		return fmt.Errorf("gas adjustment cannot be 0")
-	}
-
 	if err := c.Image.ValidateBasic(); err != nil {
 		return fmt.Errorf("image definition is invalid: %w", err)
-	}
-
-	if c.SidecarImage.Image != "" {
-		if err := c.SidecarImage.ValidateBasic(); err != nil {
-			return fmt.Errorf("sidecar image definition is invalid: %w", err)
-		}
 	}
 
 	if c.Bech32Prefix == "" {
