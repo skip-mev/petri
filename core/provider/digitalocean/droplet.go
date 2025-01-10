@@ -29,8 +29,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		return nil, fmt.Errorf("failed to validate task definition: %w", err)
 	}
 
-	var doConfig DigitalOceanTaskConfig
-	doConfig = definition.ProviderSpecificConfig
+	doConfig := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
 
 	if err := doConfig.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("could not cast digitalocean specific config: %w", err)

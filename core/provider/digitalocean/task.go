@@ -32,8 +32,7 @@ func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definitio
 		return "", fmt.Errorf("digitalocean specific config is nil for %s", definition.Name)
 	}
 
-	var doConfig DigitalOceanTaskConfig
-	doConfig = definition.ProviderSpecificConfig
+	doConfig := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
 
 	if err := doConfig.ValidateBasic(); err != nil {
 		return "", fmt.Errorf("could not cast digitalocean specific config: %w", err)
