@@ -168,8 +168,6 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
 
-	fmt.Println(containerJSON.State.Status)
-
 	switch state := containerJSON.State.Status; state {
 	case "created":
 		return provider.TASK_STOPPED, nil
@@ -199,6 +197,19 @@ func (t *Task) Modify(ctx context.Context, td provider.TaskDefinition) error {
 }
 
 func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, int, error) {
+	status, err := t.GetStatus(ctx)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	if status != provider.TASK_RUNNING {
+		return t.runCommandWhileStopped(ctx, cmd)
+	}
+
+	return t.runCommand(ctx, cmd)
+}
+
+func (t *Task) runCommand(ctx context.Context, cmd []string) (string, string, int, error) {
 	t.provider.logger.Debug("running command", zap.String("id", t.state.Id), zap.Strings("command", cmd))
 
 	exec, err := t.provider.dockerClient.ContainerExecCreate(ctx, t.state.Id, container.ExecOptions{
@@ -207,6 +218,16 @@ func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, in
 		Cmd:          cmd,
 	})
 	if err != nil {
+		if buf, err := t.provider.dockerClient.ContainerLogs(ctx, t.state.Id, container.LogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+		}); err == nil {
+			defer buf.Close()
+			var out bytes.Buffer
+			_, _ = out.ReadFrom(buf)
+			fmt.Println(out.String())
+		}
+
 		return "", "", 0, err
 	}
 
@@ -257,7 +278,7 @@ loop:
 	return stdout.String(), stderr.String(), lastExitCode, nil
 }
 
-func (t *Task) RunCommandWhileStopped(ctx context.Context, cmd []string) (string, string, int, error) {
+func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string, string, int, error) {
 	definition := t.GetState().Definition
 	if err := definition.ValidateBasic(); err != nil {
 		return "", "", 0, fmt.Errorf("failed to validate task definition: %w", err)
@@ -274,7 +295,7 @@ func (t *Task) RunCommandWhileStopped(ctx context.Context, cmd []string) (string
 		return t.RunCommand(ctx, cmd)
 	}
 
-	definition.Entrypoint = []string{"sh", "-c"}
+	definition.Entrypoint = []string{"/bin/sh", "-c"}
 	definition.Command = []string{"sleep 36000"}
 	definition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", definition.Name, util.RandomString(5), time.Now().Unix())
 	definition.Ports = []string{}
