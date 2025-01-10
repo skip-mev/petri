@@ -81,9 +81,9 @@ func GenerateDefaultConsensusConfig() Toml {
 }
 
 // GenerateDefaultAppConfig returns a default / sensible config for the Cosmos SDK
-func GenerateDefaultAppConfig(c petritypes.ChainI) Toml {
+func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
 	sdkConfig := make(Toml)
-	sdkConfig["minimum-gas-prices"] = c.GetConfig().GasPrices
+	sdkConfig["minimum-gas-prices"] = c.GasPrices
 
 	grpc := make(Toml)
 
@@ -139,7 +139,7 @@ func (n *Node) ModifyTomlConfigFile(
 
 // SetDefaultConfigs will generate the default configs for CometBFT and the app, and write them to disk
 func (n *Node) SetDefaultConfigs(ctx context.Context) error {
-	appConfig := GenerateDefaultAppConfig(n.chain)
+	appConfig := GenerateDefaultAppConfig(n.chainConfig)
 	consensusConfig := GenerateDefaultConsensusConfig()
 
 	if err := n.ModifyTomlConfigFile(

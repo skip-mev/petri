@@ -32,12 +32,11 @@ func (n *Node) CreateWallet(ctx context.Context, name string, walletConfig types
 // RecoverWallet recovers a wallet on the node using a mnemonic
 func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 	n.logger.Info("recovering wallet", zap.String("name", name), zap.String("mnemonic", mnemonic))
-	chainConfig := n.chain.GetConfig()
 
 	command := []string{
 		"sh",
 		"-c",
-		fmt.Sprintf(`echo %q | %s keys add %s --recover --keyring-backend %s --coin-type %s --home %s --output json`, mnemonic, chainConfig.BinaryName, name, keyring.BackendTest, chainConfig.CoinType, chainConfig.HomeDir),
+		fmt.Sprintf(`echo %q | %s keys add %s --recover --keyring-backend %s --coin-type %s --home %s --output json`, mnemonic, n.chainConfig.BinaryName, name, keyring.BackendTest, n.chainConfig.CoinType, n.chainConfig.HomeDir),
 	}
 
 	_, _, _, err := n.RunCommand(ctx, command)
@@ -47,11 +46,9 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 
 // KeyBech32 returns the bech32 address of a key on the node using the app's binary
 func (n *Node) KeyBech32(ctx context.Context, name, bech string) (string, error) {
-	chainConfig := n.chain.GetConfig()
-
 	command := []string{
-		chainConfig.BinaryName,
-		"keys", "show", name, "-a", "--keyring-backend", keyring.BackendTest, "--home", chainConfig.HomeDir,
+		n.chainConfig.BinaryName,
+		"keys", "show", name, "-a", "--keyring-backend", keyring.BackendTest, "--home", n.chainConfig.HomeDir,
 	}
 
 	if bech != "" {

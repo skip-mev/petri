@@ -21,9 +21,9 @@ import (
 type Node struct {
 	provider.TaskI
 
-	logger *zap.Logger
-	config petritypes.NodeConfig
-	chain  petritypes.ChainI
+	logger      *zap.Logger
+	config      petritypes.NodeConfig
+	chainConfig petritypes.ChainConfig
 }
 
 var _ petritypes.NodeCreator = CreateNode
@@ -37,12 +37,11 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 	var node Node
 
 	node.logger = logger.Named("node")
-	node.chain = nodeConfig.Chain
+	chainConfig := nodeConfig.ChainConfig
+	node.chainConfig = nodeConfig.ChainConfig
 	node.config = nodeConfig
 
 	node.logger.Info("creating node", zap.String("name", nodeConfig.Name))
-
-	chainConfig := nodeConfig.Chain.GetConfig()
 
 	def := provider.TaskDefinition{
 		Name:          nodeConfig.Name,
@@ -53,8 +52,8 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 		DataDir:       chainConfig.HomeDir,
 	}
 
-	if nodeConfig.Chain.GetConfig().NodeDefinitionModifier != nil {
-		def = nodeConfig.Chain.GetConfig().NodeDefinitionModifier(def, nodeConfig)
+	if chainConfig.NodeDefinitionModifier != nil {
+		def = chainConfig.NodeDefinitionModifier(def, nodeConfig)
 	}
 
 	task, err := infraProvider.CreateTask(ctx, def)
@@ -139,11 +138,9 @@ func (n *Node) NodeId(ctx context.Context) (string, error) {
 
 // BinCommand returns a command that can be used to run a binary on the node
 func (n *Node) BinCommand(command ...string) []string {
-	chainConfig := n.chain.GetConfig()
-
-	command = append([]string{chainConfig.BinaryName}, command...)
+	command = append([]string{n.chainConfig.BinaryName}, command...)
 	return append(command,
-		"--home", chainConfig.HomeDir,
+		"--home", n.chainConfig.HomeDir,
 	)
 }
 

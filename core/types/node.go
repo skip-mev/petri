@@ -19,7 +19,7 @@ type NodeConfig struct {
 
 	IsValidator bool // IsValidator denotes whether this node is a validator
 
-	Chain ChainI // Chain is the chain this node is running on
+	ChainConfig ChainConfig // ChainConfig is the config of the chain this node is running on
 }
 
 func (c NodeConfig) ValidateBasic() error {
@@ -27,8 +27,8 @@ func (c NodeConfig) ValidateBasic() error {
 		return fmt.Errorf("name cannot be empty")
 	}
 
-	if c.Chain == nil {
-		return fmt.Errorf("chain cannot be nil")
+	if err := c.ChainConfig.ValidateBasic(); err != nil {
+		return err
 	}
 
 	return nil

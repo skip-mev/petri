@@ -6,9 +6,6 @@ import (
 	"math/big"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	"github.com/cosmos/cosmos-sdk/client"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"google.golang.org/grpc"
 
 	"github.com/skip-mev/petri/core/v2/provider"
@@ -25,8 +22,6 @@ type ChainI interface {
 	GetConfig() ChainConfig
 	GetGRPCClient(context.Context) (*grpc.ClientConn, error)
 	GetTMClient(context.Context) (*rpchttp.HTTP, error)
-	GetTxConfig() client.TxConfig
-	GetInterfaceRegistry() codectypes.InterfaceRegistry
 
 	GetValidators() []NodeI
 	GetFaucetWallet() WalletI
@@ -51,12 +46,9 @@ type ChainConfig struct {
 
 	Image provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
 
-	GasPrices     string  // GasPrices are the minimum gas prices to set on the chain
-	GasAdjustment float64 // GasAdjustment is the margin by which to multiply the default gas prices
+	GasPrices string // GasPrices are the minimum gas prices to set on the chain
 
 	Bech32Prefix string // Bech32Prefix is the Bech32 prefix of the on-chain addresses
-
-	EncodingConfig testutil.TestEncodingConfig // EncodingConfig is the encoding config of the chain
 
 	HomeDir string // HomeDir is the home directory of the chain
 
@@ -111,10 +103,6 @@ func (c *ChainConfig) ValidateBasic() error {
 
 	if c.GasPrices == "" {
 		return fmt.Errorf("gas prices cannot be empty")
-	}
-
-	if c.GasAdjustment == 0 {
-		return fmt.Errorf("gas adjustment cannot be 0")
 	}
 
 	if err := c.Image.ValidateBasic(); err != nil {

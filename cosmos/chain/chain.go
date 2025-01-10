@@ -11,8 +11,6 @@ import (
 	sdkmath "cosmossdk.io/math"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -72,7 +70,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 				Index:       i,
 				Name:        validatorName,
 				IsValidator: true,
-				Chain:       &chain,
+				ChainConfig: config,
 			})
 			if err != nil {
 				return err
@@ -100,7 +98,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 				Index:       i,
 				Name:        nodeName,
 				IsValidator: true,
-				Chain:       &chain,
+				ChainConfig: config,
 			})
 			if err != nil {
 				return err
@@ -424,30 +422,7 @@ func (c *Chain) WaitForBlocks(ctx context.Context, delta uint64) error {
 		return err
 	}
 
-	cur := start
-
-	for {
-		c.logger.Debug("waiting for blocks", zap.Uint64("desired_delta", delta), zap.Uint64("current_delta", cur-start))
-
-		if cur-start >= delta {
-			break
-		}
-
-		cur, err = c.Height(ctx)
-		if err != nil {
-			time.Sleep(2 * time.Second)
-			continue
-		}
-		// We assume the chain will eventually return a non-zero height, otherwise
-		// this may block indefinitely.
-		if cur == 0 {
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		time.Sleep(2 * time.Second)
-	}
-	return nil
+	return c.WaitForHeight(ctx, start+delta)
 }
 
 // WaitForHeight blocks until the chain reaches block height desiredHeight
@@ -499,14 +474,4 @@ func (c *Chain) GetValidatorWallets() []petritypes.WalletI {
 // GetFaucetWallet retunrs a wallet that was funded and can be used to fund other wallets
 func (c *Chain) GetFaucetWallet() petritypes.WalletI {
 	return c.FaucetWallet
-}
-
-// GetTxConfig returns a Cosmos SDK TxConfig
-func (c *Chain) GetTxConfig() sdkclient.TxConfig {
-	return c.Config.EncodingConfig.TxConfig
-}
-
-// GetInterfaceRegistry returns a Cosmos SDK InterfaceRegistry
-func (c *Chain) GetInterfaceRegistry() codectypes.InterfaceRegistry {
-	return c.Config.EncodingConfig.InterfaceRegistry
 }
