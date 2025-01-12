@@ -12,7 +12,7 @@ func (p *Provider) createTag(ctx context.Context, tagName string) (*godo.Tag, er
 		Name: tagName,
 	}
 
-	tag, res, err := p.doClient.Tags.Create(ctx, req)
+	tag, res, err := p.doClient.CreateTag(ctx, req)
 	if err != nil {
 		return nil, err
 	}

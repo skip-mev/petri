@@ -98,7 +98,7 @@ func getUserIPs(ctx context.Context) (ips []string, err error) {
 func (p *Provider) createSSHKey(ctx context.Context, pubKey string) (*godo.Key, error) {
 	req := &godo.KeyCreateRequest{PublicKey: pubKey, Name: fmt.Sprintf("%s-key", p.petriTag)}
 
-	key, res, err := p.doClient.Keys.Create(ctx, req)
+	key, res, err := p.doClient.CreateKey(ctx, req)
 	if err != nil {
 		return nil, err
 	}
