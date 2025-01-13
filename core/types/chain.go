@@ -84,7 +84,7 @@ func (c ChainConfig) GetGenesisDelegation() *big.Int {
 	return c.GenesisDelegation
 }
 
-func (c *ChainConfig) ValidateBasic() error {
+func (c ChainConfig) ValidateBasic() error {
 	if c.Denom == "" {
 		return fmt.Errorf("denom cannot be empty")
 	}
