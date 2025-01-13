@@ -50,6 +50,7 @@ type TaskI interface {
 	GetExternalAddress(context.Context, string) (string, error)
 
 	RunCommand(context.Context, []string) (string, string, int, error)
+	RunCommandWhileStopped(context.Context, []string) (string, string, int, error)
 }
 
 type ProviderI interface {

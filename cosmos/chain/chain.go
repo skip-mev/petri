@@ -134,12 +134,11 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 	node := c.GetFullNode()
 
 	client, err := node.GetTMClient(ctx)
-
-	c.logger.Debug("fetching height from", zap.String("node", node.GetDefinition().Name), zap.String("ip", client.Remote()))
-
 	if err != nil {
 		return 0, err
 	}
+
+	c.logger.Debug("fetching height from", zap.String("node", node.GetDefinition().Name), zap.String("ip", client.Remote()))
 
 	status, err := client.Status(context.Background())
 	if err != nil {

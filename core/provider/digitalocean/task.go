@@ -141,6 +141,10 @@ func (t *Task) GetState() TaskState {
 	return *t.state
 }
 
+func (t *Task) GetDefinition() provider.TaskDefinition {
+	return t.GetState().Definition
+}
+
 func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 	droplet, err := t.getDroplet(ctx)
 	if err != nil {
