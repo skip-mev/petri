@@ -4,6 +4,10 @@ import (
 	"context"
 	"os"
 
+	petritypes "github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/cosmos/v2/chain"
+	"github.com/skip-mev/petri/cosmos/v2/node"
+
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/provider/digitalocean"
 	"go.uber.org/zap"
@@ -33,41 +37,52 @@ func main() {
 		logger.Fatal("failed to create DigitalOcean provider", zap.Error(err))
 	}
 
-	taskDef := provider.TaskDefinition{
-		Name:          "cosmos-hub-node",
-		ContainerName: "cosmos-hub-node",
+	chainConfig := petritypes.ChainConfig{
+		ChainId:       "cosmoshub-4",
+		NumValidators: 1,
+		NumNodes:      1,
+		BinaryName:    "gaiad",
+		Denom:         "uatom",
+		Decimals:      6,
+		GasPrices:     "0.0025uatom",
 		Image: provider.ImageDefinition{
 			Image: "ghcr.io/cosmos/gaia:v21.0.1",
 			UID:   "1000",
 			GID:   "1000",
 		},
-		Ports:       []string{"26656", "26657", "26660", "1317", "9090"},
-		Environment: map[string]string{},
-		DataDir:     "/root/.gaia",
-		Entrypoint:  []string{"/bin/sh", "-c"},
-		Command: []string{
-			"start",
+		HomeDir:              "/root/.gaia",
+		Bech32Prefix:         "cosmos",
+		CoinType:             "118",
+		UseGenesisSubCommand: true,
+		NodeCreator:          node.CreateNode,
+		NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig petritypes.NodeConfig) provider.TaskDefinition {
+			doConfig := digitalocean.DigitalOceanTaskConfig{
+				"size":     "s-2vcpu-4gb",
+				"region":   "ams3",
+				"image_id": imageID,
+			}
+			def.ProviderSpecificConfig = doConfig
+			return def
 		},
-		ProviderSpecificConfig: digitalocean.DigitalOceanTaskConfig{
-			"size":     "s-2vcpu-4gb",
-			"region":   "ams3",
-			"image_id": imageID,
-		},
 	}
 
-	logger.Info("Creating new task.")
-
-	task, err := doProvider.CreateTask(ctx, taskDef)
+	logger.Info("Creating chain")
+	cosmosChain, err := chain.CreateChain(ctx, logger, doProvider, chainConfig)
 	if err != nil {
-		logger.Fatal("failed to create task", zap.Error(err))
+		logger.Fatal("failed to create chain", zap.Error(err))
 	}
 
-	logger.Info("Successfully created task. Starting task now: ")
-
-	err = task.Start(ctx)
+	logger.Info("Initializing chain")
+	err = cosmosChain.Init(ctx)
 	if err != nil {
-		logger.Fatal("failed to start task", zap.Error(err))
+		logger.Fatal("failed to initialize chain", zap.Error(err))
 	}
 
-	logger.Info("Task is successfully running!")
+	logger.Info("Waiting for chain to produce blocks")
+	err = cosmosChain.WaitForBlocks(ctx, 1)
+	if err != nil {
+		logger.Fatal("failed waiting for blocks", zap.Error(err))
+	}
+
+	logger.Info("Chain is successfully running!")
 }
