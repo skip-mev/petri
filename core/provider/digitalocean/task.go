@@ -83,9 +83,10 @@ func (t *Task) Start(ctx context.Context) error {
 			return true, nil
 		}
 
-		return false, errors.New("task not running after 5 minutes")
+		return false, nil
 	})
 
+	t.logger.Info("Final task status after start", zap.Any("status", t.state.Status))
 	return err
 }
 
