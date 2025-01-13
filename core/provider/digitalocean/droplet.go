@@ -74,12 +74,12 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		if d.Status != "active" {
-			return false, nil
+			return false, errors.Errorf("droplet failed to be active after 10 minutes. Current status: %s", d.Status)
 		}
 
 		ip, err := d.PublicIPv4()
 		if err != nil {
-			return false, nil
+			return false, err
 		}
 
 		if p.dockerClients[ip] == nil {
@@ -93,7 +93,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 		_, err = p.dockerClients[ip].Ping(ctx)
 		if err != nil {
-			return false, nil
+			return false, errors.Errorf("failed to ping docker client at: %s", ip)
 		}
 
 		p.logger.Info("droplet is active", zap.Duration("after", time.Since(start)), zap.String("task", definition.Name))
