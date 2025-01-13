@@ -83,7 +83,7 @@ func (t *Task) Start(ctx context.Context) error {
 			return true, nil
 		}
 
-		return false, nil
+		return false, errors.New("task not running after 5 minutes")
 	})
 
 	return err
@@ -176,6 +176,8 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 		return provider.TASK_PAUSED, nil
 	case "removing":
 		return provider.TASK_STOPPED, nil
+	case "restarting":
+		return provider.TASK_RESTARTING, nil
 	case "exited":
 		return provider.TASK_STOPPED, nil
 	case "dead":
