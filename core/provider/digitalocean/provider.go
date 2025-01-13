@@ -222,9 +222,9 @@ func (p *Provider) SerializeTask(ctx context.Context, task provider.TaskI) ([]by
 		return nil, fmt.Errorf("task is not a Docker task")
 	}
 
-	dockerTask := task.(*Task)
+	doTask := task.(*Task)
 
-	bz, err := json.Marshal(dockerTask.state)
+	bz, err := json.Marshal(doTask.state)
 
 	if err != nil {
 		return nil, err
