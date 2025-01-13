@@ -67,6 +67,10 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 
 	userIPs = append(userIPs, additionalUserIPS...)
 
+	if dockerClients == nil {
+		dockerClients = make(map[string]DockerClient)
+	}
+
 	digitalOceanProvider := &Provider{
 		logger:        logger.Named("digitalocean_provider"),
 		name:          providerName,

@@ -74,7 +74,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		if d.Status != "active" {
-			return false, errors.Errorf("droplet failed to be active after 10 minutes. Current status: %s", d.Status)
+			return false, nil
 		}
 
 		ip, err := d.PublicIPv4()
