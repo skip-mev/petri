@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/skip-mev/petri/core/v2/types"
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"github.com/skip-mev/petri/cosmos/v2/chain"
 	"github.com/skip-mev/petri/cosmos/v2/node"
@@ -32,29 +34,29 @@ func main() {
 		logger.Fatal("failed to create SSH key pair", zap.Error(err))
 	}
 
-	doProvider, err := digitalocean.NewProvider(ctx, logger, "cosmos-hub", doToken, []string{}, sshKeyPair)
+	// Add your IP address below
+	doProvider, err := digitalocean.NewProvider(ctx, logger, "cosmos-hub", doToken, []string{"INSERT IP ADDRESS HERE"}, sshKeyPair)
 	if err != nil {
 		logger.Fatal("failed to create DigitalOcean provider", zap.Error(err))
 	}
 
 	chainConfig := petritypes.ChainConfig{
-		ChainId:       "cosmoshub-4",
+		Denom:         "stake",
+		Decimals:      6,
 		NumValidators: 1,
 		NumNodes:      1,
-		BinaryName:    "gaiad",
-		Denom:         "uatom",
-		Decimals:      6,
-		GasPrices:     "0.0025uatom",
+		BinaryName:    "/usr/bin/simd",
 		Image: provider.ImageDefinition{
-			Image: "ghcr.io/cosmos/gaia:v21.0.1",
+			Image: "interchainio/simapp:latest",
 			UID:   "1000",
 			GID:   "1000",
 		},
-		HomeDir:              "/root/.gaia",
-		Bech32Prefix:         "cosmos",
-		CoinType:             "118",
-		UseGenesisSubCommand: true,
-		NodeCreator:          node.CreateNode,
+		GasPrices:    "0.0005stake",
+		Bech32Prefix: "cosmos",
+		HomeDir:      "/gaia",
+		CoinType:     "118",
+		ChainId:      "stake-1",
+		NodeCreator:  node.CreateNode,
 		NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig petritypes.NodeConfig) provider.TaskDefinition {
 			doConfig := digitalocean.DigitalOceanTaskConfig{
 				"size":     "s-2vcpu-4gb",
@@ -63,6 +65,13 @@ func main() {
 			}
 			def.ProviderSpecificConfig = doConfig
 			return def
+		},
+		WalletConfig: types.WalletConfig{
+			SigningAlgorithm: string(hd.Secp256k1.Name()),
+			Bech32Prefix:     "cosmos",
+			HDPath:           hd.CreateHDPath(118, 0, 0),
+			DerivationFn:     hd.Secp256k1.Derive(),
+			GenerationFn:     hd.Secp256k1.Generate(),
 		},
 	}
 
@@ -78,11 +87,18 @@ func main() {
 		logger.Fatal("failed to initialize chain", zap.Error(err))
 	}
 
-	logger.Info("Waiting for chain to produce blocks")
+	logger.Info("Chain is successfully running! Waiting for chain to produce blocks")
 	err = cosmosChain.WaitForBlocks(ctx, 1)
 	if err != nil {
 		logger.Fatal("failed waiting for blocks", zap.Error(err))
 	}
 
-	logger.Info("Chain is successfully running!")
+	// Comment out section below if you want to persist your Digital Ocean resources
+	logger.Info("Chain has successfully produced required number of blocks. Tearing down Digital Ocean resources.")
+	err = doProvider.Teardown(ctx)
+	if err != nil {
+		logger.Fatal("failed to teardown provider", zap.Error(err))
+	}
+
+	logger.Info("All Digital Ocean resources created have been successfully deleted!")
 }

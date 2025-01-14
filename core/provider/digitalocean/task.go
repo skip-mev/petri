@@ -383,6 +383,8 @@ func (t *Task) RunCommandWhileStopped(ctx context.Context, cmd []string) (string
 		return "", "", 0, err
 	}
 
+	t.logger.Debug("container created successfully", zap.String("id", createdContainer.ID), zap.String("taskName", t.state.Name))
+
 	defer func() {
 		if _, err := t.dockerClient.ContainerInspect(ctx, createdContainer.ID); err != nil && dockerclient.IsErrNotFound(err) {
 			// container was auto-removed, no need to remove it again
@@ -398,6 +400,8 @@ func (t *Task) RunCommandWhileStopped(ctx context.Context, cmd []string) (string
 		t.logger.Error("failed to start container", zap.Error(err), zap.String("taskName", t.state.Name))
 		return "", "", 0, err
 	}
+
+	t.logger.Debug("container started successfully", zap.String("id", createdContainer.ID), zap.String("taskName", t.state.Name))
 
 	// wait for container start
 	exec, err := t.dockerClient.ContainerExecCreate(ctx, createdContainer.ID, container.ExecOptions{
