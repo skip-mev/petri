@@ -71,7 +71,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 	command = append(command, "add-genesis-account", address, amount)
 	command = n.BinCommand(command...)
 
-	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.RunCommandWhileStopped(ctx, command)
 	n.logger.Debug("add-genesis-account", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
@@ -101,7 +101,7 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 
 	command = n.BinCommand(command...)
 
-	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.RunCommandWhileStopped(ctx, command)
 	n.logger.Debug("gentx", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
@@ -127,7 +127,7 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 
 	command = append(command, "collect-gentxs")
 
-	stdout, stderr, exitCode, err := n.RunCommand(ctx, n.BinCommand(command...))
+	stdout, stderr, exitCode, err := n.RunCommandWhileStopped(ctx, n.BinCommand(command...))
 	n.logger.Debug("collect-gentxs", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
 
 	if err != nil {
