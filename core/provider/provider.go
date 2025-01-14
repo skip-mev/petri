@@ -15,6 +15,7 @@ const (
 	TASK_RUNNING
 	TASK_STOPPED
 	TASK_PAUSED
+	TASK_RESTARTING
 )
 
 // Task is a stateful object that holds the underlying workload's details and tracks the workload's lifecycle
@@ -51,6 +52,7 @@ type TaskI interface {
 	GetExternalAddress(context.Context, string) (string, error)
 
 	RunCommand(context.Context, []string) (string, string, int, error)
+	RunCommandWhileStopped(context.Context, []string) (string, string, int, error)
 }
 
 type ProviderI interface {

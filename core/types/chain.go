@@ -84,7 +84,7 @@ func (c ChainConfig) GetGenesisDelegation() *big.Int {
 	return c.GenesisDelegation
 }
 
-func (c *ChainConfig) ValidateBasic() error {
+func (c ChainConfig) ValidateBasic() error {
 	if c.Denom == "" {
 		return fmt.Errorf("denom cannot be empty")
 	}
@@ -125,5 +125,14 @@ func (c *ChainConfig) ValidateBasic() error {
 		return fmt.Errorf("node creator cannot be nil")
 	}
 
+	if !isValidWalletConfig(c.WalletConfig) {
+		return fmt.Errorf("invalid wallet config")
+	}
+
 	return nil
+}
+
+func isValidWalletConfig(cfg WalletConfig) bool {
+	return cfg.Bech32Prefix != "" && cfg.SigningAlgorithm != "" &&
+		cfg.HDPath != nil && cfg.DerivationFn != nil && cfg.GenerationFn != nil
 }

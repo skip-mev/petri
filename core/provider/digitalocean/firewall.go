@@ -54,7 +54,7 @@ func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*go
 		},
 	}
 
-	firewall, res, err := p.doClient.Firewalls.Create(ctx, req)
+	firewall, res, err := p.doClient.CreateFirewall(ctx, req)
 	if err != nil {
 		return nil, err
 	}
