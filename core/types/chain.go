@@ -139,3 +139,8 @@ func (c ChainConfig) ValidateBasic() error {
 
 	return nil
 }
+
+func isValidWalletConfig(cfg WalletConfig) bool {
+	return cfg.Bech32Prefix != "" && cfg.SigningAlgorithm != "" &&
+		cfg.HDPath != nil && cfg.DerivationFn != nil && cfg.GenerationFn != nil
+}
