@@ -92,7 +92,7 @@ func TestRestoreProvider(t *testing.T) {
 	serialized, err := p1.SerializeProvider(ctx)
 	require.NoError(t, err)
 
-	p2, err := docker.RestoreProvider(ctx, serialized)
+	p2, err := docker.RestoreProvider(ctx, logger, serialized)
 	require.NoError(t, err)
 
 	state2 := p2.GetState()
@@ -265,7 +265,7 @@ func TestProviderSerialization(t *testing.T) {
 	serialized, err := p1.SerializeProvider(ctx)
 	require.NoError(t, err)
 
-	p2, err := docker.RestoreProvider(ctx, serialized)
+	p2, err := docker.RestoreProvider(ctx, logger, serialized)
 	require.NoError(t, err)
 
 	state2 := p2.GetState()
