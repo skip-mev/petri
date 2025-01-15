@@ -8,7 +8,7 @@ import (
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/provider/docker"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 	"net/http"
 	"testing"
 	"time"
