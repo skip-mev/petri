@@ -139,7 +139,7 @@ func (n *Node) ModifyTomlConfigFile(
 
 // SetDefaultConfigs will generate the default configs for CometBFT and the app, and write them to disk
 func (n *Node) SetDefaultConfigs(ctx context.Context) error {
-	appConfig := GenerateDefaultAppConfig(n.chainConfig)
+	appConfig := GenerateDefaultAppConfig(n.GetChainConfig())
 	consensusConfig := GenerateDefaultConsensusConfig()
 
 	if err := n.ModifyTomlConfigFile(

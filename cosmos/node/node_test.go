@@ -30,9 +30,7 @@ var defaultChainConfig = types.ChainConfig{
 	HomeDir:              "/gaia",
 	CoinType:             "118",
 	ChainId:              "stake-1",
-	WalletConfig:         types.WalletConfig{},
 	UseGenesisSubCommand: true,
-	NodeCreator:          node.CreateNode,
 }
 
 func TestNodeLifecycle(t *testing.T) {
@@ -50,7 +48,37 @@ func TestNodeLifecycle(t *testing.T) {
 		Name:        "test",
 		Index:       0,
 		ChainConfig: defaultChainConfig,
-	})
+	}, types.NodeOptions{})
+	require.NoError(t, err)
+
+	defer func(n types.NodeI, ctx context.Context) {
+		require.NoError(t, n.Stop(ctx))
+	}(n, ctx)
+
+	status, err := n.GetStatus(ctx)
+	require.NoError(t, err)
+	require.Equal(t, provider.TASK_STOPPED, status)
+
+	err = n.Start(ctx)
+	require.NoError(t, err)
+}
+
+func TestNodeSerialization(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := zap.NewDevelopment()
+	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+
+	p, err := docker.CreateProvider(ctx, logger, providerName)
+	require.NoError(t, err)
+	defer func(p provider.ProviderI, ctx context.Context) {
+		require.NoError(t, p.Teardown(ctx))
+	}(p, ctx)
+
+	n, err := node.CreateNode(ctx, logger, p, types.NodeConfig{
+		Name:        "test",
+		Index:       0,
+		ChainConfig: defaultChainConfig,
+	}, types.NodeOptions{})
 	require.NoError(t, err)
 	defer func(n types.NodeI, ctx context.Context) {
 		require.NoError(t, n.Stop(ctx))
@@ -62,4 +90,15 @@ func TestNodeLifecycle(t *testing.T) {
 
 	err = n.Start(ctx)
 	require.NoError(t, err)
+
+	state, err := n.Serialize(ctx, p)
+	require.NoError(t, err)
+	require.NotEmpty(t, state)
+
+	n2, err := node.RestoreNode(ctx, logger, state, p)
+	require.NoError(t, err)
+
+	status, err = n2.GetStatus(ctx)
+	require.NoError(t, err)
+	require.Equal(t, provider.TASK_RUNNING, status)
 }

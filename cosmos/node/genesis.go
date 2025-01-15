@@ -64,7 +64,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 
 	var command []string
 
-	if n.chainConfig.UseGenesisSubCommand {
+	if n.GetChainConfig().UseGenesisSubCommand {
 		command = append(command, "genesis")
 	}
 
@@ -91,13 +91,13 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 
 	var command []string
 
-	if n.chainConfig.UseGenesisSubCommand {
+	if n.GetChainConfig().UseGenesisSubCommand {
 		command = append(command, "genesis")
 	}
 
 	command = append(command, "gentx", petritypes.ValidatorKeyName, fmt.Sprintf("%s%s", genesisSelfDelegation.Amount.String(), genesisSelfDelegation.Denom),
 		"--keyring-backend", keyring.BackendTest,
-		"--chain-id", n.chainConfig.ChainId)
+		"--chain-id", n.GetChainConfig().ChainId)
 
 	command = n.BinCommand(command...)
 
@@ -121,7 +121,7 @@ func (n *Node) CollectGenTxs(ctx context.Context) error {
 
 	command := []string{}
 
-	if n.chainConfig.UseGenesisSubCommand {
+	if n.GetChainConfig().UseGenesisSubCommand {
 		command = append(command, "genesis")
 	}
 

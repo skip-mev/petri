@@ -20,7 +20,7 @@ type TaskState struct {
 	Volume     *VolumeState            `json:"volumes"`
 	Definition provider.TaskDefinition `json:"definition"`
 	Status     provider.TaskStatus     `json:"status"`
-	IpAddress  string                  `json:"ip_address"`
+    IpAddress  string                  `json:"ip_address"` 
 }
 
 type VolumeState struct {
@@ -106,19 +106,13 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 		return "", fmt.Errorf("failed to inspect container: %w", err)
 	}
 
-	ip, err := t.GetIP(ctx)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to get IP: %w", err)
-	}
-
 	portBindings, ok := dockerContainer.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
 
 	if !ok || len(portBindings) == 0 {
 		return "", fmt.Errorf("port %s not found", port)
 	}
 
-	return fmt.Sprintf("%s:%s", ip, portBindings[0].HostPort), nil
+	return fmt.Sprintf("0.0.0.0:%s", portBindings[0].HostPort), nil
 }
 
 func (t *Task) GetIP(ctx context.Context) (string, error) {

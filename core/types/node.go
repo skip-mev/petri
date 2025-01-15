@@ -12,6 +12,11 @@ import (
 	"github.com/skip-mev/petri/core/v2/provider"
 )
 
+// NodeOptions is a struct that contains the options for creating a node
+type NodeOptions struct {
+	NodeDefinitionModifier NodeDefinitionModifier // NodeDefinitionModifier is a function that modifies a node's definition
+}
+
 // NodeConfig is the configuration structure for a logical node.
 type NodeConfig struct {
 	Name  string // Name is the name of the node
@@ -40,7 +45,10 @@ func (c NodeConfig) ValidateBasic() error {
 type NodeDefinitionModifier func(provider.TaskDefinition, NodeConfig) provider.TaskDefinition
 
 // NodeCreator is a type of function that given a NodeConfig creates a new logical node
-type NodeCreator func(context.Context, *zap.Logger, provider.ProviderI, NodeConfig) (NodeI, error)
+type NodeCreator func(context.Context, *zap.Logger, provider.ProviderI, NodeConfig, NodeOptions) (NodeI, error)
+
+// NodeRestorer is a type of function that given a NodeState restores a logical node
+type NodeRestorer func(context.Context, *zap.Logger, []byte, provider.ProviderI) (NodeI, error)
 
 // NodeI represents an interface for a  logical node that is running on a chain
 type NodeI interface {
@@ -95,4 +103,7 @@ type NodeI interface {
 
 	// GetIP returns the IP address of the node
 	GetIP(context.Context) (string, error)
+
+	// Serialize serializes the node
+	Serialize(context.Context, provider.ProviderI) ([]byte, error)
 }

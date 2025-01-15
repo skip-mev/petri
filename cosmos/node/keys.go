@@ -36,7 +36,7 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 	command := []string{
 		"sh",
 		"-c",
-		fmt.Sprintf(`echo %q | %s keys add %s --recover --keyring-backend %s --coin-type %s --home %s --output json`, mnemonic, n.chainConfig.BinaryName, name, keyring.BackendTest, n.chainConfig.CoinType, n.chainConfig.HomeDir),
+		fmt.Sprintf(`echo %q | %s keys add %s --recover --keyring-backend %s --coin-type %s --home %s --output json`, mnemonic, n.GetChainConfig().BinaryName, name, keyring.BackendTest, n.GetChainConfig().CoinType, n.GetChainConfig().HomeDir),
 	}
 
 	_, _, _, err := n.RunCommand(ctx, command)
@@ -47,8 +47,8 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 // KeyBech32 returns the bech32 address of a key on the node using the app's binary
 func (n *Node) KeyBech32(ctx context.Context, name, bech string) (string, error) {
 	command := []string{
-		n.chainConfig.BinaryName,
-		"keys", "show", name, "-a", "--keyring-backend", keyring.BackendTest, "--home", n.chainConfig.HomeDir,
+		n.GetChainConfig().BinaryName,
+		"keys", "show", name, "-a", "--keyring-backend", keyring.BackendTest, "--home", n.GetChainConfig().HomeDir,
 	}
 
 	if bech != "" {
