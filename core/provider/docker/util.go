@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"fmt"
 	"github.com/docker/go-connections/nat"
 
 	"github.com/skip-mev/petri/core/v2/provider"
@@ -10,7 +11,7 @@ func convertTaskDefinitionPortsToPortSet(definition provider.TaskDefinition) nat
 	bindings := nat.PortSet{}
 
 	for _, port := range definition.Ports {
-		bindings[nat.Port(port)] = struct{}{}
+		bindings[nat.Port(fmt.Sprintf("%s/tcp", port))] = struct{}{}
 	}
 
 	return bindings

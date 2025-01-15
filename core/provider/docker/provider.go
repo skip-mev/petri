@@ -25,10 +25,10 @@ type ProviderState struct {
 
 	Name string `json:"name"`
 
-	NetworkID    string   `json:"network_id"`
-	NetworkName  string   `json:"network_name"`
-	NetworkCIDR  string   `json:"network_cidr"`
-	AllocatedIPs []string `json:"allocated_ips"`
+	NetworkID      string `json:"network_id"`
+	NetworkName    string `json:"network_name"`
+	NetworkCIDR    string `json:"network_cidr"`
+	NetworkGateway string `json:"network_gateway"`
 
 	BuilderImageName string `json:"builder_image_name"`
 }
@@ -86,8 +86,13 @@ func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string
 	}
 
 	dockerProvider.state.NetworkCIDR = cidrMask.String()
+	dockerProvider.state.NetworkGateway = network.IPAM.Config[0].Gateway
 
 	dockerProvider.dockerNetworkAllocator, err = ipallocator.NewCIDRRange(cidrMask)
+
+	if err := dockerProvider.dockerNetworkAllocator.Allocate(net.ParseIP(network.IPAM.Config[0].Gateway)); err != nil {
+		return nil, fmt.Errorf("failed to allocate gateway ip: %w", err)
+	}
 
 	if err != nil {
 		return nil, err
@@ -96,7 +101,7 @@ func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string
 	return dockerProvider, nil
 }
 
-func RestoreProvider(ctx context.Context, state []byte) (*Provider, error) {
+func RestoreProvider(ctx context.Context, logger *zap.Logger, state []byte) (*Provider, error) {
 	var providerState ProviderState
 
 	err := json.Unmarshal(state, &providerState)
@@ -106,7 +111,8 @@ func RestoreProvider(ctx context.Context, state []byte) (*Provider, error) {
 	}
 
 	dockerProvider := &Provider{
-		state: &providerState,
+		state:  &providerState,
+		logger: logger,
 	}
 
 	dockerClient, err := client.NewClientWithOpts()
@@ -133,8 +139,12 @@ func RestoreProvider(ctx context.Context, state []byte) (*Provider, error) {
 		return nil, fmt.Errorf("failed to create ip allocator from state: %w", err)
 	}
 
-	for _, ip := range providerState.AllocatedIPs {
-		if err := dockerProvider.dockerNetworkAllocator.Allocate(net.ParseIP(ip)); err != nil {
+	if err := dockerProvider.dockerNetworkAllocator.Allocate(net.ParseIP(providerState.NetworkGateway)); err != nil {
+		return nil, fmt.Errorf("failed to allocate gateway ip: %w", err)
+	}
+
+	for _, task := range providerState.TaskStates {
+		if err := dockerProvider.dockerNetworkAllocator.Allocate(net.ParseIP(task.IpAddress)); err != nil {
 			return nil, fmt.Errorf("failed to restore ip allocator state: %w", err)
 		}
 	}
@@ -223,12 +233,12 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Labels: map[string]string{
 			providerLabelName: p.state.Name,
 		},
-		Env: convertEnvMapToList(definition.Environment),
+		Env:          convertEnvMapToList(definition.Environment),
+		ExposedPorts: portSet,
 	}, &container.HostConfig{
-		Mounts:          mounts,
-		PortBindings:    portBindings,
-		PublishAllPorts: true,
-		NetworkMode:     container.NetworkMode(p.state.NetworkName),
+		Mounts:       mounts,
+		PortBindings: portBindings,
+		NetworkMode:  container.NetworkMode(p.state.NetworkName),
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
 			p.state.NetworkName: {
@@ -245,6 +255,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	taskState.Id = createdContainer.ID
 	taskState.Status = provider.TASK_STOPPED
+	taskState.IpAddress = ip
 
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
