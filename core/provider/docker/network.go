@@ -95,8 +95,6 @@ func (p *Provider) openListenerOnFreePort() (*net.TCPListener, error) {
 		return nil, err
 	}
 
-	p.networkMu.Lock()
-	defer p.networkMu.Unlock()
 	l, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -110,6 +108,10 @@ func (p *Provider) openListenerOnFreePort() (*net.TCPListener, error) {
 // This allows multiple nextAvailablePort calls to find multiple available ports
 // before closing them so they are available for the PortBinding.
 func (p *Provider) nextAvailablePort() (nat.PortBinding, *net.TCPListener, error) {
+	// TODO: add listeners to state
+	p.networkMu.Lock()
+	defer p.networkMu.Unlock()
+
 	l, err := p.openListenerOnFreePort()
 	if err != nil {
 		if l != nil {
