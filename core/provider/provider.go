@@ -31,7 +31,6 @@ type Task struct {
 }
 
 type TaskI interface {
-	Initialize(context.Context) error
 	Start(context.Context) error
 	Stop(context.Context) error
 	Destroy(context.Context) error
