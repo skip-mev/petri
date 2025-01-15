@@ -23,8 +23,8 @@ type PrometheusOptions struct {
 
 // SetupPrometheusTask sets up and configures (but does not start) a Prometheus task.
 // Additionally, it creates a Prometheus configuration file (given the Targets in PrometheusOptions).
-func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts PrometheusOptions) (*provider.Task, error) {
-	task, err := provider.CreateTask(ctx, logger, p, provider.TaskDefinition{
+func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.ProviderI, opts PrometheusOptions) (provider.TaskI, error) {
+	task, err := p.CreateTask(ctx, provider.TaskDefinition{
 		Name:          "prometheus",
 		ContainerName: "prometheus",
 		Image: provider.ImageDefinition{
