@@ -13,6 +13,9 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/provider/digitalocean/mocks"
 	"github.com/stretchr/testify/mock"
@@ -39,6 +42,15 @@ func (m mockConn) SetDeadline(t time.Time) error      { return nil }
 func (m mockConn) SetReadDeadline(t time.Time) error  { return nil }
 func (m mockConn) SetWriteDeadline(t time.Time) error { return nil }
 
+const (
+	testContainerID = "test-container-id"
+)
+
+var (
+	testContainer = types.Container{ID: testContainerID}
+	testDroplet   = &godo.Droplet{ID: 123, Status: "active"}
+)
+
 func TestTaskLifecycle(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
@@ -59,21 +71,22 @@ func TestTaskLifecycle(t *testing.T) {
 		},
 	}
 
-	mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-	container := types.Container{
-		ID: "test-container-id",
-	}
-	mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{testContainer}, nil)
+
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
 			State: &types.ContainerState{
 				Status: "running",
 			},
 		},
 	}, nil)
-	mockDocker.On("ContainerStart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	mockDocker.On("ContainerStop", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mockDocker.On("ContainerStart", ctx, testContainerID, container.StartOptions{}).Return(nil)
+	mockDocker.On("ContainerStop", ctx, testContainerID, container.StopOptions{}).Return(nil)
 
 	task := &Task{
 		state: &TaskState{
@@ -118,20 +131,34 @@ func TestTaskRunCommand(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	testContainer := types.Container{
-		ID: "test-testContainer-id",
-	}
-	mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{testContainer}, nil)
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-	execCreateResp := types.IDResponse{ID: "test-exec-id"}
-	mockDocker.On("ContainerExecCreate", mock.Anything, mock.Anything, mock.Anything).Return(execCreateResp, nil)
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{testContainer}, nil)
+
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{
+			State: &types.ContainerState{
+				Status: "running",
+			},
+		},
+	}, nil)
+
+	execID := "test-exec-id"
+	execCreateResp := types.IDResponse{ID: execID}
+	mockDocker.On("ContainerExecCreate", ctx, testContainerID, container.ExecOptions{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          []string{"echo", "hello"},
+	}).Return(execCreateResp, nil)
 
 	conn := &mockConn{Buffer: bytes.NewBuffer([]byte{})}
-	mockDocker.On("ContainerExecAttach", mock.Anything, mock.Anything, mock.Anything).Return(types.HijackedResponse{
+	mockDocker.On("ContainerExecAttach", ctx, execID, container.ExecAttachOptions{}).Return(types.HijackedResponse{
 		Conn:   conn,
 		Reader: bufio.NewReader(conn),
 	}, nil)
-	mockDocker.On("ContainerExecInspect", mock.Anything, mock.Anything).Return(container.ExecInspect{
+	mockDocker.On("ContainerExecInspect", ctx, execID).Return(container.ExecInspect{
 		ExitCode: 0,
 		Running:  false,
 	}, nil)
@@ -161,6 +188,7 @@ func TestTaskRunCommand(t *testing.T) {
 	require.Empty(t, stderr)
 
 	mockDocker.AssertExpectations(t)
+	mockDO.AssertExpectations(t)
 }
 
 func TestTaskRunCommandWhileStopped(t *testing.T) {
@@ -170,32 +198,60 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	createResp := container.CreateResponse{ID: "test-container-id"}
-	mockDocker.On("ContainerCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(createResp, nil)
-	mockDocker.On("ContainerStart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	createResp := container.CreateResponse{ID: testContainerID}
+	mockDocker.On("ContainerCreate", ctx, &container.Config{
+		Image:      "nginx:latest",
+		Entrypoint: []string{"sh", "-c"},
+		Cmd:        []string{"sleep 36000"},
+		Tty:        false,
+		Hostname:   "test-task",
+		Labels: map[string]string{
+			providerLabelName: "test-provider",
+		},
+		Env: []string{},
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: "/docker_volumes",
+				Target: "",
+			},
+		},
+		NetworkMode: container.NetworkMode("host"),
+	}, (*network.NetworkingConfig)(nil), (*specs.Platform)(nil), mock.Anything).Return(createResp, nil)
+	mockDocker.On("ContainerStart", ctx, testContainerID, container.StartOptions{}).Return(nil)
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{testContainer}, nil)
 
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
 			State: &types.ContainerState{
 				Running: true,
 			},
 		},
-	}, nil).Once()
+	}, nil).Twice()
+
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
 	execCreateResp := types.IDResponse{ID: "test-exec-id"}
-	mockDocker.On("ContainerExecCreate", mock.Anything, mock.Anything, mock.Anything).Return(execCreateResp, nil)
+	mockDocker.On("ContainerExecCreate", ctx, testContainerID, container.ExecOptions{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          []string{"echo", "hello"},
+	}).Return(execCreateResp, nil)
 
 	conn := &mockConn{Buffer: bytes.NewBuffer([]byte{})}
-	mockDocker.On("ContainerExecAttach", mock.Anything, mock.Anything, mock.Anything).Return(types.HijackedResponse{
+	mockDocker.On("ContainerExecAttach", ctx, "test-exec-id", container.ExecAttachOptions{}).Return(types.HijackedResponse{
 		Conn:   conn,
 		Reader: bufio.NewReader(conn),
 	}, nil)
-	mockDocker.On("ContainerExecInspect", mock.Anything, mock.Anything).Return(container.ExecInspect{
+	mockDocker.On("ContainerExecInspect", ctx, "test-exec-id").Return(container.ExecInspect{
 		ExitCode: 0,
 		Running:  false,
 	}, nil)
 
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
 			State: &types.ContainerState{
 				Running: false,
@@ -203,7 +259,7 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 		},
 	}, nil).Once()
 
-	mockDocker.On("ContainerRemove", mock.Anything, mock.Anything, container.RemoveOptions{Force: true}).Return(nil)
+	mockDocker.On("ContainerRemove", ctx, testContainerID, container.RemoveOptions{Force: true}).Return(nil)
 
 	task := &Task{
 		state: &TaskState{
@@ -225,7 +281,7 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 		doClient:     mockDO,
 	}
 
-	_, stderr, exitCode, err := task.RunCommandWhileStopped(ctx, []string{"echo", "hello"})
+	_, stderr, exitCode, err := task.RunCommand(ctx, []string{"echo", "hello"})
 	require.NoError(t, err)
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stderr)
@@ -285,13 +341,8 @@ func TestTaskDestroy(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	droplet := &godo.Droplet{
-		ID:     123,
-		Status: "active",
-	}
-
-	mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-	mockDO.On("DeleteDropletByID", mock.Anything, droplet.ID).Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, testDroplet.ID).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("DeleteDropletByID", ctx, testDroplet.ID).Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 	mockDocker.On("Close").Return(nil)
 
 	provider := &Provider{
@@ -302,7 +353,7 @@ func TestTaskDestroy(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           droplet.ID,
+			ID:           testDroplet.ID,
 			Name:         "test-task",
 			ProviderName: "test-provider",
 		},
@@ -329,12 +380,46 @@ func TestRunCommandWhileStoppedContainerCleanup(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	createResp := container.CreateResponse{ID: "test-container-id"}
-	mockDocker.On("ContainerCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(createResp, nil)
-	mockDocker.On("ContainerStart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{
+		{ID: testContainerID},
+	}, nil).Once()
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{
+			State: &types.ContainerState{
+				Status: "exited",
+			},
+		},
+	}, nil).Once()
+
+	createResp := container.CreateResponse{ID: testContainerID}
+	mockDocker.On("ContainerCreate", ctx, &container.Config{
+		Image:      "nginx:latest",
+		Entrypoint: []string{"sh", "-c"},
+		Cmd:        []string{"sleep 36000"},
+		Tty:        false,
+		Hostname:   "test-task",
+		Labels: map[string]string{
+			providerLabelName: "test-provider",
+		},
+		Env: []string{},
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: "/docker_volumes",
+				Target: "",
+			},
+		},
+		NetworkMode: container.NetworkMode("host"),
+	}, (*network.NetworkingConfig)(nil), (*specs.Platform)(nil), mock.Anything).Return(createResp, nil)
+	mockDocker.On("ContainerStart", ctx, testContainerID, container.StartOptions{}).Return(nil)
 
 	// first ContainerInspect for startup check
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
 			State: &types.ContainerState{
 				Running: true,
@@ -343,23 +428,27 @@ func TestRunCommandWhileStoppedContainerCleanup(t *testing.T) {
 	}, nil).Once()
 
 	execCreateResp := types.IDResponse{ID: "test-exec-id"}
-	mockDocker.On("ContainerExecCreate", mock.Anything, mock.Anything, mock.Anything).Return(execCreateResp, nil)
+	mockDocker.On("ContainerExecCreate", ctx, testContainerID, container.ExecOptions{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          []string{"echo", "hello"},
+	}).Return(execCreateResp, nil)
 
 	conn := &mockConn{Buffer: bytes.NewBuffer([]byte{})}
-	mockDocker.On("ContainerExecAttach", mock.Anything, mock.Anything, mock.Anything).Return(types.HijackedResponse{
+	mockDocker.On("ContainerExecAttach", ctx, "test-exec-id", container.ExecAttachOptions{}).Return(types.HijackedResponse{
 		Conn:   conn,
 		Reader: bufio.NewReader(conn),
 	}, nil)
-	mockDocker.On("ContainerExecInspect", mock.Anything, mock.Anything).Return(container.ExecInspect{
+	mockDocker.On("ContainerExecInspect", ctx, "test-exec-id").Return(container.ExecInspect{
 		ExitCode: 0,
 		Running:  false,
 	}, nil)
 
 	// second ContainerInspect for cleanup check - container exists
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{}, nil).Once()
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{}, nil).Once()
 
 	// container should be removed since it exists
-	mockDocker.On("ContainerRemove", mock.Anything, mock.Anything, container.RemoveOptions{Force: true}).Return(nil)
+	mockDocker.On("ContainerRemove", ctx, testContainerID, container.RemoveOptions{Force: true}).Return(nil)
 
 	task := &Task{
 		state: &TaskState{
@@ -381,12 +470,13 @@ func TestRunCommandWhileStoppedContainerCleanup(t *testing.T) {
 		doClient:     mockDO,
 	}
 
-	_, stderr, exitCode, err := task.RunCommandWhileStopped(ctx, []string{"echo", "hello"})
+	_, stderr, exitCode, err := task.RunCommand(ctx, []string{"echo", "hello"})
 	require.NoError(t, err)
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stderr)
 
 	mockDocker.AssertExpectations(t)
+	mockDO.AssertExpectations(t)
 }
 
 // this tests the case where the docker container is auto removed before cleanup doesnt return an error
@@ -397,12 +487,46 @@ func TestRunCommandWhileStoppedContainerAutoRemoved(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	createResp := container.CreateResponse{ID: "test-container-id"}
-	mockDocker.On("ContainerCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(createResp, nil)
-	mockDocker.On("ContainerStart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{
+		{ID: testContainerID},
+	}, nil).Once()
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{
+			State: &types.ContainerState{
+				Status: "exited",
+			},
+		},
+	}, nil).Once()
+
+	createResp := container.CreateResponse{ID: testContainerID}
+	mockDocker.On("ContainerCreate", ctx, &container.Config{
+		Image:      "nginx:latest",
+		Entrypoint: []string{"sh", "-c"},
+		Cmd:        []string{"sleep 36000"},
+		Tty:        false,
+		Hostname:   "test-task",
+		Labels: map[string]string{
+			providerLabelName: "test-provider",
+		},
+		Env: []string{},
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: "/docker_volumes",
+				Target: "",
+			},
+		},
+		NetworkMode: container.NetworkMode("host"),
+	}, (*network.NetworkingConfig)(nil), (*specs.Platform)(nil), mock.Anything).Return(createResp, nil)
+	mockDocker.On("ContainerStart", ctx, testContainerID, container.StartOptions{}).Return(nil)
 
 	// first ContainerInspect for startup check
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
 			State: &types.ContainerState{
 				Running: true,
@@ -411,21 +535,25 @@ func TestRunCommandWhileStoppedContainerAutoRemoved(t *testing.T) {
 	}, nil).Once()
 
 	execCreateResp := types.IDResponse{ID: "test-exec-id"}
-	mockDocker.On("ContainerExecCreate", mock.Anything, mock.Anything, mock.Anything).Return(execCreateResp, nil)
+	mockDocker.On("ContainerExecCreate", ctx, testContainerID, container.ExecOptions{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          []string{"echo", "hello"},
+	}).Return(execCreateResp, nil)
 
 	conn := &mockConn{Buffer: bytes.NewBuffer([]byte{})}
-	mockDocker.On("ContainerExecAttach", mock.Anything, mock.Anything, mock.Anything).Return(types.HijackedResponse{
+	mockDocker.On("ContainerExecAttach", ctx, "test-exec-id", container.ExecAttachOptions{}).Return(types.HijackedResponse{
 		Conn:   conn,
 		Reader: bufio.NewReader(conn),
 	}, nil)
-	mockDocker.On("ContainerExecInspect", mock.Anything, mock.Anything).Return(container.ExecInspect{
+	mockDocker.On("ContainerExecInspect", ctx, "test-exec-id").Return(container.ExecInspect{
 		ExitCode: 0,
 		Running:  false,
 	}, nil)
 
 	// second ContainerInspect for cleanup check - container not found, so ContainerRemove should not be called
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{}, mockNotFoundError{fmt.Errorf("Error: No such container: test-container-id")}).Once()
-	mockDocker.AssertNotCalled(t, "ContainerRemove", mock.Anything, mock.Anything, mock.Anything)
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{}, mockNotFoundError{fmt.Errorf("Error: No such container: test-container-id")}).Once()
+	mockDocker.AssertNotCalled(t, "ContainerRemove", ctx, testContainerID, mock.Anything)
 
 	task := &Task{
 		state: &TaskState{
@@ -447,12 +575,13 @@ func TestRunCommandWhileStoppedContainerAutoRemoved(t *testing.T) {
 		doClient:     mockDO,
 	}
 
-	_, stderr, exitCode, err := task.RunCommandWhileStopped(ctx, []string{"echo", "hello"})
+	_, stderr, exitCode, err := task.RunCommand(ctx, []string{"echo", "hello"})
 	require.NoError(t, err)
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stderr)
 
 	mockDocker.AssertExpectations(t)
+	mockDO.AssertExpectations(t)
 }
 
 func TestTaskExposingPort(t *testing.T) {
@@ -475,10 +604,10 @@ func TestTaskExposingPort(t *testing.T) {
 		},
 	}
 
-	mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-	container := types.Container{
-		ID: "test-container-id",
+	testContainer := types.Container{
+		ID: testContainerID,
 		Ports: []types.Port{
 			{
 				PrivatePort: 80,
@@ -487,15 +616,19 @@ func TestTaskExposingPort(t *testing.T) {
 			},
 		},
 	}
-	mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-	mockDocker.On("ContainerInspect", mock.Anything, mock.Anything).Return(types.ContainerJSON{
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{testContainer}, nil)
+
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
 			State: &types.ContainerState{
 				Status: "running",
 			},
 		},
 	}, nil)
-	mockDocker.On("ContainerStart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mockDocker.On("ContainerStart", ctx, testContainerID, container.StartOptions{}).Return(nil)
 
 	task := &Task{
 		state: &TaskState{
@@ -541,6 +674,14 @@ func TestTaskExposingPort(t *testing.T) {
 func TestGetStatus(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
+	testDropletActive := &godo.Droplet{
+		ID:     123,
+		Status: "active",
+	}
+	testDropletOff := &godo.Droplet{
+		ID:     123,
+		Status: "off",
+	}
 
 	tests := []struct {
 		name           string
@@ -555,11 +696,8 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "off",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "off",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDO.On("GetDroplet", ctx, testDropletOff.ID).Return(testDropletOff, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 			},
 			expectedStatus: provider.TASK_STOPPED,
 			expectError:    false,
@@ -569,15 +707,13 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "running",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 					ContainerJSONBase: &types.ContainerJSONBase{
 						State: &types.ContainerState{
 							Status: "running",
@@ -593,15 +729,12 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "paused",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 					ContainerJSONBase: &types.ContainerJSONBase{
 						State: &types.ContainerState{
 							Status: "paused",
@@ -617,15 +750,13 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "exited",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 					ContainerJSONBase: &types.ContainerJSONBase{
 						State: &types.ContainerState{
 							Status: "exited",
@@ -637,52 +768,17 @@ func TestGetStatus(t *testing.T) {
 			expectError:    false,
 		},
 		{
-			name:           "no containers found",
-			dropletStatus:  "active",
-			containerState: "",
-			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{}, nil)
-			},
-			expectedStatus: provider.TASK_STATUS_UNDEFINED,
-			expectError:    true,
-		},
-		{
-			name:           "container inspect error",
-			dropletStatus:  "active",
-			containerState: "",
-			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{}, fmt.Errorf("inspect error"))
-			},
-			expectedStatus: provider.TASK_STATUS_UNDEFINED,
-			expectError:    true,
-		},
-		{
 			name:           "container removing",
 			dropletStatus:  "active",
 			containerState: "removing",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 					ContainerJSONBase: &types.ContainerJSONBase{
 						State: &types.ContainerState{
 							Status: "removing",
@@ -698,15 +794,13 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "dead",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 					ContainerJSONBase: &types.ContainerJSONBase{
 						State: &types.ContainerState{
 							Status: "dead",
@@ -722,15 +816,13 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "created",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 					ContainerJSONBase: &types.ContainerJSONBase{
 						State: &types.ContainerState{
 							Status: "created",
@@ -746,15 +838,13 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "unknown_status",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
 
-				container := types.Container{ID: "test-container-id"}
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return([]types.Container{container}, nil)
-				mockDocker.On("ContainerInspect", mock.Anything, container.ID).Return(types.ContainerJSON{
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
 					ContainerJSONBase: &types.ContainerJSONBase{
 						State: &types.ContainerState{
 							Status: "unknown_status",
@@ -766,11 +856,40 @@ func TestGetStatus(t *testing.T) {
 			expectError:    false,
 		},
 		{
+			name:           "no containers found",
+			dropletStatus:  "active",
+			containerState: "",
+			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{}, nil)
+			},
+			expectedStatus: provider.TASK_STATUS_UNDEFINED,
+			expectError:    true,
+		},
+		{
+			name:           "container inspect error",
+			dropletStatus:  "active",
+			containerState: "",
+			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
+
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return([]types.Container{testContainer}, nil)
+				mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{}, fmt.Errorf("inspect error"))
+			},
+			expectedStatus: provider.TASK_STATUS_UNDEFINED,
+			expectError:    true,
+		},
+		{
 			name:           "getDroplet error",
 			dropletStatus:  "",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				mockDO.On("GetDroplet", mock.Anything, mock.Anything).Return(nil, nil, fmt.Errorf("failed to get droplet"))
+				mockDO.On("GetDroplet", ctx, 123).Return(nil, nil, fmt.Errorf("failed to get droplet"))
 			},
 			expectedStatus: provider.TASK_STATUS_UNDEFINED,
 			expectError:    true,
@@ -780,12 +899,11 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				droplet := &godo.Droplet{
-					ID:     123,
-					Status: "active",
-				}
-				mockDO.On("GetDroplet", mock.Anything, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-				mockDocker.On("ContainerList", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("failed to list containers"))
+
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+				mockDocker.On("ContainerList", ctx, container.ListOptions{
+					Limit: 1,
+				}).Return(nil, fmt.Errorf("failed to list containers"))
 			},
 			expectedStatus: provider.TASK_STATUS_UNDEFINED,
 			expectError:    true,
