@@ -2,6 +2,7 @@ package chain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -20,9 +21,19 @@ import (
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
+type PackagedState struct {
+	State
+	ValidatorStates [][]byte
+	NodeStates      [][]byte
+}
+
+type State struct {
+	Config petritypes.ChainConfig
+}
+
 // Chain is a logical representation of a Cosmos-based blockchain
 type Chain struct {
-	Config petritypes.ChainConfig
+	State State
 
 	logger *zap.Logger
 
@@ -39,7 +50,7 @@ type Chain struct {
 var _ petritypes.ChainI = &Chain{}
 
 // CreateChain creates the Chain object and initializes the node tasks, their backing compute and the validator wallets
-func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, config petritypes.ChainConfig) (*Chain, error) {
+func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, config petritypes.ChainConfig, opts petritypes.ChainOptions) (*Chain, error) {
 	if err := config.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate chain config: %w", err)
 	}
@@ -47,7 +58,10 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	var chain Chain
 
 	chain.mu = sync.RWMutex{}
-	chain.Config = config
+	chain.State = State{
+		Config: config,
+	}
+
 	chain.logger = logger.Named("chain").With(zap.String("chain_id", config.ChainId))
 
 	chain.logger.Info("creating chain")
@@ -66,12 +80,12 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
-			validator, err := config.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
+			validator, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
 				Index:       i,
 				Name:        validatorName,
 				IsValidator: true,
 				ChainConfig: config,
-			})
+			}, opts.NodeOptions)
 			if err != nil {
 				return err
 			}
@@ -94,12 +108,12 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 
 			logger.Info("creating node", zap.String("name", nodeName))
 
-			node, err := config.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
+			node, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
 				Index:       i,
 				Name:        nodeName,
 				IsValidator: true,
 				ChainConfig: config,
-			})
+			}, opts.NodeOptions)
 			if err != nil {
 				return err
 			}
@@ -118,15 +132,42 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 
 	chain.Nodes = nodes
 	chain.Validators = validators
-	chain.Config = config
 	chain.ValidatorWallets = make([]petritypes.WalletI, config.NumValidators)
 
 	return &chain, nil
 }
 
-// GetConfig returns the Chain's configuration
-func (c *Chain) GetConfig() petritypes.ChainConfig {
-	return c.Config
+// RestoreChain restores a Chain object from a serialized state
+func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, state []byte, nodeRestore petritypes.NodeRestorer) (*Chain, error) {
+	var packagedState PackagedState
+
+	if err := json.Unmarshal(state, &packagedState); err != nil {
+		return nil, err
+	}
+
+	chain := Chain{
+		State: packagedState.State,
+	}
+
+	for _, vs := range packagedState.ValidatorStates {
+		v, err := nodeRestore(ctx, logger, vs, infraProvider)
+		if err != nil {
+			return nil, err
+		}
+
+		chain.Validators = append(chain.Validators, v)
+	}
+
+	for _, ns := range packagedState.NodeStates {
+		n, err := nodeRestore(ctx, logger, ns, infraProvider)
+		if err != nil {
+			return nil, err
+		}
+
+		chain.Nodes = append(chain.Nodes, n)
+	}
+
+	return &chain, nil
 }
 
 // Height returns the chain's height from the first available full node in the network
@@ -135,11 +176,11 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 
 	client, err := node.GetTMClient(ctx)
 
-	c.logger.Debug("fetching height from", zap.String("node", node.GetDefinition().Name), zap.String("ip", client.Remote()))
-
 	if err != nil {
 		return 0, err
 	}
+
+	c.logger.Debug("fetching height from", zap.String("node", node.GetDefinition().Name), zap.String("ip", client.Remote()))
 
 	status, err := client.Status(context.Background())
 	if err != nil {
@@ -151,18 +192,18 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 
 // Init initializes the chain. That consists of generating the genesis transactions, genesis file, wallets,
 // the distribution of configuration files and starting the network nodes up
-func (c *Chain) Init(ctx context.Context) error {
-	decimalPow := int64(math.Pow10(int(c.Config.Decimals)))
+func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
+	decimalPow := int64(math.Pow10(int(c.GetConfig().Decimals)))
 
 	genesisCoin := types.Coin{
 		Amount: sdkmath.NewIntFromBigInt(c.GetConfig().GetGenesisBalance()).MulRaw(decimalPow),
-		Denom:  c.Config.Denom,
+		Denom:  c.GetConfig().Denom,
 	}
 	c.logger.Info("creating genesis accounts", zap.String("coin", genesisCoin.String()))
 
 	genesisSelfDelegation := types.Coin{
 		Amount: sdkmath.NewIntFromBigInt(c.GetConfig().GetGenesisDelegation()).MulRaw(decimalPow),
-		Denom:  c.Config.Denom,
+		Denom:  c.GetConfig().Denom,
 	}
 	c.logger.Info("creating genesis self-delegations", zap.String("coin", genesisSelfDelegation.String()))
 
@@ -179,7 +220,7 @@ func (c *Chain) Init(ctx context.Context) error {
 				return fmt.Errorf("error initializing home dir: %v", err)
 			}
 
-			validatorWallet, err := v.CreateWallet(ctx, petritypes.ValidatorKeyName, c.Config.WalletConfig)
+			validatorWallet, err := v.CreateWallet(ctx, petritypes.ValidatorKeyName, opts.WalletConfig)
 			if err != nil {
 				return err
 			}
@@ -221,7 +262,7 @@ func (c *Chain) Init(ctx context.Context) error {
 	}
 
 	c.logger.Info("adding faucet genesis")
-	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "", c.Config.WalletConfig)
+	faucetWallet, err := c.BuildWallet(ctx, petritypes.FaucetAccountKeyName, "", opts.WalletConfig)
 	if err != nil {
 		return err
 	}
@@ -230,38 +271,28 @@ func (c *Chain) Init(ctx context.Context) error {
 
 	firstValidator := c.Validators[0]
 
+	c.logger.Info("first validator name", zap.String("validator", firstValidator.GetDefinition().Name))
+
 	if err := firstValidator.AddGenesisAccount(ctx, faucetWallet.FormattedAddress(), genesisAmounts); err != nil {
 		return err
 	}
 
 	for i := 1; i < len(c.Validators); i++ {
 		validatorN := c.Validators[i]
-		validatorWalletAddress := c.ValidatorWallets[i].FormattedAddress()
-		eg.Go(func() error {
-			bech32, err := validatorN.KeyBech32(ctx, petritypes.ValidatorKeyName, "acc")
-			if err != nil {
-				return err
-			}
 
-			c.logger.Info("setting up validator keys", zap.String("validator", validatorN.GetDefinition().Name), zap.String("address", bech32))
-			if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
-				return err
-			}
+		bech32, err := validatorN.KeyBech32(ctx, petritypes.ValidatorKeyName, "acc")
+		if err != nil {
+			return err
+		}
 
-			if err := firstValidator.AddGenesisAccount(ctx, validatorWalletAddress, genesisAmounts); err != nil {
-				return err
-			}
+		c.logger.Info("setting up validator keys", zap.String("validator", validatorN.GetDefinition().Name), zap.String("address", bech32))
+		if err := firstValidator.AddGenesisAccount(ctx, bech32, genesisAmounts); err != nil {
+			return fmt.Errorf("failed to add validator %s genesis account: %w", validatorN.GetDefinition().Name, err)
+		}
 
-			if err := validatorN.CopyGenTx(ctx, firstValidator); err != nil {
-				return err
-			}
-
-			return nil
-		})
-	}
-
-	if err := eg.Wait(); err != nil {
-		return err
+		if err := validatorN.CopyGenTx(ctx, firstValidator); err != nil {
+			return fmt.Errorf("failed to copy gentx from %s: %w", validatorN.GetDefinition().Name, err)
+		}
 	}
 
 	if err := firstValidator.CollectGenTxs(ctx); err != nil {
@@ -273,8 +304,9 @@ func (c *Chain) Init(ctx context.Context) error {
 		return err
 	}
 
-	if c.Config.ModifyGenesis != nil {
-		genbz, err = c.Config.ModifyGenesis(genbz)
+	if opts.ModifyGenesis != nil {
+		c.logger.Info("modifying genesis")
+		genbz, err = opts.ModifyGenesis(genbz)
 		if err != nil {
 			return err
 		}
@@ -354,7 +386,7 @@ func (c *Chain) Init(ctx context.Context) error {
 
 // Teardown destroys all resources related to a chain and its' nodes
 func (c *Chain) Teardown(ctx context.Context) error {
-	c.logger.Info("tearing down chain", zap.String("name", c.Config.ChainId))
+	c.logger.Info("tearing down chain", zap.String("name", c.GetConfig().ChainId))
 
 	for _, v := range c.Validators {
 		if err := v.Destroy(ctx); err != nil {
@@ -411,6 +443,25 @@ func (c *Chain) GetFullNode() petritypes.NodeI {
 	}
 	// use first validator
 	return c.Validators[0]
+}
+
+func (c *Chain) WaitForStartup(ctx context.Context) error {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			err := c.WaitForHeight(ctx, 1)
+			if err != nil {
+				c.logger.Error("error waiting for height", zap.Error(err))
+				continue
+			}
+			ticker.Stop()
+			return nil
+		}
+	}
 }
 
 // WaitForBlocks blocks until the chain increases in block height by delta
@@ -474,4 +525,35 @@ func (c *Chain) GetValidatorWallets() []petritypes.WalletI {
 // GetFaucetWallet retunrs a wallet that was funded and can be used to fund other wallets
 func (c *Chain) GetFaucetWallet() petritypes.WalletI {
 	return c.FaucetWallet
+}
+
+// GetConfig is the configuration structure for a logical chain.
+func (c *Chain) GetConfig() petritypes.ChainConfig {
+	return c.State.Config
+}
+
+// Serialize returns the serialized representation of the chain
+func (c *Chain) Serialize(ctx context.Context, p provider.ProviderI) ([]byte, error) {
+	state := PackagedState{
+		State: c.State,
+	}
+
+	for _, v := range c.Validators {
+		vs, err := v.Serialize(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		state.ValidatorStates = append(state.ValidatorStates, vs)
+	}
+
+	for _, n := range c.Nodes {
+		ns, err := n.Serialize(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+
+		state.NodeStates = append(state.NodeStates, ns)
+	}
+
+	return json.Marshal(state)
 }
