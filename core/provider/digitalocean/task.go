@@ -277,7 +277,20 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 	return net.JoinHostPort(ip, port), nil
 }
 
-func (t *Task) RunCommand(ctx context.Context, command []string) (string, string, int, error) {
+func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, int, error) {
+	status, err := t.GetStatus(ctx)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	if status != provider.TASK_RUNNING {
+		return t.runCommandWhileStopped(ctx, cmd)
+	}
+
+	return t.runCommand(ctx, cmd)
+}
+
+func (t *Task) runCommand(ctx context.Context, command []string) (string, string, int, error) {
 	containers, err := t.dockerClient.ContainerList(ctx, container.ListOptions{
 		Limit: 1,
 	})
@@ -345,7 +358,7 @@ loop:
 	return stdout.String(), stderr.String(), lastExitCode, nil
 }
 
-func (t *Task) RunCommandWhileStopped(ctx context.Context, cmd []string) (string, string, int, error) {
+func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string, string, int, error) {
 	if err := t.state.Definition.ValidateBasic(); err != nil {
 		return "", "", 0, fmt.Errorf("failed to validate task definition: %w", err)
 	}
