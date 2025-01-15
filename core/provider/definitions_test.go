@@ -176,20 +176,6 @@ func TestTaskDefinitionValidation(t *testing.T) {
 			},
 			expectPass: false,
 		},
-		{
-			name: "invalid sidecar",
-			def: provider.TaskDefinition{
-				Name:          "test",
-				ContainerName: "test",
-				Image:         validImageDefinition,
-				Sidecars: []provider.TaskDefinition{
-					{
-						Name: "test",
-					},
-				},
-			},
-			expectPass: false,
-		},
 	}
 
 	for _, tc := range tcs {

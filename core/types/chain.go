@@ -40,7 +40,7 @@ type ChainI interface {
 }
 
 // ChainConfig is the configuration structure for a logical chain.
-// It contains all the relevant details needed to create a Cosmos chain and it's sidecars
+// It contains all the relevant details needed to create a Cosmos chain
 type ChainConfig struct {
 	Denom         string // Denom is the denomination of the native staking token
 	Decimals      uint64 // Decimals is the number of decimals of the native staking token
@@ -49,8 +49,7 @@ type ChainConfig struct {
 
 	BinaryName string // BinaryName is the name of the chain binary in the Docker image
 
-	Image        provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
-	SidecarImage provider.ImageDefinition // SidecarImage is the Docker ImageDefinition of the chain sidecar
+	Image provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
 
 	GasPrices     string  // GasPrices are the minimum gas prices to set on the chain
 	GasAdjustment float64 // GasAdjustment is the margin by which to multiply the default gas prices
@@ -59,10 +58,7 @@ type ChainConfig struct {
 
 	EncodingConfig testutil.TestEncodingConfig // EncodingConfig is the encoding config of the chain
 
-	HomeDir        string   // HomeDir is the home directory of the chain
-	SidecarHomeDir string   // SidecarHomeDir is the home directory of the chain sidecar
-	SidecarPorts   []string // SidecarPorts are the ports to expose on the chain sidecar
-	SidecarArgs    []string // SidecarArgs are the arguments to launch the chain sidecar
+	HomeDir string // HomeDir is the home directory of the chain
 
 	CoinType string // CoinType is the coin type of the chain (e.g. 118)
 	ChainId  string // ChainId is the chain ID of the chain
@@ -123,12 +119,6 @@ func (c *ChainConfig) ValidateBasic() error {
 
 	if err := c.Image.ValidateBasic(); err != nil {
 		return fmt.Errorf("image definition is invalid: %w", err)
-	}
-
-	if c.SidecarImage.Image != "" {
-		if err := c.SidecarImage.ValidateBasic(); err != nil {
-			return fmt.Errorf("sidecar image definition is invalid: %w", err)
-		}
 	}
 
 	if c.Bech32Prefix == "" {

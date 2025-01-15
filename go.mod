@@ -1,6 +1,6 @@
 module github.com/skip-mev/petri
 
-go 1.21.3
+go 1.22.0
 
 require (
 	github.com/client9/misspell v0.3.4

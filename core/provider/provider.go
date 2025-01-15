@@ -23,7 +23,6 @@ type Task struct {
 
 	ID         string
 	Definition TaskDefinition
-	Sidecars   []*Task
 
 	logger   *zap.Logger
 	mu       sync.RWMutex

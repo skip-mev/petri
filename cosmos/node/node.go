@@ -44,25 +44,11 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 
 	chainConfig := nodeConfig.Chain.GetConfig()
 
-	var sidecars []provider.TaskDefinition
-
-	if chainConfig.SidecarHomeDir != "" {
-		sidecars = append(sidecars, provider.TaskDefinition{
-			Name:          fmt.Sprintf("%s-sidecar-%d", nodeConfig.Name, 0), // todo(Zygimantass): fix this to support multiple sidecars
-			ContainerName: fmt.Sprintf("%s-sidecar-%d", nodeConfig.Name, 0),
-			Image:         chainConfig.SidecarImage,
-			DataDir:       chainConfig.SidecarHomeDir,
-			Ports:         chainConfig.SidecarPorts,
-			Entrypoint:    chainConfig.SidecarArgs,
-		})
-	}
-
 	def := provider.TaskDefinition{
 		Name:          nodeConfig.Name,
 		ContainerName: nodeConfig.Name,
 		Image:         chainConfig.Image,
 		Ports:         []string{"9090", "26656", "26657", "26660", "80"},
-		Sidecars:      sidecars,
 		Entrypoint:    []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
 		DataDir:       chainConfig.HomeDir,
 	}
