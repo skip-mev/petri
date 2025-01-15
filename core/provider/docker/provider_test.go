@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/matoous/go-nanoid/v2"
 	"github.com/skip-mev/petri/core/v2/provider/docker"
+	"go.uber.org/zap/zaptest"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 const idAlphabet = "abcdefghijklqmnoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
@@ -39,7 +39,7 @@ func setupTest(tb testing.TB, name string) func(testing.TB, string) {
 
 func TestCreateProviderDuplicateNetwork(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
@@ -58,7 +58,7 @@ func TestCreateProviderDuplicateNetwork(t *testing.T) {
 
 func TestCreateProvider(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
@@ -79,7 +79,7 @@ func TestCreateProvider(t *testing.T) {
 
 func TestRestoreProvider(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
@@ -100,7 +100,7 @@ func TestRestoreProvider(t *testing.T) {
 }
 
 func TestCreateTask(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 	ctx := context.Background()
 
@@ -177,7 +177,7 @@ func TestConcurrentTaskCreation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
@@ -243,7 +243,7 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 func TestProviderSerialization(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
@@ -274,7 +274,7 @@ func TestProviderSerialization(t *testing.T) {
 
 func TestTeardown(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
@@ -299,7 +299,7 @@ func TestTeardown(t *testing.T) {
 
 func TestRestoreTask(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)

@@ -85,11 +85,7 @@ func (p *Provider) ensureNetwork(ctx context.Context) error {
 }
 
 func (p *Provider) destroyNetwork(ctx context.Context) error {
-	if err := p.dockerClient.NetworkRemove(ctx, p.state.NetworkID); err != nil {
-		return err
-	}
-
-	return nil
+	return p.dockerClient.NetworkRemove(ctx, p.state.NetworkID)
 }
 
 // openListenerOnFreePort opens the next free port
@@ -131,7 +127,7 @@ func (p *Provider) nextAvailablePort() (nat.PortBinding, *net.TCPListener, error
 	}, l, nil
 }
 
-func (p *Provider) nextAvailableIp() (string, error) {
+func (p *Provider) nextAvailableIP() (string, error) {
 	p.networkMu.Lock()
 	p.stateMu.Lock()
 	defer p.networkMu.Unlock()

@@ -103,10 +103,6 @@ func (t *Task) Destroy(ctx context.Context) error {
 	return nil
 }
 
-//func (t *Task) ensure(_ context.Context) error {
-//	return nil
-//}
-
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
 	t.provider.logger.Debug("getting external address", zap.String("id", t.state.Id))
 
@@ -189,12 +185,8 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 	return provider.TASK_STATUS_UNDEFINED, nil
 }
 
-func (t *Task) Initialize(ctx context.Context) error {
-	return nil
-}
-
 func (t *Task) Modify(ctx context.Context, td provider.TaskDefinition) error {
-	return nil
+	panic("unimplemented")
 }
 
 func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, int, error) {

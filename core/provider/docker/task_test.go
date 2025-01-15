@@ -16,7 +16,7 @@ import (
 
 func TestTaskLifecycle(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
@@ -68,7 +68,7 @@ func TestTaskLifecycle(t *testing.T) {
 
 func TestTaskExposingPort(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
@@ -116,7 +116,7 @@ func TestTaskExposingPort(t *testing.T) {
 
 func TestTaskRunCommand(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
@@ -167,7 +167,7 @@ func TestTaskRunCommand(t *testing.T) {
 
 func TestTaskRunCommandWhileStopped(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
@@ -215,7 +215,7 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 
 func TestTaskReadWriteFile(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
 
 	teardown := setupTest(t, providerName)
