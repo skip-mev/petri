@@ -42,7 +42,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 	}
 
 	req := &godo.DropletCreateRequest{
-		Name:   fmt.Sprintf("%s-%s", p.petriTag, definition.Name),
+		Name:   fmt.Sprintf("%s-%s", p.state.petriTag, definition.Name),
 		Region: doConfig["region"],
 		Size:   doConfig["size"],
 		Image: godo.DropletCreateImage{
@@ -50,10 +50,10 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		},
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
-				Fingerprint: p.sshKeyPair.Fingerprint,
+				Fingerprint: p.state.sshKeyPair.Fingerprint,
 			},
 		},
-		Tags: []string{p.petriTag},
+		Tags: []string{p.state.petriTag},
 	}
 
 	droplet, res, err := p.doClient.CreateDroplet(ctx, req)
