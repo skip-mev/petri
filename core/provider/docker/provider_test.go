@@ -17,7 +17,6 @@ import (
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 const idAlphabet = "abcdefghijklqmnoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
@@ -49,9 +48,9 @@ func TestCreateProviderDuplicateNetwork(t *testing.T) {
 
 	p1, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer func(ctx context.Context, p provider.ProviderI) {
-		require.NoError(t, p.Teardown(ctx))
-	}(ctx, p1)
+	defer func() {
+		require.NoError(t, p1.Teardown(context.Background()))
+	}()
 
 	p2, err := docker.CreateProvider(ctx, logger, providerName)
 	require.Error(t, err)
@@ -68,9 +67,9 @@ func TestCreateProvider(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer func(ctx context.Context, p provider.ProviderI) {
+	defer func() {
 		require.NoError(t, p.Teardown(ctx))
-	}(ctx, p)
+	}()
 
 	state := p.GetState()
 	assert.Equal(t, providerName, state.Name)
@@ -108,11 +107,9 @@ func TestCreateTask(t *testing.T) {
 
 	p, err := docker.CreateProvider(context.Background(), logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(context.Background())
-
-	defer func(ctx context.Context, p provider.ProviderI) {
+	defer func() {
 		require.NoError(t, p.Teardown(ctx))
-	}(ctx, p)
+	}()
 
 	tests := []struct {
 		name       string
@@ -185,11 +182,9 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p.Teardown(ctx)
-
-	defer func(ctx context.Context, p provider.ProviderI) {
+	defer func() {
 		require.NoError(t, p.Teardown(ctx))
-	}(ctx, p)
+	}()
 
 	numTasks := 10
 	var wg sync.WaitGroup
@@ -253,11 +248,9 @@ func TestProviderSerialization(t *testing.T) {
 
 	p1, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer p1.Teardown(ctx)
-
-	defer func(ctx context.Context, p provider.ProviderI) {
-		require.NoError(t, p.Teardown(ctx))
-	}(ctx, p1)
+	defer func() {
+		require.NoError(t, p1.Teardown(ctx))
+	}()
 
 	_, err = p1.CreateTask(ctx, provider.TaskDefinition{
 		Name:          fmt.Sprintf("%s-test-task", providerName),
