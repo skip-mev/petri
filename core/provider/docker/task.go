@@ -4,20 +4,23 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/skip-mev/petri/core/v2/util"
-	"sync"
+
 	// "github.com/docker/docker/api/types/filters"
 	// "github.com/docker/docker/api/types/image"
 	// "github.com/docker/docker/api/types/mount"
 	// "github.com/docker/docker/api/types/network"
 	// "github.com/docker/docker/pkg/stdcopy"
 	// "github.com/docker/go-connections/nat"
+	"time"
+
 	"github.com/skip-mev/petri/core/v2/provider"
 	"go.uber.org/zap"
-	"time"
 )
 
 type TaskState struct {

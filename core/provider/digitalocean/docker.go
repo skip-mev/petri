@@ -22,9 +22,9 @@ type DockerClient interface {
 	ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error
 	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
-	ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error)
-	ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error)
-	ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error)
+	ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
+	ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
+	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
 	Close() error
 }
@@ -77,8 +77,8 @@ func (d *defaultDockerClient) ContainerExecCreate(ctx context.Context, container
 	return d.client.ContainerExecCreate(ctx, container, options)
 }
 
-func (d *defaultDockerClient) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error) {
-	return d.client.ContainerExecAttach(ctx, execID, config)
+func (d *defaultDockerClient) ContainerExecAttach(ctx context.Context, execID string, options container.ExecStartOptions) (types.HijackedResponse, error) {
+	return d.client.ContainerExecAttach(ctx, execID, options)
 }
 
 func (d *defaultDockerClient) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
