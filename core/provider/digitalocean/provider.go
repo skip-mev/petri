@@ -26,6 +26,10 @@ const (
 type ProviderState struct {
 	TaskStates map[int]*TaskState `json:"task_states"` // map of task ids to the corresponding task state
 	Name       string             `json:"name"`
+	petriTag   string
+	userIPs    []string
+	sshKeyPair *SSHKeyPair
+	firewallID string
 }
 
 type Provider struct {
@@ -33,12 +37,7 @@ type Provider struct {
 	stateMu sync.Mutex
 
 	logger        *zap.Logger
-	name          string
 	doClient      DoClient
-	petriTag      string
-	userIPs       []string
-	sshKeyPair    *SSHKeyPair
-	firewallID    string
 	dockerClients map[string]DockerClient // map of droplet ip address to docker clients
 }
 
@@ -73,16 +72,18 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 
 	digitalOceanProvider := &Provider{
 		logger:        logger.Named("digitalocean_provider"),
-		name:          providerName,
 		doClient:      doClient,
-		petriTag:      fmt.Sprintf("petri-droplet-%s", util.RandomString(5)),
-		userIPs:       userIPs,
-		sshKeyPair:    sshKeyPair,
 		dockerClients: dockerClients,
-		state:         &ProviderState{TaskStates: make(map[int]*TaskState)},
+		state: &ProviderState{
+			TaskStates: make(map[int]*TaskState),
+			userIPs:    userIPs,
+			Name:       providerName,
+			sshKeyPair: sshKeyPair,
+			petriTag:   fmt.Sprintf("petri-droplet-%s", util.RandomString(5)),
+		},
 	}
 
-	_, err = digitalOceanProvider.createTag(ctx, digitalOceanProvider.petriTag)
+	_, err = digitalOceanProvider.createTag(ctx, digitalOceanProvider.state.petriTag)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
-	digitalOceanProvider.firewallID = firewall.ID
+	digitalOceanProvider.state.firewallID = firewall.ID
 
 	//TODO(Zygimantass): TOCTOU issue
 	if key, _, err := doClient.GetKeyByFingerprint(ctx, sshKeyPair.Fingerprint); err != nil || key == nil {
@@ -163,7 +164,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Tty:        false,
 		Hostname:   definition.Name,
 		Labels: map[string]string{
-			providerLabelName: p.name,
+			providerLabelName: p.state.Name,
 		},
 		Env: convertEnvMapToList(definition.Environment),
 	}, &container.HostConfig{
@@ -185,7 +186,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Name:         definition.Name,
 		Definition:   definition,
 		Status:       provider.TASK_STOPPED,
-		ProviderName: p.name,
+		ProviderName: p.state.Name,
 	}
 
 	p.stateMu.Lock()
@@ -196,7 +197,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	return &Task{
 		state:        taskState,
 		provider:     p,
-		sshKeyPair:   p.sshKeyPair,
+		sshKeyPair:   p.state.sshKeyPair,
 		logger:       p.logger.With(zap.String("task", definition.Name)),
 		doClient:     p.doClient,
 		dockerClient: p.dockerClients[ip],
@@ -271,7 +272,7 @@ func (p *Provider) Teardown(ctx context.Context) error {
 }
 
 func (p *Provider) teardownTasks(ctx context.Context) error {
-	res, err := p.doClient.DeleteDropletByTag(ctx, p.petriTag)
+	res, err := p.doClient.DeleteDropletByTag(ctx, p.state.petriTag)
 	if err != nil {
 		return err
 	}
@@ -284,7 +285,7 @@ func (p *Provider) teardownTasks(ctx context.Context) error {
 }
 
 func (p *Provider) teardownFirewall(ctx context.Context) error {
-	res, err := p.doClient.DeleteFirewall(ctx, p.firewallID)
+	res, err := p.doClient.DeleteFirewall(ctx, p.state.firewallID)
 	if err != nil {
 		return err
 	}
@@ -297,7 +298,7 @@ func (p *Provider) teardownFirewall(ctx context.Context) error {
 }
 
 func (p *Provider) teardownSSHKey(ctx context.Context) error {
-	res, err := p.doClient.DeleteKeyByFingerprint(ctx, p.sshKeyPair.Fingerprint)
+	res, err := p.doClient.DeleteKeyByFingerprint(ctx, p.state.sshKeyPair.Fingerprint)
 	if err != nil {
 		return err
 	}
@@ -310,7 +311,7 @@ func (p *Provider) teardownSSHKey(ctx context.Context) error {
 }
 
 func (p *Provider) teardownTag(ctx context.Context) error {
-	res, err := p.doClient.DeleteTag(ctx, p.petriTag)
+	res, err := p.doClient.DeleteTag(ctx, p.state.petriTag)
 	if err != nil {
 		return err
 	}

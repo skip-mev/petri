@@ -9,8 +9,8 @@ import (
 
 func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*godo.Firewall, error) {
 	req := &godo.FirewallRequest{
-		Name: fmt.Sprintf("%s-firewall", p.petriTag),
-		Tags: []string{p.petriTag},
+		Name: fmt.Sprintf("%s-firewall", p.state.petriTag),
+		Tags: []string{p.state.petriTag},
 		OutboundRules: []godo.OutboundRule{
 			{
 				Protocol:  "tcp",
@@ -39,7 +39,7 @@ func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*go
 				Protocol:  "tcp",
 				PortRange: "0",
 				Sources: &godo.Sources{
-					Tags:      []string{p.petriTag},
+					Tags:      []string{p.state.petriTag},
 					Addresses: allowedIPs,
 				},
 			},
@@ -47,7 +47,7 @@ func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*go
 				Protocol:  "udp",
 				PortRange: "0",
 				Sources: &godo.Sources{
-					Tags:      []string{p.petriTag},
+					Tags:      []string{p.state.petriTag},
 					Addresses: allowedIPs,
 				},
 			},
