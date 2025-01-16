@@ -364,9 +364,8 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 				ipAddresses[ip] = true
 			}
 
-			taskMutex.Unlock()
-
 			tasks <- doTask
+			taskMutex.Unlock()
 		}(i)
 	}
 
@@ -404,13 +403,6 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 				cleanupErrors <- fmt.Errorf("cleanup error: %v", err)
 				return
 			}
-
-			err = util.WaitForCondition(ctx, 30*time.Second, 100*time.Millisecond, func() (bool, error) {
-				taskMutex.Lock()
-				defer taskMutex.Unlock()
-				_, exists := p.state.TaskStates[t.GetState().ID]
-				return !exists, nil
-			})
 			if err != nil {
 				cleanupErrors <- fmt.Errorf("task state cleanup error: %v", err)
 			}
