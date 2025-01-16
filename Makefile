@@ -3,7 +3,7 @@ tidy:
 	@cd ./core && go mod tidy
 	@cd ./cosmos && go mod tidy
 
-test:
+unit-test:
 	@cd ./core && go test ./... -race
 	@cd ./cosmos && go test ./... -race
 

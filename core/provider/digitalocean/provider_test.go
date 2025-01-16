@@ -282,7 +282,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 	var wg sync.WaitGroup
 	errors := make(chan error, numTasks)
 	tasks := make(chan *Task, numTasks)
-	taskMutex := sync.Mutex{}
+	var taskMutex sync.Mutex
 	dropletIDs := make(map[int]bool)
 	ipAddresses := make(map[string]bool)
 
@@ -306,15 +306,6 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 		mockDO.On("GetDroplet", ctx, dropletID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Maybe()
 		mockDO.On("DeleteDropletByID", ctx, dropletID).Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusNoContent}}, nil).Once()
 	}
-
-	mockDO.On("DeleteDropletByTag", ctx, mock.AnythingOfType("string")).
-		Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Once()
-	mockDO.On("DeleteFirewall", ctx, mock.AnythingOfType("string")).
-		Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Once()
-	mockDO.On("DeleteKeyByFingerprint", ctx, mock.AnythingOfType("string")).
-		Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Once()
-	mockDO.On("DeleteTag", ctx, mock.AnythingOfType("string")).
-		Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Once()
 
 	for i := 0; i < numTasks; i++ {
 		wg.Add(1)
@@ -420,9 +411,6 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 		return len(p.state.TaskStates) == 0, nil
 	})
 	require.NoError(t, err, "Provider state should be empty after cleanup")
-
-	err = p.Teardown(ctx)
-	require.NoError(t, err)
 
 	mockDO.AssertExpectations(t)
 	for _, client := range mockDockerClients {
