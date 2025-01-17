@@ -44,6 +44,18 @@ type ChainOptions struct {
 	WalletConfig WalletConfig // WalletConfig is the default configuration of a chain's wallet
 }
 
+func (o ChainOptions) ValidateBasic() error {
+	if err := o.WalletConfig.ValidateBasic(); err != nil {
+		return fmt.Errorf("wallet config is invalid: %w", err)
+	}
+
+	if o.NodeCreator == nil {
+		return fmt.Errorf("node creator cannot be nil")
+	}
+
+	return nil
+}
+
 // ChainConfig is the configuration structure for a logical chain.
 // It contains all the relevant details needed to create a Cosmos chain
 type ChainConfig struct {

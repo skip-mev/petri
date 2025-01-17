@@ -55,6 +55,10 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		return nil, fmt.Errorf("failed to validate chain config: %w", err)
 	}
 
+	if err := opts.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("failed to validate chain options: %w", err)
+	}
+
 	var chain Chain
 
 	chain.mu = sync.RWMutex{}
@@ -193,6 +197,10 @@ func (c *Chain) Height(ctx context.Context) (uint64, error) {
 // Init initializes the chain. That consists of generating the genesis transactions, genesis file, wallets,
 // the distribution of configuration files and starting the network nodes up
 func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
+	if err := opts.ValidateBasic(); err != nil {
+		return fmt.Errorf("failed to validate chain options: %w", err)
+	}
+
 	decimalPow := int64(math.Pow10(int(c.GetConfig().Decimals)))
 
 	genesisCoin := types.Coin{
