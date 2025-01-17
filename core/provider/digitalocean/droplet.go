@@ -75,7 +75,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		if p.dockerClients[ip] == nil {
-			dockerClient, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+			dockerClient, err := provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 			if err != nil {
 				p.logger.Error("failed to create docker client", zap.Error(err))
 				return false, err
