@@ -3,12 +3,13 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider/digitalocean/mocks"
 	"io"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/skip-mev/petri/core/v2/provider/digitalocean/mocks"
 
 	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types"
@@ -54,6 +55,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 		},
 		NetworkMode: container.NetworkMode("host"),
 	}, (*network.NetworkingConfig)(nil), (*specs.Platform)(nil), "test-container").Return(container.CreateResponse{ID: "test-container"}, nil)
+	mockDocker.On("Close").Return(nil)
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
@@ -131,6 +133,9 @@ func TestCreateTask_ValidTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, task.GetDefinition(), taskDef)
 	assert.NotNil(t, task)
+
+	err = task.Destroy(ctx)
+	assert.NoError(t, err)
 }
 
 func setupValidationTestProvider(t *testing.T, ctx context.Context) *Provider {
@@ -248,6 +253,9 @@ func TestSerializeAndRestoreTask(t *testing.T) {
 	assert.NotNil(t, t2State.SSHKeyPair)
 	assert.NotNil(t, t2.doClient)
 	assert.NotNil(t, t2.dockerClient)
+
+	err = t2.Destroy(ctx)
+	assert.NoError(t, err)
 
 	mockDO.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
@@ -454,14 +462,14 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 func TestProviderSerialization(t *testing.T) {
 	ctx := context.Background()
 	mockDO := mocks.NewDoClient(t)
-	mockDocker := mocks.NewDockerClient(t)
+	mockDocker := dockerMocks.NewDockerClient(t)
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "petri-droplet-test"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	mockDockerClients := map[string]DockerClient{
+	mockDockerClients := map[string]provider.DockerClient{
 		"10.0.0.1": mockDocker,
 	}
 
@@ -522,10 +530,10 @@ func TestProviderSerialization(t *testing.T) {
 	mockDO2 := mocks.NewDoClient(t)
 	mockDO2.On("GetDroplet", ctx, droplet.ID).Return(droplet, nil).Maybe()
 
-	mockDocker2 := mocks.NewDockerClient(t)
+	mockDocker2 := dockerMocks.NewDockerClient(t)
 	mockDocker2.On("Ping", ctx).Return(types.Ping{}, nil).Maybe()
 
-	mockDockerClients2 := map[string]DockerClient{
+	mockDockerClients2 := map[string]provider.DockerClient{
 		"10.0.0.1": mockDocker2,
 	}
 

@@ -239,7 +239,7 @@ func (p *Provider) SerializeProvider(context.Context) ([]byte, error) {
 	return bz, err
 }
 
-func RestoreProvider(ctx context.Context, token string, state []byte, doClient DoClient, dockerClients map[string]DockerClient) (*Provider, error) {
+func RestoreProvider(ctx context.Context, token string, state []byte, doClient DoClient, dockerClients map[string]provider.DockerClient) (*Provider, error) {
 	if doClient == nil && token == "" {
 		return nil, errors.New("a valid token or digital ocean client must be passed when restoring the provider")
 	}
@@ -251,7 +251,7 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 	}
 
 	if dockerClients == nil {
-		dockerClients = make(map[string]DockerClient)
+		dockerClients = make(map[string]provider.DockerClient)
 	}
 
 	digitalOceanProvider := &Provider{
@@ -283,7 +283,7 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 		}
 
 		if digitalOceanProvider.dockerClients[ip] == nil {
-			dockerClient, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+			dockerClient, err := provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 			if err != nil {
 				return nil, fmt.Errorf("failed to create docker client: %w", err)
 			}
