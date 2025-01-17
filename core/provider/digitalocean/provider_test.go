@@ -67,25 +67,8 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 	p, err := NewProviderWithClient(ctx, logger, "test-provider", mockDO, mockDockerClients, []string{}, nil)
 	require.NoError(t, err)
 
-	mockDO.On("CreateDroplet", mock.Anything, mock.AnythingOfType("*godo.DropletCreateRequest")).
-		Return(&godo.Droplet{
-			ID:     123,
-			Name:   "test-droplet",
-			Status: "active",
-			Networks: &godo.Networks{
-				V4: []godo.NetworkV4{
-					{
-						IPAddress: "10.0.0.1",
-						Type:      "public",
-					},
-				},
-			},
-		}, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
-	mockDO.On("GetDroplet", ctx, 123).Return(&godo.Droplet{
-		ID:     123,
-		Name:   "test-droplet",
-		Status: "active",
+	droplet := &godo.Droplet{
+		ID: 123,
 		Networks: &godo.Networks{
 			V4: []godo.NetworkV4{
 				{
@@ -94,7 +77,36 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 				},
 			},
 		},
-	}, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+		Status: "active",
+	}
+
+	var callCount int
+	mockDO.On("CreateDroplet", ctx, mock.Anything).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("TagResource", ctx, mock.Anything, mock.Anything).Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, droplet.ID).Return(func(ctx context.Context, id int) *godo.Droplet {
+		if callCount == 0 {
+			callCount++
+			return &godo.Droplet{
+				ID: id,
+				Networks: &godo.Networks{
+					V4: []godo.NetworkV4{
+						{
+							IPAddress: "10.0.0.1",
+							Type:      "public",
+						},
+					},
+				},
+				Status: "new",
+			}
+		}
+		return droplet
+	}, func(ctx context.Context, id int) *godo.Response {
+		return &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}
+	}, func(ctx context.Context, id int) error {
+		return nil
+	}).Maybe()
+
+	mockDO.On("DeleteDropletByID", ctx, droplet.ID).Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusNoContent}}, nil).Once()
 
 	return p, mockDO, mockDocker
 }
@@ -177,13 +189,9 @@ func TestCreateTask_MissingRegion(t *testing.T) {
 	assert.Nil(t, task)
 }
 
-func TestSerializeAndRestore(t *testing.T) {
+func TestSerializeAndRestoreTask(t *testing.T) {
 	ctx := context.Background()
 	p, mockDO, mockDocker := setupTestProvider(t, ctx)
-
-	providerData, err := p.SerializeProvider(ctx)
-	assert.NoError(t, err)
-	assert.NotNil(t, providerData)
 
 	taskDef := provider.TaskDefinition{
 		Name:          "test-task",
@@ -446,5 +454,110 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 	mockDO.AssertExpectations(t)
 	for _, client := range mockDockerClients {
 		client.(*mocks.DockerClient).AssertExpectations(t)
+	}
+}
+
+func TestProviderSerialization(t *testing.T) {
+	ctx := context.Background()
+	mockDO := mocks.NewDoClient(t)
+	mockDocker := mocks.NewDockerClient(t)
+
+	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "petri-droplet-test"}, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, &godo.Response{Response: &http.Response{StatusCode: http.StatusNotFound}}, nil)
+	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
+	mockDockerClients := map[string]DockerClient{
+		"10.0.0.1": mockDocker,
+	}
+
+	p1, err := NewProviderWithClient(ctx, zap.NewExample(), "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	require.NoError(t, err)
+
+	droplet := &godo.Droplet{
+		ID: 123,
+		Networks: &godo.Networks{
+			V4: []godo.NetworkV4{
+				{
+					IPAddress: "10.0.0.1",
+					Type:      "public",
+				},
+			},
+		},
+		Status: "active",
+	}
+
+	mockDO.On("CreateDroplet", ctx, mock.Anything).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("TagResource", ctx, mock.Anything, mock.Anything).Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Maybe()
+	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Maybe()
+
+	mockDocker.On("Ping", ctx).Return(types.Ping{}, nil).Maybe()
+	mockDocker.On("ImageInspectWithRaw", ctx, "ubuntu:latest").Return(types.ImageInspect{}, []byte{}, fmt.Errorf("image not found"))
+	mockDocker.On("ImagePull", ctx, "ubuntu:latest", image.PullOptions{}).Return(io.NopCloser(strings.NewReader("")), nil)
+	mockDocker.On("ContainerCreate", ctx, mock.MatchedBy(func(config *container.Config) bool {
+		return config.Image == "ubuntu:latest" &&
+			config.Hostname == "test-task" &&
+			len(config.Labels) > 0 &&
+			config.Labels[providerLabelName] == "test-provider"
+	}), mock.MatchedBy(func(hostConfig *container.HostConfig) bool {
+		return len(hostConfig.Mounts) == 1 &&
+			hostConfig.Mounts[0].Target == "/data" &&
+			hostConfig.NetworkMode == "host"
+	}), mock.Anything, mock.Anything, mock.Anything).Return(container.CreateResponse{ID: "test-container"}, nil)
+
+	_, err = p1.CreateTask(ctx, provider.TaskDefinition{
+		Name:          "test-task",
+		ContainerName: "test-container",
+		Image: provider.ImageDefinition{
+			Image: "ubuntu:latest",
+			UID:   "1000",
+			GID:   "1000",
+		},
+		DataDir: "/data",
+		ProviderSpecificConfig: DigitalOceanTaskConfig{
+			"size":     "s-1vcpu-1gb",
+			"region":   "nyc1",
+			"image_id": "123456",
+		},
+	})
+	require.NoError(t, err)
+
+	state1 := p1.state
+	serialized, err := p1.SerializeProvider(ctx)
+	require.NoError(t, err)
+
+	mockDO2 := mocks.NewDoClient(t)
+	mockDO2.On("GetDroplet", ctx, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil).Maybe()
+
+	mockDocker2 := mocks.NewDockerClient(t)
+	mockDocker2.On("Ping", ctx).Return(types.Ping{}, nil).Maybe()
+
+	mockDockerClients2 := map[string]DockerClient{
+		"10.0.0.1": mockDocker2,
+	}
+
+	p2, err := RestoreProvider(ctx, "test-token", serialized, mockDO2, mockDockerClients2)
+	require.NoError(t, err)
+
+	state2 := p2.state
+	assert.Equal(t, state1.Name, state2.Name)
+	assert.Equal(t, state1.PetriTag, state2.PetriTag)
+	assert.Equal(t, state1.FirewallID, state2.FirewallID)
+	assert.Equal(t, len(state1.TaskStates), len(state2.TaskStates))
+
+	for id, task1 := range state1.TaskStates {
+		task2, exists := state2.TaskStates[id]
+		assert.True(t, exists)
+		assert.Equal(t, task1.Name, task2.Name)
+		assert.Equal(t, task1.Status, task2.Status)
+
+		if configMap, ok := task2.Definition.ProviderSpecificConfig.(map[string]interface{}); ok {
+			doConfig := make(DigitalOceanTaskConfig)
+			for k, v := range configMap {
+				doConfig[k] = v.(string)
+			}
+			task2.Definition.ProviderSpecificConfig = doConfig
+		}
+		assert.Equal(t, task1.Definition, task2.Definition)
 	}
 }
