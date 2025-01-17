@@ -248,7 +248,6 @@ func TestSerializeAndRestoreTask(t *testing.T) {
 	assert.NotNil(t, t2State.SSHKeyPair)
 	assert.NotNil(t, t2.doClient)
 	assert.NotNil(t, t2.dockerClient)
-	assert.NotNil(t, t2.provider)
 
 	mockDO.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)

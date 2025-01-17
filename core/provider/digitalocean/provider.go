@@ -338,7 +338,6 @@ func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) e
 	taskState := task.GetState()
 	task.logger = p.logger.With(zap.String("task", taskState.Name))
 	task.doClient = p.doClient
-	task.provider = p
 
 	droplet, err := task.getDroplet(ctx)
 	if err != nil {
@@ -351,7 +350,7 @@ func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) e
 	}
 
 	if p.dockerClients[ip] == nil {
-		dockerClient, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+		dockerClient, err := provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 		if err != nil {
 			return fmt.Errorf("failed to create docker client: %w", err)
 		}
