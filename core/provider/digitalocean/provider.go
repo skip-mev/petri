@@ -43,7 +43,11 @@ type Provider struct {
 
 	logger        *zap.Logger
 	doClient      DoClient
-	dockerClients map[string]DockerClient // map of droplet ip address to docker clients
+	petriTag      string
+	userIPs       []string
+	sshKeyPair    *SSHKeyPair
+	firewallID    string
+	dockerClients map[string]provider.DockerClient // map of droplet ip address to docker clients
 }
 
 // NewProvider creates a provider that implements the Provider interface for DigitalOcean.
@@ -55,7 +59,7 @@ func NewProvider(ctx context.Context, logger *zap.Logger, providerName string, t
 
 // NewProviderWithClient creates a provider with custom digitalocean/docker client implementation.
 // This is primarily used for testing.
-func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName string, doClient DoClient, dockerClients map[string]DockerClient, additionalUserIPS []string, sshKeyPair *SSHKeyPair) (*Provider, error) {
+func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName string, doClient DoClient, dockerClients map[string]provider.DockerClient, additionalUserIPS []string, sshKeyPair *SSHKeyPair) (*Provider, error) {
 	var err error
 	if sshKeyPair == nil {
 		sshKeyPair, err = MakeSSHKeyPair()
@@ -72,7 +76,7 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 	userIPs = append(userIPs, additionalUserIPS...)
 
 	if dockerClients == nil {
-		dockerClients = make(map[string]DockerClient)
+		dockerClients = make(map[string]provider.DockerClient)
 	}
 
 	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
@@ -152,7 +156,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	dockerClient := p.dockerClients[ip]
 	if dockerClient == nil {
-		dockerClient, err = NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+		dockerClient, err = provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +226,8 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	return &Task{
 		state:        taskState,
-		provider:     p,
+		removeTask:   p.removeTask,
+		sshKeyPair:   p.state.SSHKeyPair,
 		logger:       p.logger.With(zap.String("task", definition.Name)),
 		doClient:     p.doClient,
 		dockerClient: dockerClient,
@@ -318,7 +323,8 @@ func (p *Provider) DeserializeTask(ctx context.Context, bz []byte) (provider.Tas
 	}
 
 	task := &Task{
-		state: &taskState,
+		state:      &taskState,
+		removeTask: p.removeTask,
 	}
 
 	if err := p.initializeDeserializedTask(ctx, task); err != nil {

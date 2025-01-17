@@ -3,6 +3,7 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+	"github.com/skip-mev/petri/core/v2/provider/digitalocean/mocks"
 	"io"
 	"strings"
 	"sync"
@@ -22,14 +23,14 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/provider/digitalocean/mocks"
+	dockerMocks "github.com/skip-mev/petri/core/v2/provider/mocks"
 	"github.com/skip-mev/petri/core/v2/util"
 )
 
-func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoClient, *mocks.DockerClient) {
+func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoClient, *dockerMocks.DockerClient) {
 	logger := zap.NewExample()
 	mockDO := mocks.NewDoClient(t)
-	mockDocker := mocks.NewDockerClient(t)
+	mockDocker := dockerMocks.NewDockerClient(t)
 
 	mockDocker.On("Ping", ctx).Return(types.Ping{}, nil)
 	mockDocker.On("ImageInspectWithRaw", ctx, "ubuntu:latest").Return(types.ImageInspect{}, []byte{}, fmt.Errorf("image not found"))
@@ -59,7 +60,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	mockDockerClients := map[string]DockerClient{
+	mockDockerClients := map[string]provider.DockerClient{
 		"10.0.0.1": mockDocker,
 	}
 
@@ -135,14 +136,14 @@ func TestCreateTask_ValidTask(t *testing.T) {
 func setupValidationTestProvider(t *testing.T, ctx context.Context) *Provider {
 	logger := zap.NewExample()
 	mockDO := mocks.NewDoClient(t)
-	mockDocker := mocks.NewDockerClient(t)
+	mockDocker := dockerMocks.NewDockerClient(t)
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	mockDockerClients := map[string]DockerClient{
+	mockDockerClients := map[string]provider.DockerClient{
 		"10.0.0.1": mockDocker,
 	}
 
@@ -259,12 +260,12 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 	defer cancel()
 
 	logger, _ := zap.NewDevelopment()
-	mockDockerClients := make(map[string]DockerClient)
+	mockDockerClients := make(map[string]provider.DockerClient)
 	mockDO := mocks.NewDoClient(t)
 
 	for i := 0; i < 10; i++ {
 		ip := fmt.Sprintf("10.0.0.%d", i+1)
-		mockDocker := mocks.NewDockerClient(t)
+		mockDocker := dockerMocks.NewDockerClient(t)
 		mockDockerClients[ip] = mockDocker
 
 		mockDocker.On("Ping", ctx).Return(types.Ping{}, nil).Once()
@@ -447,7 +448,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 
 	mockDO.AssertExpectations(t)
 	for _, client := range mockDockerClients {
-		client.(*mocks.DockerClient).AssertExpectations(t)
+		client.(*dockerMocks.DockerClient).AssertExpectations(t)
 	}
 }
 

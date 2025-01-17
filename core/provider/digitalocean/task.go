@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"path"
 	"sync"
@@ -13,11 +12,9 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
 	"github.com/spf13/afero"
 	"github.com/spf13/afero/sftpfs"
@@ -36,15 +33,18 @@ type TaskState struct {
 	SSHKeyPair   *SSHKeyPair             `json:"ssh_key_pair"`
 }
 
+// RemoveTaskFunc is a callback function type for removing a task from its provider
+type RemoveTaskFunc func(ctx context.Context, taskID int) error
+
 type Task struct {
 	state   *TaskState
 	stateMu sync.Mutex
 
-	provider     *Provider
+	removeTask   RemoveTaskFunc
 	logger       *zap.Logger
 	sshClient    *ssh.Client
 	doClient     DoClient
-	dockerClient DockerClient
+	dockerClient provider.DockerClient
 }
 
 var _ provider.TaskI = (*Task)(nil)
@@ -128,8 +128,7 @@ func (t *Task) Destroy(ctx context.Context) error {
 		return err
 	}
 
-	// TODO(nadim-az): remove reference to provider in Task struct
-	if err := t.provider.removeTask(ctx, t.GetState().ID); err != nil {
+	if err := t.removeTask(ctx, t.GetState().ID); err != nil {
 		return err
 	}
 	return nil
@@ -450,7 +449,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 	return stdout.String(), stderr.String(), exitCode, nil
 }
 
-func startContainerWithBlock(ctx context.Context, dockerClient DockerClient, containerID string) error {
+func startContainerWithBlock(ctx context.Context, dockerClient provider.DockerClient, containerID string) error {
 	// start container
 	if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return err
@@ -480,20 +479,4 @@ func startContainerWithBlock(ctx context.Context, dockerClient DockerClient, con
 			}
 		}
 	}
-}
-
-func pullImage(ctx context.Context, dockerClient DockerClient, logger *zap.Logger, img string) error {
-	logger.Info("pulling image", zap.String("image", img))
-	resp, err := dockerClient.ImagePull(ctx, img, image.PullOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to pull docker image")
-	}
-
-	defer resp.Close()
-	// throw away the image pull stdout response
-	_, err = io.Copy(io.Discard, resp)
-	if err != nil {
-		return errors.Wrap(err, "failed to pull docker image")
-	}
-	return nil
 }

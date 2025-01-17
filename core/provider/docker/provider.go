@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/api/types/image"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"io"
 	"net"
 	"sync"
+
+	"github.com/skip-mev/petri/core/v2/provider"
 
 	"github.com/cilium/ipam/service/ipallocator"
 	"github.com/docker/docker/api/types/network"
@@ -37,7 +36,7 @@ type Provider struct {
 	state   *ProviderState
 	stateMu sync.Mutex
 
-	dockerClient           *client.Client
+	dockerClient           provider.DockerClient
 	dockerNetworkAllocator *ipallocator.Range
 	networkMu              sync.Mutex
 	logger                 *zap.Logger
@@ -119,7 +118,7 @@ func RestoreProvider(ctx context.Context, logger *zap.Logger, state []byte) (*Pr
 		logger: logger,
 	}
 
-	dockerClient, err := client.NewClientWithOpts()
+	dockerClient, err := provider.NewDockerClient("")
 	if err != nil {
 		return nil, err
 	}
@@ -166,13 +165,14 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	}
 
 	taskState := &TaskState{
-		Name:       definition.Name,
-		Definition: definition,
+		Name:             definition.Name,
+		Definition:       definition,
+		BuilderImageName: p.state.BuilderImageName,
 	}
 
 	logger := p.logger.Named("docker_provider")
 
-	if err := p.pullImage(ctx, definition.Image.Image); err != nil {
+	if err := provider.PullImage(ctx, p.dockerClient, logger, definition.Image.Image); err != nil {
 		return nil, err
 	}
 
@@ -259,6 +259,8 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	taskState.Id = createdContainer.ID
 	taskState.Status = provider.TASK_STOPPED
+	taskState.NetworkName = p.state.NetworkName
+	taskState.ProviderName = p.state.Name
 	taskState.IpAddress = ip
 
 	p.stateMu.Lock()
@@ -267,8 +269,10 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	p.state.TaskStates[taskState.Id] = taskState
 
 	return &Task{
-		state:    taskState,
-		provider: p,
+		state:        taskState,
+		logger:       p.logger.With(zap.String("task", definition.Name)),
+		dockerClient: p.dockerClient,
+		removeTask:   p.removeTask,
 	}, nil
 }
 
@@ -306,8 +310,10 @@ func (p *Provider) DeserializeTask(ctx context.Context, bz []byte) (provider.Tas
 	}
 
 	task := &Task{
-		provider: p,
-		state:    &taskState,
+		state:        &taskState,
+		logger:       p.logger.With(zap.String("task", taskState.Name)),
+		dockerClient: p.dockerClient,
+		removeTask:   p.removeTask,
 	}
 
 	if err := task.ensureTask(ctx); err != nil {
@@ -323,23 +329,6 @@ func (p *Provider) removeTask(_ context.Context, taskID string) error {
 
 	delete(p.state.TaskStates, taskID)
 
-	return nil
-}
-
-func (p *Provider) pullImage(ctx context.Context, imageName string) error {
-	_, _, err := p.dockerClient.ImageInspectWithRaw(ctx, imageName)
-	if err != nil {
-		p.logger.Info("image not found, pulling", zap.String("image", imageName))
-		resp, err := p.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
-		if err != nil {
-			return err
-		}
-		defer resp.Close()
-
-		// throw away the image pull stdout response
-		_, err = io.Copy(io.Discard, resp)
-		return err
-	}
 	return nil
 }
 

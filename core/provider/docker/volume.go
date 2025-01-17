@@ -56,7 +56,6 @@ func (p *Provider) DestroyVolume(ctx context.Context, id string) error {
 
 func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string) error {
 	state := t.GetState()
-	providerState := t.provider.GetState()
 
 	if state.Volume == nil {
 		return fmt.Errorf("no volumes found for container %s", state.Id)
@@ -64,7 +63,7 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 
 	volumeName := state.Volume.Name
 
-	logger := t.provider.logger.With(zap.String("volume", state.Id), zap.String("path", relPath))
+	logger := t.logger.With(zap.String("volume", state.Id), zap.String("path", relPath))
 
 	logger.Debug("writing file")
 
@@ -72,16 +71,16 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 
 	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
 
-	if err := t.provider.pullImage(ctx, providerState.BuilderImageName); err != nil {
+	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
 		return err
 	}
 
 	logger.Debug("creating writefile container")
 
-	cc, err := t.provider.dockerClient.ContainerCreate(
+	cc, err := t.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: providerState.BuilderImageName,
+			Image: state.BuilderImageName,
 
 			Entrypoint: []string{"sh", "-c"},
 			Cmd: []string{
@@ -94,7 +93,7 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 			},
 
 			Labels: map[string]string{
-				providerLabelName: providerState.Name,
+				providerLabelName: t.state.ProviderName,
 			},
 
 			// Use root user to avoid permission issues when reading files from the volume.
@@ -121,12 +120,12 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 			return
 		}
 
-		if _, err := t.provider.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+		if _, err := t.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
 			// auto-removed, but not detected as autoremoved
 			return
 		}
 
-		if err := t.provider.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if err := t.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed to remove writefile container", zap.String("id", cc.ID), zap.Error(err))
@@ -143,7 +142,7 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 
 	defer file.Close()
 
-	if err := t.provider.dockerClient.CopyToContainer(
+	if err := t.dockerClient.CopyToContainer(
 		ctx,
 		cc.ID,
 		mountPath,
@@ -154,11 +153,11 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 	}
 
 	logger.Debug("starting writefile container")
-	if err := t.provider.dockerClient.ContainerStart(ctx, cc.ID, container.StartOptions{}); err != nil {
+	if err := t.dockerClient.ContainerStart(ctx, cc.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("starting write-file container: %w", err)
 	}
 
-	waitCh, errCh := t.provider.dockerClient.ContainerWait(ctx, cc.ID, container.WaitConditionNotRunning)
+	waitCh, errCh := t.dockerClient.ContainerWait(ctx, cc.ID, container.WaitConditionNotRunning)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -182,7 +181,6 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 // taken from strangelove-ventures/interchain-test
 func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) error {
 	state := t.GetState()
-	providerState := t.provider.GetState()
 
 	if state.Volume == nil {
 		return fmt.Errorf("no volumes found for container %s", state.Id)
@@ -190,7 +188,7 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 
 	volumeName := state.Volume.Name
 
-	logger := t.provider.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
+	logger := t.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
 
 	logger.Debug("writing file")
 
@@ -198,16 +196,16 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 
 	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
 
-	if err := t.provider.pullImage(ctx, providerState.BuilderImageName); err != nil {
+	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
 		return err
 	}
 
 	logger.Debug("creating writefile container")
 
-	cc, err := t.provider.dockerClient.ContainerCreate(
+	cc, err := t.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: providerState.BuilderImageName,
+			Image: state.BuilderImageName,
 
 			Entrypoint: []string{"sh", "-c"},
 			Cmd: []string{
@@ -220,7 +218,7 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 			},
 
 			Labels: map[string]string{
-				providerLabelName: providerState.Name,
+				providerLabelName: state.ProviderName,
 			},
 
 			// Use root user to avoid permission issues when reading files from the volume.
@@ -247,12 +245,12 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 			return
 		}
 
-		if _, err := t.provider.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+		if _, err := t.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
 			// auto-removed, but not detected as autoremoved
 			return
 		}
 
-		if err := t.provider.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if err := t.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed to remove writefile container", zap.String("id", cc.ID), zap.Error(err))
@@ -282,7 +280,7 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 
 	logger.Debug("copying file to container")
 
-	if err := t.provider.dockerClient.CopyToContainer(
+	if err := t.dockerClient.CopyToContainer(
 		ctx,
 		cc.ID,
 		mountPath,
@@ -293,11 +291,11 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 	}
 
 	logger.Debug("starting writefile container")
-	if err := t.provider.dockerClient.ContainerStart(ctx, cc.ID, container.StartOptions{}); err != nil {
+	if err := t.dockerClient.ContainerStart(ctx, cc.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("starting write-file container: %w", err)
 	}
 
-	waitCh, errCh := t.provider.dockerClient.ContainerWait(ctx, cc.ID, container.WaitConditionNotRunning)
+	waitCh, errCh := t.dockerClient.ContainerWait(ctx, cc.ID, container.WaitConditionNotRunning)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -320,7 +318,6 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 
 func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 	state := t.GetState()
-	providerState := t.provider.GetState()
 
 	if state.Volume == nil {
 		return nil, fmt.Errorf("no volumes found for container %s", state.Id)
@@ -328,25 +325,25 @@ func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 
 	volumeName := state.Volume.Name
 
-	logger := t.provider.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
+	logger := t.logger.With(zap.String("volume", volumeName), zap.String("path", relPath))
 
 	const mountPath = "/mnt/dockervolume"
 
 	containerName := fmt.Sprintf("petri-getfile-%d", time.Now().UnixNano())
 
-	if err := t.provider.pullImage(ctx, providerState.BuilderImageName); err != nil {
+	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
 		return nil, err
 	}
 
 	logger.Debug("creating getfile container")
 
-	cc, err := t.provider.dockerClient.ContainerCreate(
+	cc, err := t.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: providerState.BuilderImageName,
+			Image: state.BuilderImageName,
 
 			Labels: map[string]string{
-				providerLabelName: providerState.Name,
+				providerLabelName: state.ProviderName,
 			},
 
 			// Use root user to avoid permission issues when reading files from the volume.
@@ -367,12 +364,12 @@ func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 	logger.Debug("created getfile container", zap.String("id", cc.ID))
 
 	defer func() {
-		if _, err := t.provider.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+		if _, err := t.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
 			// auto-removed, but not detected as autoremoved
 			return
 		}
 
-		if err := t.provider.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if err := t.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getfile container", zap.Error(err))
@@ -380,7 +377,7 @@ func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 	}()
 
 	logger.Debug("copying from container")
-	rc, _, err := t.provider.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
+	rc, _, err := t.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
 	if err != nil {
 		return nil, fmt.Errorf("copying from container: %w", err)
 	}
@@ -410,7 +407,6 @@ func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 
 func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error {
 	state := t.GetState()
-	providerState := t.provider.GetState()
 
 	if state.Volume == nil {
 		return fmt.Errorf("no volumes found for container %s", state.Id)
@@ -418,7 +414,7 @@ func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error
 
 	volumeName := state.Volume.Name
 
-	logger := t.provider.logger.With(zap.String("volume", volumeName), zap.String("path", relPath), zap.String("localPath", localPath))
+	logger := t.logger.With(zap.String("volume", volumeName), zap.String("path", relPath), zap.String("localPath", localPath))
 
 	const mountPath = "/mnt/dockervolume"
 
@@ -426,17 +422,17 @@ func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error
 
 	logger.Debug("creating getdir container")
 
-	if err := t.provider.pullImage(ctx, providerState.BuilderImageName); err != nil {
+	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
 		return err
 	}
 
-	cc, err := t.provider.dockerClient.ContainerCreate(
+	cc, err := t.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: providerState.BuilderImageName,
+			Image: state.BuilderImageName,
 
 			Labels: map[string]string{
-				providerLabelName: providerState.Name,
+				providerLabelName: state.ProviderName,
 			},
 
 			// Use root user to avoid permission issues when reading files from the volume.
@@ -455,11 +451,11 @@ func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error
 	}
 
 	defer func() {
-		if _, err := t.provider.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
+		if _, err := t.dockerClient.ContainerInspect(ctx, cc.ID); err != nil && client.IsErrNotFound(err) {
 			return
 		}
 
-		if err := t.provider.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
+		if err := t.dockerClient.ContainerRemove(ctx, cc.ID, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
 			logger.Error("failed cleaning up the getdir container", zap.Error(err))
@@ -467,7 +463,7 @@ func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error
 	}()
 
 	logger.Debug("copying from container")
-	reader, _, err := t.provider.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
+	reader, _, err := t.dockerClient.CopyFromContainer(ctx, cc.ID, path.Join(mountPath, relPath))
 	if err != nil {
 		return err
 	}
@@ -513,7 +509,7 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 
 	containerName := fmt.Sprintf("petri-setowner-%d", time.Now().UnixNano())
 
-	if err := p.pullImage(ctx, p.GetState().BuilderImageName); err != nil {
+	if err := provider.PullImage(ctx, p.dockerClient, p.logger, p.GetState().BuilderImageName); err != nil {
 		return err
 	}
 
