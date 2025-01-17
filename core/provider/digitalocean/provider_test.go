@@ -207,6 +207,20 @@ func TestSerializeAndRestore(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, taskData)
 
+	mockDO.On("GetDroplet", ctx, 123).Return(&godo.Droplet{
+		ID:     123,
+		Name:   "test-droplet",
+		Status: "active",
+		Networks: &godo.Networks{
+			V4: []godo.NetworkV4{
+				{
+					IPAddress: "10.0.0.1",
+					Type:      "public",
+				},
+			},
+		},
+	}, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+
 	deserializedTask, err := p.DeserializeTask(ctx, taskData)
 	assert.NoError(t, err)
 	assert.NotNil(t, deserializedTask)
@@ -223,6 +237,11 @@ func TestSerializeAndRestore(t *testing.T) {
 	}
 
 	assert.Equal(t, t1.state, t2.state)
+	assert.NotNil(t, t2.logger)
+	assert.NotNil(t, t2.sshKeyPair)
+	assert.NotNil(t, t2.doClient)
+	assert.NotNil(t, t2.dockerClient)
+	assert.NotNil(t, t2.provider)
 
 	mockDO.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)

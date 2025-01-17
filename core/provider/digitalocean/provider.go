@@ -250,7 +250,39 @@ func (p *Provider) DeserializeTask(ctx context.Context, bz []byte) (provider.Tas
 		state: &taskState,
 	}
 
+	if err := p.initializeDeserializedTask(ctx, task); err != nil {
+		return nil, err
+	}
+
 	return task, nil
+}
+
+func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) error {
+	task.logger = p.logger.With(zap.String("task", task.state.Name))
+	task.sshKeyPair = p.state.sshKeyPair
+	task.doClient = p.doClient
+	task.provider = p
+
+	droplet, err := task.getDroplet(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get droplet for task initialization: %w", err)
+	}
+
+	ip, err := droplet.PublicIPv4()
+	if err != nil {
+		return fmt.Errorf("failed to get droplet IP: %w", err)
+	}
+
+	if p.dockerClients[ip] == nil {
+		client, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, sshPort))
+		if err != nil {
+			return fmt.Errorf("failed to create docker client: %w", err)
+		}
+		p.dockerClients[ip] = client
+	}
+
+	task.dockerClient = p.dockerClients[ip]
+	return nil
 }
 
 func (p *Provider) Teardown(ctx context.Context) error {
