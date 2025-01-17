@@ -43,10 +43,6 @@ type Provider struct {
 
 	logger        *zap.Logger
 	doClient      DoClient
-	petriTag      string
-	userIPs       []string
-	sshKeyPair    *SSHKeyPair
-	firewallID    string
 	dockerClients map[string]provider.DockerClient // map of droplet ip address to docker clients
 }
 

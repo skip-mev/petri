@@ -113,15 +113,15 @@ func (d *defaultDockerClient) ContainerInspect(ctx context.Context, containerID 
 	return d.client.ContainerInspect(ctx, containerID)
 }
 
-func (d *defaultDockerClient) ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error) {
+func (d *defaultDockerClient) ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
 	return d.client.ContainerExecCreate(ctx, container, config)
 }
 
-func (d *defaultDockerClient) ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error) {
+func (d *defaultDockerClient) ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
 	return d.client.ContainerExecAttach(ctx, execID, config)
 }
 
-func (d *defaultDockerClient) ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error) {
+func (d *defaultDockerClient) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
 	return d.client.ContainerExecInspect(ctx, execID)
 }
 
@@ -141,7 +141,7 @@ func (d *defaultDockerClient) CopyToContainer(ctx context.Context, container, pa
 	return d.client.CopyToContainer(ctx, container, path, content, options)
 }
 
-func (d *defaultDockerClient) CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error) {
+func (d *defaultDockerClient) CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, container.PathStat, error) {
 	return d.client.CopyFromContainer(ctx, container, srcPath)
 }
 
