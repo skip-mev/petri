@@ -26,10 +26,11 @@ type ProviderState struct {
 
 	Name string `json:"name"`
 
-	NetworkID      string `json:"network_id"`
-	NetworkName    string `json:"network_name"`
-	NetworkCIDR    string `json:"network_cidr"`
-	NetworkGateway string `json:"network_gateway"`
+	NetworkID      string   `json:"network_id"`
+	NetworkName    string   `json:"network_name"`
+	NetworkCIDR    string   `json:"network_cidr"`
+	NetworkGateway string   `json:"network_gateway"`
+	AllocatedIPs   []string `json:"allocated_ips"`
 
 	BuilderImageName string `json:"builder_image_name"`
 }
