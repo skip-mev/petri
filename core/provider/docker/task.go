@@ -307,7 +307,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 	}
 
 	hostConfig := &container.HostConfig{
-		NetworkMode: container.NetworkMode("host"),
+		NetworkMode: container.NetworkMode(t.state.NetworkName),
 		Mounts:      mounts,
 	}
 
