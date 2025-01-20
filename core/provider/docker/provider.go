@@ -80,6 +80,10 @@ func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string
 
 	dockerProvider.state.NetworkID = network.ID
 
+	if len(network.IPAM.Config) == 0 {
+		return nil, fmt.Errorf("network does not have an IPAM config")
+	}
+
 	_, cidrMask, err := net.ParseCIDR(network.IPAM.Config[0].Subnet)
 	if err != nil {
 		return nil, err
