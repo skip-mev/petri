@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/docker/docker/api/types/image"
 	"net"
 	"sync"
 
@@ -15,8 +16,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
-
-	"github.com/docker/docker/client"
 )
 
 type ProviderState struct {
@@ -46,7 +45,7 @@ type Provider struct {
 var _ provider.ProviderI = (*Provider)(nil)
 
 func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string) (*Provider, error) {
-	dockerClient, err := client.NewClientWithOpts()
+	dockerClient, err := provider.NewDockerClient("")
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +172,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	logger := p.logger.Named("docker_provider")
 
-	if err := provider.PullImage(ctx, p.dockerClient, logger, definition.Image.Image); err != nil {
+	if err := p.dockerClient.ImagePull(ctx, p.logger, p.GetState().BuilderImageName, image.PullOptions{}); err != nil {
 		return nil, err
 	}
 

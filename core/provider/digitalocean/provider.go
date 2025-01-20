@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"github.com/docker/docker/api/types/image"
 	"strings"
 	"sync"
 	"time"
@@ -161,8 +162,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	_, _, err = dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
 	if err != nil {
 		p.logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
-		err = pullImage(ctx, dockerClient, p.logger, definition.Image.Image)
-		if err != nil {
+		if err = dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{}); err != nil {
 			return nil, err
 		}
 	}
@@ -223,7 +223,6 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	return &Task{
 		state:        taskState,
 		removeTask:   p.removeTask,
-		sshKeyPair:   p.state.SSHKeyPair,
 		logger:       p.logger.With(zap.String("task", definition.Name)),
 		doClient:     p.doClient,
 		dockerClient: dockerClient,

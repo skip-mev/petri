@@ -3,15 +3,16 @@ package docker_test
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	"github.com/matoous/go-nanoid/v2"
-	"github.com/skip-mev/petri/core/v2/provider/docker"
-	"go.uber.org/zap/zaptest"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
+	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/skip-mev/petri/core/v2/provider/docker"
+	"go.uber.org/zap/zaptest"
 
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/stretchr/testify/assert"
@@ -230,12 +231,11 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	for task := range tasks {
 		taskState := task.GetState()
-		client, _ := client.NewClientWithOpts()
-		containerJSON, err := client.ContainerInspect(ctx, taskState.Id)
+		dockerClient, _ := provider.NewDockerClient("")
+		containerJSON, err := dockerClient.ContainerInspect(ctx, taskState.Id)
 		require.NoError(t, err)
 
 		ip := containerJSON.NetworkSettings.Networks[providerState.NetworkName].IPAddress
-		fmt.Println(ip)
 		assert.False(t, ips[ip], "Duplicate IP found: %s", ip)
 		ips[ip] = true
 	}
