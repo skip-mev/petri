@@ -33,6 +33,7 @@ type TaskState struct {
 	Definition   provider.TaskDefinition `json:"definition"`
 	Status       provider.TaskStatus     `json:"status"`
 	ProviderName string                  `json:"provider_name"`
+	SSHKeyPair   *SSHKeyPair             `json:"ssh_key_pair"`
 }
 
 type Task struct {
@@ -41,7 +42,6 @@ type Task struct {
 
 	provider     *Provider
 	logger       *zap.Logger
-	sshKeyPair   *SSHKeyPair
 	sshClient    *ssh.Client
 	doClient     DoClient
 	dockerClient DockerClient
@@ -59,7 +59,7 @@ func (t *Task) Start(ctx context.Context) error {
 	}
 
 	if len(containers) != 1 {
-		return fmt.Errorf("could not find container for %s", t.state.Name)
+		return fmt.Errorf("could not find container for %s", t.GetState().Name)
 	}
 
 	containerID := containers[0].ID
@@ -75,18 +75,18 @@ func (t *Task) Start(ctx context.Context) error {
 			return false, err
 		}
 
-		if status == provider.TASK_RUNNING {
-			t.stateMu.Lock()
-			defer t.stateMu.Unlock()
-
-			t.state.Status = provider.TASK_RUNNING
-			return true, nil
+		if status != provider.TASK_RUNNING {
+			return false, nil
 		}
 
-		return false, nil
+		t.stateMu.Lock()
+		defer t.stateMu.Unlock()
+
+		t.state.Status = provider.TASK_RUNNING
+		return true, nil
 	})
 
-	t.logger.Info("Final task status after start", zap.Any("status", t.state.Status))
+	t.logger.Info("final task status after start", zap.Any("status", t.GetState().Status))
 	return err
 }
 
@@ -100,7 +100,7 @@ func (t *Task) Stop(ctx context.Context) error {
 	}
 
 	if len(containers) != 1 {
-		return fmt.Errorf("could not find container for %s", t.state.Name)
+		return fmt.Errorf("could not find container for %s", t.GetState().Name)
 	}
 
 	t.stateMu.Lock()
@@ -119,7 +119,7 @@ func (t *Task) Modify(ctx context.Context, definition provider.TaskDefinition) e
 }
 
 func (t *Task) Destroy(ctx context.Context) error {
-	logger := t.logger.With(zap.String("task", t.state.Name))
+	logger := t.logger.With(zap.String("task", t.GetState().Name))
 	logger.Info("deleting task")
 	defer t.dockerClient.Close()
 
@@ -129,7 +129,7 @@ func (t *Task) Destroy(ctx context.Context) error {
 	}
 
 	// TODO(nadim-az): remove reference to provider in Task struct
-	if err := t.provider.removeTask(ctx, t.state.ID); err != nil {
+	if err := t.provider.removeTask(ctx, t.GetState().ID); err != nil {
 		return err
 	}
 	return nil
@@ -164,7 +164,7 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 	}
 
 	if len(containers) != 1 {
-		return provider.TASK_STATUS_UNDEFINED, fmt.Errorf("could not find container for %s", t.state.Name)
+		return provider.TASK_STATUS_UNDEFINED, fmt.Errorf("could not find container for %s", t.GetState().Name)
 	}
 
 	c, err := t.dockerClient.ContainerInspect(ctx, containers[0].ID)
@@ -195,7 +195,7 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) error {
 	absPath := path.Join("/docker_volumes", relPath)
 
-	sshClient, err := t.getDropletSSHClient(ctx, t.state.Name)
+	sshClient, err := t.getDropletSSHClient(ctx, t.GetState().Name)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 	absPath := path.Join("/docker_volumes", relPath)
 
-	sshClient, err := t.getDropletSSHClient(ctx, t.state.Name)
+	sshClient, err := t.getDropletSSHClient(ctx, t.GetState().Name)
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +290,34 @@ func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, in
 	return t.runCommand(ctx, cmd)
 }
 
+func waitForExec(ctx context.Context, dockerClient DockerClient, execID string) (int, error) {
+	lastExitCode := 0
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			return lastExitCode, ctx.Err()
+		case <-ticker.C:
+			execInspect, err := dockerClient.ContainerExecInspect(ctx, execID)
+			if err != nil {
+				return lastExitCode, err
+			}
+
+			if execInspect.Running {
+				continue
+			}
+
+			lastExitCode = execInspect.ExitCode
+			break loop
+		}
+	}
+
+	return lastExitCode, nil
+}
+
 func (t *Task) runCommand(ctx context.Context, command []string) (string, string, int, error) {
 	containers, err := t.dockerClient.ContainerList(ctx, container.ListOptions{
 		Limit: 1,
@@ -300,7 +328,7 @@ func (t *Task) runCommand(ctx context.Context, command []string) (string, string
 	}
 
 	if len(containers) != 1 {
-		return "", "", 0, fmt.Errorf("could not find container for %s", t.state.Name)
+		return "", "", 0, fmt.Errorf("could not find container for %s", t.GetState().Name)
 	}
 
 	id := containers[0].ID
@@ -323,80 +351,53 @@ func (t *Task) runCommand(ctx context.Context, command []string) (string, string
 
 	defer resp.Close()
 
-	lastExitCode := 0
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-
-loop:
-	for {
-		select {
-		case <-ctx.Done():
-			return "", "", lastExitCode, ctx.Err()
-		case <-ticker.C:
-			execInspect, err := t.dockerClient.ContainerExecInspect(ctx, exec.ID)
-			if err != nil {
-				return "", "", lastExitCode, err
-			}
-
-			if execInspect.Running {
-				continue
-			}
-
-			lastExitCode = execInspect.ExitCode
-
-			break loop
-		}
-	}
-
 	var stdout, stderr bytes.Buffer
-
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
 	if err != nil {
-		return "", "", lastExitCode, err
+		return "", "", 0, err
 	}
 
-	return stdout.String(), stderr.String(), lastExitCode, nil
+	exitCode, err := waitForExec(ctx, t.dockerClient, exec.ID)
+	if err != nil {
+		return stdout.String(), stderr.String(), exitCode, err
+	}
+
+	return stdout.String(), stderr.String(), exitCode, nil
 }
 
 func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string, string, int, error) {
-	if err := t.state.Definition.ValidateBasic(); err != nil {
+	state := t.GetState()
+	if err := state.Definition.ValidateBasic(); err != nil {
 		return "", "", 0, fmt.Errorf("failed to validate task definition: %w", err)
 	}
 
-	t.stateMu.Lock()
-	defer t.stateMu.Unlock()
-
-	t.state.Definition.Entrypoint = []string{"sh", "-c"}
-	t.state.Definition.Command = []string{"sleep 36000"}
-	t.state.Definition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", t.state.Definition.Name, util.RandomString(5), time.Now().Unix())
-	t.state.Definition.Ports = []string{}
-
+	containerName := fmt.Sprintf("%s-executor-%s-%d", state.Definition.Name, util.RandomString(5), time.Now().Unix())
 	createdContainer, err := t.dockerClient.ContainerCreate(ctx, &container.Config{
-		Image:      t.state.Definition.Image.Image,
-		Entrypoint: t.state.Definition.Entrypoint,
-		Cmd:        t.state.Definition.Command,
+		Image:      state.Definition.Image.Image,
+		Entrypoint: []string{"sh", "-c"},
+		Cmd:        []string{"sleep 36000"},
 		Tty:        false,
-		Hostname:   t.state.Definition.Name,
+		Hostname:   state.Definition.Name,
 		Labels: map[string]string{
-			providerLabelName: t.state.ProviderName,
+			providerLabelName: state.ProviderName,
 		},
-		Env: convertEnvMapToList(t.state.Definition.Environment),
+		Env: convertEnvMapToList(state.Definition.Environment),
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeBind,
 				Source: "/docker_volumes",
-				Target: t.state.Definition.DataDir,
+				Target: state.Definition.DataDir,
 			},
 		},
 		NetworkMode: container.NetworkMode("host"),
-	}, nil, nil, t.state.Definition.ContainerName)
+	}, nil, nil, containerName)
 	if err != nil {
-		t.logger.Error("failed to create container", zap.Error(err), zap.String("taskName", t.state.Name))
+		t.logger.Error("failed to create container", zap.Error(err), zap.String("taskName", state.Name))
 		return "", "", 0, err
 	}
 
-	t.logger.Debug("container created successfully", zap.String("id", createdContainer.ID), zap.String("taskName", t.state.Name))
+	t.logger.Debug("container created successfully", zap.String("id", createdContainer.ID), zap.String("taskName", state.Name))
 
 	defer func() {
 		if _, err := t.dockerClient.ContainerInspect(ctx, createdContainer.ID); err != nil && dockerclient.IsErrNotFound(err) {
@@ -405,16 +406,16 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 		}
 
 		if err := t.dockerClient.ContainerRemove(ctx, createdContainer.ID, container.RemoveOptions{Force: true}); err != nil {
-			t.logger.Error("failed to remove container", zap.Error(err), zap.String("taskName", t.state.Name), zap.String("id", createdContainer.ID))
+			t.logger.Error("failed to remove container", zap.Error(err), zap.String("taskName", state.Name), zap.String("id", createdContainer.ID))
 		}
 	}()
 
 	if err := startContainerWithBlock(ctx, t.dockerClient, createdContainer.ID); err != nil {
-		t.logger.Error("failed to start container", zap.Error(err), zap.String("taskName", t.state.Name))
+		t.logger.Error("failed to start container", zap.Error(err), zap.String("taskName", state.Name))
 		return "", "", 0, err
 	}
 
-	t.logger.Debug("container started successfully", zap.String("id", createdContainer.ID), zap.String("taskName", t.state.Name))
+	t.logger.Debug("container started successfully", zap.String("id", createdContainer.ID), zap.String("taskName", state.Name))
 
 	// wait for container start
 	exec, err := t.dockerClient.ContainerExecCreate(ctx, createdContainer.ID, container.ExecOptions{
@@ -423,42 +424,17 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 		Cmd:          cmd,
 	})
 	if err != nil {
-		t.logger.Error("failed to create exec", zap.Error(err), zap.String("taskName", t.state.Name))
+		t.logger.Error("failed to create exec", zap.Error(err), zap.String("taskName", state.Name))
 		return "", "", 0, err
 	}
 
 	resp, err := t.dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
 	if err != nil {
-		t.logger.Error("failed to attach to exec", zap.Error(err), zap.String("taskName", t.state.Name))
+		t.logger.Error("failed to attach to exec", zap.Error(err), zap.String("taskName", state.Name))
 		return "", "", 0, err
 	}
 
 	defer resp.Close()
-
-	lastExitCode := 0
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-
-loop:
-	for {
-		select {
-		case <-ctx.Done():
-			return "", "", lastExitCode, ctx.Err()
-		case <-ticker.C:
-			execInspect, err := t.dockerClient.ContainerExecInspect(ctx, exec.ID)
-			if err != nil {
-				return "", "", lastExitCode, err
-			}
-
-			if execInspect.Running {
-				continue
-			}
-
-			lastExitCode = execInspect.ExitCode
-
-			break loop
-		}
-	}
 
 	var stdout, stderr bytes.Buffer
 	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
@@ -466,7 +442,12 @@ loop:
 		return "", "", 0, err
 	}
 
-	return stdout.String(), stderr.String(), lastExitCode, err
+	exitCode, err := waitForExec(ctx, t.dockerClient, exec.ID)
+	if err != nil {
+		return stdout.String(), stderr.String(), exitCode, err
+	}
+
+	return stdout.String(), stderr.String(), exitCode, nil
 }
 
 func startContainerWithBlock(ctx context.Context, dockerClient DockerClient, containerID string) error {

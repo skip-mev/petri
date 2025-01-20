@@ -2,16 +2,14 @@ package main
 
 import (
 	"context"
-	"os"
-
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/skip-mev/petri/core/v2/types"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"github.com/skip-mev/petri/cosmos/v2/chain"
 	"github.com/skip-mev/petri/cosmos/v2/node"
+	"os"
 
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/provider/digitalocean"
+	petritypes "github.com/skip-mev/petri/core/v2/types"
 	"go.uber.org/zap"
 )
 
@@ -56,17 +54,22 @@ func main() {
 		HomeDir:      "/gaia",
 		CoinType:     "118",
 		ChainId:      "stake-1",
-		NodeCreator:  node.CreateNode,
-		NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig petritypes.NodeConfig) provider.TaskDefinition {
-			doConfig := digitalocean.DigitalOceanTaskConfig{
-				"size":     "s-2vcpu-4gb",
-				"region":   "ams3",
-				"image_id": imageID,
-			}
-			def.ProviderSpecificConfig = doConfig
-			return def
+	}
+
+	chainOptions := petritypes.ChainOptions{
+		NodeCreator: node.CreateNode,
+		NodeOptions: petritypes.NodeOptions{
+			NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig petritypes.NodeConfig) provider.TaskDefinition {
+				doConfig := digitalocean.DigitalOceanTaskConfig{
+					"size":     "s-2vcpu-4gb",
+					"region":   "ams3",
+					"image_id": imageID,
+				}
+				def.ProviderSpecificConfig = doConfig
+				return def
+			},
 		},
-		WalletConfig: types.WalletConfig{
+		WalletConfig: petritypes.WalletConfig{
 			SigningAlgorithm: string(hd.Secp256k1.Name()),
 			Bech32Prefix:     "cosmos",
 			HDPath:           hd.CreateHDPath(118, 0, 0),
@@ -76,13 +79,13 @@ func main() {
 	}
 
 	logger.Info("Creating chain")
-	cosmosChain, err := chain.CreateChain(ctx, logger, doProvider, chainConfig)
+	cosmosChain, err := chain.CreateChain(ctx, logger, doProvider, chainConfig, chainOptions)
 	if err != nil {
 		logger.Fatal("failed to create chain", zap.Error(err))
 	}
 
 	logger.Info("Initializing chain")
-	err = cosmosChain.Init(ctx)
+	err = cosmosChain.Init(ctx, chainOptions)
 	if err != nil {
 		logger.Fatal("failed to initialize chain", zap.Error(err))
 	}

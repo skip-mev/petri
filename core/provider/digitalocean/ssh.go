@@ -96,16 +96,6 @@ func getUserIPs(ctx context.Context) (ips []string, err error) {
 }
 
 func (p *Provider) createSSHKey(ctx context.Context, pubKey string) (*godo.Key, error) {
-	req := &godo.KeyCreateRequest{PublicKey: pubKey, Name: fmt.Sprintf("%s-key", p.state.PetriTag)}
-
-	key, res, err := p.doClient.CreateKey(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return key, nil
+	req := &godo.KeyCreateRequest{PublicKey: pubKey, Name: fmt.Sprintf("%s-key", p.GetState().PetriTag)}
+	return p.doClient.CreateKey(ctx, req)
 }
