@@ -55,12 +55,12 @@ func NewProvider(ctx context.Context, logger *zap.Logger, providerName string, t
 // NewProviderWithClient creates a provider with custom digitalocean/docker client implementation.
 // This is primarily used for testing.
 func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName string, doClient DoClient, dockerClients map[string]DockerClient, additionalUserIPS []string, sshKeyPair *SSHKeyPair) (*Provider, error) {
+	var err error
 	if sshKeyPair == nil {
-		newSshKeyPair, err := MakeSSHKeyPair()
+		sshKeyPair, err = MakeSSHKeyPair()
 		if err != nil {
 			return nil, err
 		}
-		sshKeyPair = newSshKeyPair
 	}
 
 	userIPs, err := getUserIPs(ctx)
