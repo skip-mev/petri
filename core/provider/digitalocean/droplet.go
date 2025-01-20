@@ -98,7 +98,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	end := time.Now()
 
-	p.logger.Info(fmt.Sprintf("droplet %s is ready after %s", droplet.Name, end.Sub(start)))
+	p.logger.Info("droplet is ready after", zap.String("droplet_name", droplet.Name), zap.Duration("startup_time", end.Sub(start)))
 
 	return droplet, nil
 }
