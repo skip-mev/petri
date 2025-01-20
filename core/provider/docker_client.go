@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
 
 	"github.com/docker/docker/api/types"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	dockerclient "github.com/docker/docker/client"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"go.uber.org/zap"
 )
 
 // DockerClient is a unified interface for interacting with Docker
@@ -39,7 +39,7 @@ type DockerClient interface {
 
 	// Image Operations
 	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
-	ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error)
+	ImagePull(ctx context.Context, logger *zap.Logger, refStr string, options image.PullOptions) error
 
 	// Volume Operations
 	VolumeCreate(ctx context.Context, options volume.CreateOptions) (volume.Volume, error)
@@ -89,8 +89,24 @@ func (d *defaultDockerClient) ImageInspectWithRaw(ctx context.Context, image str
 	return d.client.ImageInspectWithRaw(ctx, image)
 }
 
-func (d *defaultDockerClient) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-	return d.client.ImagePull(ctx, ref, options)
+func (d *defaultDockerClient) ImagePull(ctx context.Context, logger *zap.Logger, ref string, options image.PullOptions) error {
+	_, _, err := d.client.ImageInspectWithRaw(ctx, ref)
+	if err != nil {
+		logger.Info("pulling image", zap.String("image", ref))
+		resp, err := d.client.ImagePull(ctx, ref, options)
+		if err != nil {
+			return fmt.Errorf("failed to pull docker image: %w", err)
+		}
+
+		defer resp.Close()
+		// throw away the image pull stdout response
+		_, err = io.Copy(io.Discard, resp)
+		if err != nil {
+			return fmt.Errorf("failed to pull docker image: %w", err)
+		}
+		return nil
+	}
+	return nil
 }
 
 func (d *defaultDockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
@@ -175,20 +191,4 @@ func (d *defaultDockerClient) NetworkRemove(ctx context.Context, networkID strin
 
 func (d *defaultDockerClient) Close() error {
 	return d.client.Close()
-}
-
-func PullImage(ctx context.Context, dockerClient DockerClient, logger *zap.Logger, img string) error {
-	logger.Info("pulling image", zap.String("image", img))
-	resp, err := dockerClient.ImagePull(ctx, img, image.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to pull docker image: %w", err)
-	}
-
-	defer resp.Close()
-	// throw away the image pull stdout response
-	_, err = io.Copy(io.Discard, resp)
-	if err != nil {
-		return fmt.Errorf("failed to pull docker image: %w", err)
-	}
-	return nil
 }

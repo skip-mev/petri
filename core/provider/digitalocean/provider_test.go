@@ -3,8 +3,6 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	"io"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -35,7 +33,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 
 	mockDocker.On("Ping", ctx).Return(types.Ping{}, nil)
 	mockDocker.On("ImageInspectWithRaw", ctx, "ubuntu:latest").Return(types.ImageInspect{}, []byte{}, fmt.Errorf("image not found"))
-	mockDocker.On("ImagePull", ctx, "ubuntu:latest", image.PullOptions{}).Return(io.NopCloser(strings.NewReader("")), nil)
+	mockDocker.On("ImagePull", ctx, mock.AnythingOfType("*zap.Logger"), "ubuntu:latest", image.PullOptions{}).Return(nil)
 	mockDocker.On("ContainerCreate", ctx, &container.Config{
 		Image:      "ubuntu:latest",
 		Entrypoint: []string{"/bin/bash"},
@@ -277,7 +275,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 
 		mockDocker.On("Ping", ctx).Return(types.Ping{}, nil).Once()
 		mockDocker.On("ImageInspectWithRaw", ctx, "nginx:latest").Return(types.ImageInspect{}, []byte{}, fmt.Errorf("image not found")).Once()
-		mockDocker.On("ImagePull", ctx, "nginx:latest", image.PullOptions{}).Return(io.NopCloser(strings.NewReader("")), nil).Once()
+		mockDocker.On("ImagePull", ctx, mock.AnythingOfType("*zap.Logger"), "nginx:latest", image.PullOptions{}).Return(nil).Once()
 		mockDocker.On("ContainerCreate", ctx, mock.MatchedBy(func(config *container.Config) bool {
 			return config.Image == "nginx:latest"
 		}), mock.Anything, (*network.NetworkingConfig)(nil), (*specs.Platform)(nil), mock.AnythingOfType("string")).Return(container.CreateResponse{ID: fmt.Sprintf("container-%d", i)}, nil).Once()
@@ -492,9 +490,9 @@ func TestProviderSerialization(t *testing.T) {
 	mockDO.On("CreateDroplet", ctx, mock.Anything).Return(droplet, nil)
 	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, nil).Maybe()
 
-	mockDocker.On("Ping", ctx).Return(types.Ping{}, nil).Maybe()
+	mockDocker.On("Ping", ctx).Return(types.Ping{}, nil).Once()
 	mockDocker.On("ImageInspectWithRaw", ctx, "ubuntu:latest").Return(types.ImageInspect{}, []byte{}, fmt.Errorf("image not found"))
-	mockDocker.On("ImagePull", ctx, "ubuntu:latest", image.PullOptions{}).Return(io.NopCloser(strings.NewReader("")), nil)
+	mockDocker.On("ImagePull", ctx, mock.AnythingOfType("*zap.Logger"), "ubuntu:latest", image.PullOptions{}).Return(nil)
 	mockDocker.On("ContainerCreate", ctx, mock.MatchedBy(func(config *container.Config) bool {
 		return config.Image == "ubuntu:latest" &&
 			config.Hostname == "test-task" &&

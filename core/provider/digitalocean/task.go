@@ -289,7 +289,7 @@ func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, in
 	return t.runCommand(ctx, cmd)
 }
 
-func waitForExec(ctx context.Context, dockerClient DockerClient, execID string) (int, error) {
+func waitForExec(ctx context.Context, dockerClient provider.DockerClient, execID string) (int, error) {
 	lastExitCode := 0
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()

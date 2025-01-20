@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/docker/docker/api/types/image"
 	"io"
 	"os"
 	"path"
@@ -71,7 +72,7 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 
 	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
 
-	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
+	if err := t.dockerClient.ImagePull(ctx, t.logger, state.BuilderImageName, image.PullOptions{}); err != nil {
 		return err
 	}
 
@@ -196,7 +197,7 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 
 	containerName := fmt.Sprintf("petri-writefile-%d", time.Now().UnixNano())
 
-	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
+	if err := t.dockerClient.ImagePull(ctx, t.logger, state.BuilderImageName, image.PullOptions{}); err != nil {
 		return err
 	}
 
@@ -331,7 +332,7 @@ func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 
 	containerName := fmt.Sprintf("petri-getfile-%d", time.Now().UnixNano())
 
-	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
+	if err := t.dockerClient.ImagePull(ctx, t.logger, state.BuilderImageName, image.PullOptions{}); err != nil {
 		return nil, err
 	}
 
@@ -422,7 +423,7 @@ func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error
 
 	logger.Debug("creating getdir container")
 
-	if err := provider.PullImage(ctx, t.dockerClient, t.logger, state.BuilderImageName); err != nil {
+	if err := t.dockerClient.ImagePull(ctx, t.logger, state.BuilderImageName, image.PullOptions{}); err != nil {
 		return err
 	}
 
@@ -509,7 +510,7 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 
 	containerName := fmt.Sprintf("petri-setowner-%d", time.Now().UnixNano())
 
-	if err := provider.PullImage(ctx, p.dockerClient, p.logger, p.GetState().BuilderImageName); err != nil {
+	if err := p.dockerClient.ImagePull(ctx, p.logger, p.GetState().BuilderImageName, image.PullOptions{}); err != nil {
 		return err
 	}
 
