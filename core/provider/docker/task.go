@@ -4,23 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sync"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
-	"github.com/skip-mev/petri/core/v2/util"
-
-	// "github.com/docker/docker/api/types/filters"
-	// "github.com/docker/docker/api/types/image"
-	// "github.com/docker/docker/api/types/mount"
-	// "github.com/docker/docker/api/types/network"
-	// "github.com/docker/docker/pkg/stdcopy"
-	// "github.com/docker/go-connections/nat"
-	"time"
-
 	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v2/util"
 	"go.uber.org/zap"
+	"sync"
+	"time"
 )
 
 type TaskState struct {
@@ -29,7 +20,7 @@ type TaskState struct {
 	Volume     *VolumeState            `json:"volumes"`
 	Definition provider.TaskDefinition `json:"definition"`
 	Status     provider.TaskStatus     `json:"status"`
-    IpAddress  string                  `json:"ip_address"` 
+	IpAddress  string                  `json:"ip_address"`
 }
 
 type VolumeState struct {
@@ -162,8 +153,6 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
 
-	fmt.Println(containerJSON.State.Status)
-
 	switch state := containerJSON.State.Status; state {
 	case "created":
 		return provider.TASK_STOPPED, nil
@@ -182,10 +171,6 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 	}
 
 	return provider.TASK_STATUS_UNDEFINED, nil
-}
-
-func (t *Task) Initialize(ctx context.Context) error {
-	return nil
 }
 
 func (t *Task) Modify(ctx context.Context, td provider.TaskDefinition) error {

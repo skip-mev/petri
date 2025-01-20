@@ -3,16 +3,15 @@ package docker_test
 import (
 	"context"
 	"fmt"
-	"sync"
-	"testing"
-	"time"
-
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/matoous/go-nanoid/v2"
 	"github.com/skip-mev/petri/core/v2/provider/docker"
 	"go.uber.org/zap/zaptest"
+	"sync"
+	"testing"
+	"time"
 
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/stretchr/testify/assert"
@@ -48,9 +47,9 @@ func TestCreateProviderDuplicateNetwork(t *testing.T) {
 
 	p1, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, p1.Teardown(context.Background()))
-	}()
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p1)
 
 	p2, err := docker.CreateProvider(ctx, logger, providerName)
 	require.Error(t, err)
@@ -67,9 +66,9 @@ func TestCreateProvider(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer func() {
+	defer func(ctx context.Context, p provider.ProviderI) {
 		require.NoError(t, p.Teardown(ctx))
-	}()
+	}(ctx, p)
 
 	state := p.GetState()
 	assert.Equal(t, providerName, state.Name)
@@ -107,9 +106,10 @@ func TestCreateTask(t *testing.T) {
 
 	p, err := docker.CreateProvider(context.Background(), logger, providerName)
 	require.NoError(t, err)
-	defer func() {
+
+	defer func(ctx context.Context, p provider.ProviderI) {
 		require.NoError(t, p.Teardown(ctx))
-	}()
+	}(ctx, p)
 
 	tests := []struct {
 		name       string
@@ -182,9 +182,10 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer func() {
+
+	defer func(ctx context.Context, p provider.ProviderI) {
 		require.NoError(t, p.Teardown(ctx))
-	}()
+	}(ctx, p)
 
 	numTasks := 10
 	var wg sync.WaitGroup
@@ -248,9 +249,10 @@ func TestProviderSerialization(t *testing.T) {
 
 	p1, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, p1.Teardown(ctx))
-	}()
+
+	defer func(ctx context.Context, p provider.ProviderI) {
+		require.NoError(t, p.Teardown(ctx))
+	}(ctx, p1)
 
 	_, err = p1.CreateTask(ctx, provider.TaskDefinition{
 		Name:          fmt.Sprintf("%s-test-task", providerName),
