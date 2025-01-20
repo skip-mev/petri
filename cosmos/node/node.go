@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,18 +19,28 @@ import (
 	petritypes "github.com/skip-mev/petri/core/v2/types"
 )
 
+type PackagedState struct {
+	State
+	TaskState []byte
+}
+
+type State struct {
+	Config      petritypes.NodeConfig
+	ChainConfig petritypes.ChainConfig
+}
+
 type Node struct {
 	provider.TaskI
 
-	logger      *zap.Logger
-	config      petritypes.NodeConfig
-	chainConfig petritypes.ChainConfig
+	state  State
+	logger *zap.Logger
 }
 
 var _ petritypes.NodeCreator = CreateNode
+var _ petritypes.NodeRestorer = RestoreNode
 
 // CreateNode creates a new logical node and creates the underlying workload for it
-func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, nodeConfig petritypes.NodeConfig) (petritypes.NodeI, error) {
+func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, nodeConfig petritypes.NodeConfig, opts petritypes.NodeOptions) (petritypes.NodeI, error) {
 	if err := nodeConfig.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate node config: %w", err)
 	}
@@ -38,8 +49,13 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 
 	node.logger = logger.Named("node")
 	chainConfig := nodeConfig.ChainConfig
-	node.chainConfig = nodeConfig.ChainConfig
-	node.config = nodeConfig
+
+	nodeState := State{
+		Config:      nodeConfig,
+		ChainConfig: chainConfig,
+	}
+
+	node.state = nodeState
 
 	node.logger.Info("creating node", zap.String("name", nodeConfig.Name))
 
@@ -47,13 +63,13 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 		Name:          nodeConfig.Name,
 		ContainerName: nodeConfig.Name,
 		Image:         chainConfig.Image,
-		Ports:         []string{"9090", "26656", "26657", "26660", "80"},
+		Ports:         []string{"9090", "26656", "26657", "26660", "1317"},
 		Entrypoint:    []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
 		DataDir:       chainConfig.HomeDir,
 	}
 
-	if chainConfig.NodeDefinitionModifier != nil {
-		def = chainConfig.NodeDefinitionModifier(def, nodeConfig)
+	if opts.NodeDefinitionModifier != nil {
+		def = opts.NodeDefinitionModifier(def, nodeConfig)
 	}
 
 	task, err := infraProvider.CreateTask(ctx, def)
@@ -66,11 +82,33 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 	return &node, nil
 }
 
+func RestoreNode(ctx context.Context, logger *zap.Logger, state []byte, p provider.ProviderI) (petritypes.NodeI, error) {
+	var packagedState PackagedState
+	if err := json.Unmarshal(state, &packagedState); err != nil {
+		return nil, fmt.Errorf("unmarshaling state: %w", err)
+	}
+
+	node := Node{
+		state:  packagedState.State,
+		logger: logger.Named("node"),
+	}
+
+	task, err := p.DeserializeTask(ctx, packagedState.TaskState)
+
+	if err != nil {
+		return nil, err
+	}
+
+	node.TaskI = task
+
+	return &node, err
+}
+
 // GetTMClient returns a CometBFT HTTP client for the node
 func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 	addr, err := n.GetExternalAddress(ctx, "26657")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	httpAddr := fmt.Sprintf("http://%s", addr)
@@ -138,13 +176,32 @@ func (n *Node) NodeId(ctx context.Context) (string, error) {
 
 // BinCommand returns a command that can be used to run a binary on the node
 func (n *Node) BinCommand(command ...string) []string {
-	command = append([]string{n.chainConfig.BinaryName}, command...)
+	command = append([]string{n.GetChainConfig().BinaryName}, command...)
 	return append(command,
-		"--home", n.chainConfig.HomeDir,
+		"--home", n.state.ChainConfig.HomeDir,
 	)
 }
 
 // GetConfig returns the node's config
 func (n *Node) GetConfig() petritypes.NodeConfig {
-	return n.config
+	return n.state.Config
+}
+
+func (n *Node) GetChainConfig() petritypes.ChainConfig {
+	return n.state.ChainConfig
+}
+
+func (n *Node) Serialize(ctx context.Context, p provider.ProviderI) ([]byte, error) {
+	taskState, err := p.SerializeTask(ctx, n.TaskI)
+
+	if err != nil {
+		return nil, err
+	}
+
+	state := PackagedState{
+		State:     n.state,
+		TaskState: taskState,
+	}
+
+	return json.Marshal(state)
 }

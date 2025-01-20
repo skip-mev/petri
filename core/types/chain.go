@@ -16,7 +16,7 @@ type GenesisModifier func([]byte) ([]byte, error)
 
 // ChainI is an interface for a logical chain
 type ChainI interface {
-	Init(context.Context) error
+	Init(context.Context, ChainOptions) error
 	Teardown(context.Context) error
 
 	GetConfig() ChainConfig
@@ -32,6 +32,28 @@ type ChainI interface {
 	Height(context.Context) (uint64, error)
 	WaitForBlocks(ctx context.Context, delta uint64) error
 	WaitForHeight(ctx context.Context, desiredHeight uint64) error
+
+	Serialize(ctx context.Context, p provider.ProviderI) ([]byte, error)
+}
+
+type ChainOptions struct {
+	ModifyGenesis GenesisModifier // ModifyGenesis is a function that modifies the genesis bytes of the chain
+	NodeOptions   NodeOptions     // NodeOptions is the options for creating a node
+	NodeCreator   NodeCreator     // NodeCreator is a function that creates a node
+
+	WalletConfig WalletConfig // WalletConfig is the default configuration of a chain's wallet
+}
+
+func (o ChainOptions) ValidateBasic() error {
+	if err := o.WalletConfig.ValidateBasic(); err != nil {
+		return fmt.Errorf("wallet config is invalid: %w", err)
+	}
+
+	if o.NodeCreator == nil {
+		return fmt.Errorf("node creator cannot be nil")
+	}
+
+	return nil
 }
 
 // ChainConfig is the configuration structure for a logical chain.
@@ -55,14 +77,8 @@ type ChainConfig struct {
 	CoinType string // CoinType is the coin type of the chain (e.g. 118)
 	ChainId  string // ChainId is the chain ID of the chain
 
-	ModifyGenesis GenesisModifier // ModifyGenesis is a function that modifies the genesis bytes of the chain
-
-	WalletConfig WalletConfig // WalletConfig is the default configuration of a chain's wallet
-
 	UseGenesisSubCommand bool // UseGenesisSubCommand is a flag that indicates whether to use the 'genesis' subcommand to initialize the chain. Set to true if Cosmos SDK >v0.50
 
-	NodeCreator            NodeCreator            // NodeCreator is a function that creates a node
-	NodeDefinitionModifier NodeDefinitionModifier // NodeDefinitionModifier is a function that modifies a node's definition
 	// number of tokens to allocate per account in the genesis state (unscaled). This value defaults to 10_000_000 if not set.
 	// if not set.
 	GenesisDelegation *big.Int
@@ -119,10 +135,6 @@ func (c *ChainConfig) ValidateBasic() error {
 
 	if c.ChainId == "" {
 		return fmt.Errorf("chain ID cannot be empty")
-	}
-
-	if c.NodeCreator == nil {
-		return fmt.Errorf("node creator cannot be nil")
 	}
 
 	return nil
