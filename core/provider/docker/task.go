@@ -154,8 +154,6 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
 
-	fmt.Println(containerJSON.State.Status)
-
 	switch state := containerJSON.State.Status; state {
 	case "created":
 		return provider.TASK_STOPPED, nil
@@ -174,10 +172,6 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 	}
 
 	return provider.TASK_STATUS_UNDEFINED, nil
-}
-
-func (t *Task) Initialize(ctx context.Context) error {
-	return nil
 }
 
 func (t *Task) Modify(ctx context.Context, td provider.TaskDefinition) error {
