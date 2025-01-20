@@ -19,11 +19,6 @@ import (
 	_ "embed"
 )
 
-// nolint
-//
-//go:embed files/docker-cloud-init.yaml
-var dockerCloudInit string
-
 func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDefinition) (*godo.Droplet, error) {
 	if err := definition.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate task definition: %w", err)
@@ -41,8 +36,9 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		return nil, fmt.Errorf("failed to parse image ID: %w", err)
 	}
 
+	state := p.GetState()
 	req := &godo.DropletCreateRequest{
-		Name:   fmt.Sprintf("%s-%s", p.state.PetriTag, definition.Name),
+		Name:   fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
 		Region: doConfig["region"],
 		Size:   doConfig["size"],
 		Image: godo.DropletCreateImage{
@@ -50,25 +46,21 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		},
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
-				Fingerprint: p.state.SSHKeyPair.Fingerprint,
+				Fingerprint: state.SSHKeyPair.Fingerprint,
 			},
 		},
-		Tags: []string{p.state.PetriTag},
+		Tags: []string{state.PetriTag},
 	}
 
-	droplet, res, err := p.doClient.CreateDroplet(ctx, req)
+	droplet, err := p.doClient.CreateDroplet(ctx, req)
 	if err != nil {
 		return nil, err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
 	start := time.Now()
 
 	err = util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
-		d, _, err := p.doClient.GetDroplet(ctx, droplet.ID)
+		d, err := p.doClient.GetDroplet(ctx, droplet.ID)
 		if err != nil {
 			return false, err
 		}
@@ -83,7 +75,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		if p.dockerClients[ip] == nil {
-			dockerClient, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, sshPort))
+			dockerClient, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 			if err != nil {
 				p.logger.Error("failed to create docker client", zap.Error(err))
 				return false, err
@@ -113,34 +105,15 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 func (t *Task) deleteDroplet(ctx context.Context) error {
 	droplet, err := t.getDroplet(ctx)
-
 	if err != nil {
 		return err
 	}
 
-	res, err := t.doClient.DeleteDropletByID(ctx, droplet.ID)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return nil
+	return t.doClient.DeleteDropletByID(ctx, droplet.ID)
 }
 
 func (t *Task) getDroplet(ctx context.Context) (*godo.Droplet, error) {
-	droplet, res, err := t.doClient.GetDroplet(ctx, t.state.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return droplet, nil
+	return t.doClient.GetDroplet(ctx, t.GetState().ID)
 }
 
 func (t *Task) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.Client, error) {
@@ -161,7 +134,7 @@ func (t *Task) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.C
 		return nil, err
 	}
 
-	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(t.sshKeyPair.PrivateKey))
+	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(t.GetState().SSHKeyPair.PrivateKey))
 	if err != nil {
 		return nil, err
 	}

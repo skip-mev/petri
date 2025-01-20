@@ -71,7 +71,7 @@ func TestTaskLifecycle(t *testing.T) {
 		},
 	}
 
-	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, nil)
 
 	mockDocker.On("ContainerList", ctx, container.ListOptions{
 		Limit: 1,
@@ -131,7 +131,7 @@ func TestTaskRunCommand(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, nil)
 
 	mockDocker.On("ContainerList", ctx, container.ListOptions{
 		Limit: 1,
@@ -187,6 +187,25 @@ func TestTaskRunCommand(t *testing.T) {
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stderr)
 
+	// Start command assertions
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{testContainer}, nil)
+
+	mockDocker.On("ContainerStart", ctx, testContainerID, container.StartOptions{}).Return(nil)
+
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{
+			State: &types.ContainerState{
+				Status: "running",
+			},
+		},
+	}, nil)
+
+	err = task.Start(ctx)
+	require.NoError(t, err)
+	require.Equal(t, provider.TASK_RUNNING, task.GetState().Status)
+
 	mockDocker.AssertExpectations(t)
 	mockDO.AssertExpectations(t)
 }
@@ -232,7 +251,7 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 		},
 	}, nil).Twice()
 
-	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, nil)
 
 	execCreateResp := types.IDResponse{ID: "test-exec-id"}
 	mockDocker.On("ContainerExecCreate", ctx, testContainerID, container.ExecOptions{
@@ -286,7 +305,27 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 	require.Equal(t, 0, exitCode)
 	require.Empty(t, stderr)
 
+	// Start command assertions
+	mockDocker.On("ContainerList", ctx, container.ListOptions{
+		Limit: 1,
+	}).Return([]types.Container{testContainer}, nil)
+
+	mockDocker.On("ContainerStart", ctx, testContainerID, container.StartOptions{}).Return(nil)
+
+	mockDocker.On("ContainerInspect", ctx, testContainerID).Return(types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{
+			State: &types.ContainerState{
+				Status: "running",
+			},
+		},
+	}, nil)
+
+	err = task.Start(ctx)
+	require.NoError(t, err)
+	require.Equal(t, provider.TASK_RUNNING, task.GetState().Status)
+
 	mockDocker.AssertExpectations(t)
+	mockDO.AssertExpectations(t)
 }
 
 func TestTaskGetIP(t *testing.T) {
@@ -310,7 +349,7 @@ func TestTaskGetIP(t *testing.T) {
 		},
 	}
 
-	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, nil)
 
 	task := &Task{
 		state: &TaskState{
@@ -341,8 +380,8 @@ func TestTaskDestroy(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	mockDO.On("GetDroplet", ctx, testDroplet.ID).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-	mockDO.On("DeleteDropletByID", ctx, testDroplet.ID).Return(&godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, testDroplet.ID).Return(testDroplet, nil)
+	mockDO.On("DeleteDropletByID", ctx, testDroplet.ID).Return(nil)
 	mockDocker.On("Close").Return(nil)
 
 	provider := &Provider{
@@ -363,7 +402,7 @@ func TestTaskDestroy(t *testing.T) {
 		provider:     provider,
 	}
 
-	provider.state.TaskStates[task.state.ID] = task.state
+	provider.state.TaskStates[task.GetState().ID] = task.state
 
 	err := task.Destroy(ctx)
 	require.NoError(t, err)
@@ -380,7 +419,7 @@ func TestRunCommandWhileStoppedContainerCleanup(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, nil)
 
 	mockDocker.On("ContainerList", ctx, container.ListOptions{
 		Limit: 1,
@@ -487,7 +526,7 @@ func TestRunCommandWhileStoppedContainerAutoRemoved(t *testing.T) {
 	mockDocker := mocks.NewDockerClient(t)
 	mockDO := mocks.NewDoClient(t)
 
-	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, nil)
 
 	mockDocker.On("ContainerList", ctx, container.ListOptions{
 		Limit: 1,
@@ -604,7 +643,7 @@ func TestTaskExposingPort(t *testing.T) {
 		},
 	}
 
-	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, nil)
 
 	testContainer := types.Container{
 		ID: testContainerID,
@@ -696,8 +735,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "off",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletOff.ID).Return(testDropletOff, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+				mockDO.On("GetDroplet", ctx, testDropletOff.ID).Return(testDropletOff, nil)
 			},
 			expectedStatus: provider.TASK_STOPPED,
 			expectError:    false,
@@ -707,9 +745,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "running",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -729,8 +765,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "paused",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -750,9 +785,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "exited",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -772,9 +805,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "removing",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -794,9 +825,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "dead",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -816,9 +845,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "created",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -838,9 +865,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "unknown_status",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -860,7 +885,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{}, nil)
@@ -873,9 +898,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
-
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return([]types.Container{testContainer}, nil)
@@ -889,7 +912,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-				mockDO.On("GetDroplet", ctx, 123).Return(nil, nil, fmt.Errorf("failed to get droplet"))
+				mockDO.On("GetDroplet", ctx, 123).Return(nil, fmt.Errorf("failed to get droplet"))
 			},
 			expectedStatus: provider.TASK_STATUS_UNDEFINED,
 			expectError:    true,
@@ -899,8 +922,7 @@ func TestGetStatus(t *testing.T) {
 			dropletStatus:  "active",
 			containerState: "",
 			setupMocks: func(mockDocker *mocks.DockerClient, mockDO *mocks.DoClient) {
-
-				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, &godo.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
+				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
 				}).Return(nil, fmt.Errorf("failed to list containers"))

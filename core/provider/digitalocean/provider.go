@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/client"
 
 	"go.uber.org/zap"
 
@@ -21,7 +24,7 @@ var _ provider.ProviderI = (*Provider)(nil)
 
 const (
 	providerLabelName = "petri-provider"
-	sshPort           = "2375"
+	dockerPort        = "2375"
 )
 
 type ProviderState struct {
@@ -97,7 +100,7 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 	digitalOceanProvider.state.FirewallID = firewall.ID
 
 	//TODO(Zygimantass): TOCTOU issue
-	if key, _, err := doClient.GetKeyByFingerprint(ctx, sshKeyPair.Fingerprint); err != nil || key == nil {
+	if key, err := doClient.GetKeyByFingerprint(ctx, sshKeyPair.Fingerprint); err != nil || key == nil {
 		_, err = digitalOceanProvider.createSSHKey(ctx, sshKeyPair.PublicKey)
 		if err != nil {
 			if !strings.Contains(err.Error(), "422") {
@@ -142,44 +145,60 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	p.logger.Info("droplet created", zap.String("name", droplet.Name), zap.String("ip", ip))
 
-	if p.dockerClients[ip] == nil {
-		p.dockerClients[ip], err = NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, sshPort))
+	dockerClient := p.dockerClients[ip]
+	if dockerClient == nil {
+		dockerClient, err = NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	_, _, err = p.dockerClients[ip].ImageInspectWithRaw(ctx, definition.Image.Image)
+	_, _, err = dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
 	if err != nil {
 		p.logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
-		err = pullImage(ctx, p.dockerClients[ip], p.logger, definition.Image.Image)
+		err = pullImage(ctx, dockerClient, p.logger, definition.Image.Image)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	_, err = p.dockerClients[ip].ContainerCreate(ctx, &container.Config{
-		Image:      definition.Image.Image,
-		Entrypoint: definition.Entrypoint,
-		Cmd:        definition.Command,
-		Tty:        false,
-		Hostname:   definition.Name,
-		Labels: map[string]string{
-			providerLabelName: p.state.Name,
-		},
-		Env: convertEnvMapToList(definition.Environment),
-	}, &container.HostConfig{
-		Mounts: []mount.Mount{
-			{
-				Type:   mount.TypeBind,
-				Source: "/docker_volumes",
-				Target: definition.DataDir,
+	state := p.GetState()
+
+	err = util.WaitForCondition(ctx, 30*time.Second, 1*time.Second, func() (bool, error) {
+		_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+			Image:      definition.Image.Image,
+			Entrypoint: definition.Entrypoint,
+			Cmd:        definition.Command,
+			Tty:        false,
+			Hostname:   definition.Name,
+			Labels: map[string]string{
+				providerLabelName: state.Name,
 			},
-		},
-		NetworkMode: container.NetworkMode("host"),
-	}, nil, nil, definition.ContainerName)
+			Env: convertEnvMapToList(definition.Environment),
+		}, &container.HostConfig{
+			Mounts: []mount.Mount{
+				{
+					Type:   mount.TypeBind,
+					Source: "/docker_volumes",
+					Target: definition.DataDir,
+				},
+			},
+			NetworkMode: container.NetworkMode("host"),
+		}, nil, nil, definition.ContainerName)
+
+		if err != nil {
+			if client.IsErrConnectionFailed(err) {
+				p.logger.Warn("connection failed while creating container, will retry", zap.Error(err))
+				return false, nil
+			}
+			return false, err
+		}
+
+		return true, nil
+	})
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create container after retries: %w", err)
 	}
 
 	taskState := &TaskState{
@@ -187,7 +206,8 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Name:         definition.Name,
 		Definition:   definition,
 		Status:       provider.TASK_STOPPED,
-		ProviderName: p.state.Name,
+		ProviderName: state.Name,
+		SSHKeyPair:   state.SSHKeyPair,
 	}
 
 	p.stateMu.Lock()
@@ -198,10 +218,9 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	return &Task{
 		state:        taskState,
 		provider:     p,
-		sshKeyPair:   p.state.SSHKeyPair,
 		logger:       p.logger.With(zap.String("task", definition.Name)),
 		doClient:     p.doClient,
-		dockerClient: p.dockerClients[ip],
+		dockerClient: dockerClient,
 	}, nil
 }
 
@@ -242,7 +261,7 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 	}
 
 	for _, taskState := range providerState.TaskStates {
-		droplet, _, err := digitalOceanProvider.doClient.GetDroplet(ctx, taskState.ID)
+		droplet, err := digitalOceanProvider.doClient.GetDroplet(ctx, taskState.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get droplet for task state: %w", err)
 		}
@@ -253,11 +272,11 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 		}
 
 		if digitalOceanProvider.dockerClients[ip] == nil {
-			client, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, sshPort))
+			dockerClient, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 			if err != nil {
 				return nil, fmt.Errorf("failed to create docker client: %w", err)
 			}
-			digitalOceanProvider.dockerClients[ip] = client
+			digitalOceanProvider.dockerClients[ip] = dockerClient
 		}
 	}
 
@@ -301,7 +320,6 @@ func (p *Provider) DeserializeTask(ctx context.Context, bz []byte) (provider.Tas
 
 func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) error {
 	task.logger = p.logger.With(zap.String("task", task.state.Name))
-	task.sshKeyPair = p.state.SSHKeyPair
 	task.doClient = p.doClient
 	task.provider = p
 
@@ -316,11 +334,11 @@ func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) e
 	}
 
 	if p.dockerClients[ip] == nil {
-		client, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, sshPort))
+		dockerClient, err := NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 		if err != nil {
 			return fmt.Errorf("failed to create docker client: %w", err)
 		}
-		p.dockerClients[ip] = client
+		p.dockerClients[ip] = dockerClient
 	}
 
 	task.dockerClient = p.dockerClients[ip]
@@ -346,55 +364,19 @@ func (p *Provider) Teardown(ctx context.Context) error {
 }
 
 func (p *Provider) teardownTasks(ctx context.Context) error {
-	res, err := p.doClient.DeleteDropletByTag(ctx, p.state.PetriTag)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return nil
+	return p.doClient.DeleteDropletByTag(ctx, p.GetState().PetriTag)
 }
 
 func (p *Provider) teardownFirewall(ctx context.Context) error {
-	res, err := p.doClient.DeleteFirewall(ctx, p.state.FirewallID)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return nil
+	return p.doClient.DeleteFirewall(ctx, p.GetState().FirewallID)
 }
 
 func (p *Provider) teardownSSHKey(ctx context.Context) error {
-	res, err := p.doClient.DeleteKeyByFingerprint(ctx, p.state.SSHKeyPair.Fingerprint)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return nil
+	return p.doClient.DeleteKeyByFingerprint(ctx, p.GetState().SSHKeyPair.Fingerprint)
 }
 
 func (p *Provider) teardownTag(ctx context.Context) error {
-	res, err := p.doClient.DeleteTag(ctx, p.state.PetriTag)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return nil
+	return p.doClient.DeleteTag(ctx, p.GetState().PetriTag)
 }
 
 func (p *Provider) removeTask(_ context.Context, taskID int) error {
@@ -404,4 +386,18 @@ func (p *Provider) removeTask(_ context.Context, taskID int) error {
 	delete(p.state.TaskStates, taskID)
 
 	return nil
+}
+
+func (p *Provider) createTag(ctx context.Context, tagName string) (*godo.Tag, error) {
+	req := &godo.TagCreateRequest{
+		Name: tagName,
+	}
+
+	return p.doClient.CreateTag(ctx, req)
+}
+
+func (p *Provider) GetState() ProviderState {
+	p.stateMu.Lock()
+	defer p.stateMu.Unlock()
+	return *p.state
 }
