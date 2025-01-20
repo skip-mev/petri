@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"os"
+
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/skip-mev/petri/cosmos/v2/chain"
 	"github.com/skip-mev/petri/cosmos/v2/node"
-	"os"
 
 	"github.com/skip-mev/petri/core/v2/provider"
 	"github.com/skip-mev/petri/core/v2/provider/digitalocean"
