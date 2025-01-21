@@ -28,7 +28,7 @@ import (
 )
 
 type TaskState struct {
-	ID           int                     `json:"id"`
+	ID           string                  `json:"id"`
 	Name         string                  `json:"name"`
 	Definition   provider.TaskDefinition `json:"definition"`
 	Status       provider.TaskStatus     `json:"status"`

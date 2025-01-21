@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -90,7 +91,7 @@ func TestTaskLifecycle(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           droplet.ID,
+			ID:           strconv.Itoa(droplet.ID),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 			Definition: provider.TaskDefinition{
@@ -165,7 +166,7 @@ func TestTaskRunCommand(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           1,
+			ID:           strconv.Itoa(1),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 			Definition: provider.TaskDefinition{
@@ -282,7 +283,7 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           1,
+			ID:           strconv.Itoa(1),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 			Definition: provider.TaskDefinition{
@@ -353,7 +354,7 @@ func TestTaskGetIP(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           droplet.ID,
+			ID:           strconv.Itoa(droplet.ID),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 		},
@@ -386,14 +387,14 @@ func TestTaskDestroy(t *testing.T) {
 
 	provider := &Provider{
 		state: &ProviderState{
-			TaskStates: make(map[int]*TaskState),
+			TaskStates: make(map[string]*TaskState),
 		},
 	}
 	providerState := provider.GetState()
 
 	task := &Task{
 		state: &TaskState{
-			ID:           testDroplet.ID,
+			ID:           strconv.Itoa(testDroplet.ID),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 		},
@@ -492,7 +493,7 @@ func TestRunCommandWhileStoppedContainerCleanup(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           1,
+			ID:           strconv.Itoa(1),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 			Definition: provider.TaskDefinition{
@@ -597,7 +598,7 @@ func TestRunCommandWhileStoppedContainerAutoRemoved(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           1,
+			ID:           strconv.Itoa(1),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 			Definition: provider.TaskDefinition{
@@ -672,7 +673,7 @@ func TestTaskExposingPort(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           droplet.ID,
+			ID:           strconv.Itoa(droplet.ID),
 			Name:         "test-task",
 			ProviderName: "test-provider",
 			Definition: provider.TaskDefinition{
@@ -942,7 +943,7 @@ func TestGetStatus(t *testing.T) {
 
 			task := &Task{
 				state: &TaskState{
-					ID:           123,
+					ID:           strconv.Itoa(123),
 					Name:         "test-task",
 					ProviderName: "test-provider",
 					Definition: provider.TaskDefinition{

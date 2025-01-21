@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,12 +29,12 @@ const (
 )
 
 type ProviderState struct {
-	TaskStates map[int]*TaskState `json:"task_states"` // map of task ids to the corresponding task state
-	Name       string             `json:"name"`
-	PetriTag   string             `json:"petri_tag"`
-	UserIPs    []string           `json:"user_ips"`
-	SSHKeyPair *SSHKeyPair        `json:"ssh_key_pair"`
-	FirewallID string             `json:"firewall_id"`
+	TaskStates map[string]*TaskState `json:"task_states"` // map of task ids to the corresponding task state
+	Name       string                `json:"name"`
+	PetriTag   string                `json:"petri_tag"`
+	UserIPs    []string              `json:"user_ips"`
+	SSHKeyPair *SSHKeyPair           `json:"ssh_key_pair"`
+	FirewallID string                `json:"firewall_id"`
 }
 
 type Provider struct {
@@ -82,7 +83,7 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 	}
 
 	pState := &ProviderState{
-		TaskStates: make(map[int]*TaskState),
+		TaskStates: make(map[string]*TaskState),
 		UserIPs:    userIPs,
 		Name:       providerName,
 		SSHKeyPair: sshKeyPair,
@@ -206,7 +207,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	}
 
 	taskState := &TaskState{
-		ID:           droplet.ID,
+		ID:           strconv.Itoa(droplet.ID),
 		Name:         definition.Name,
 		Definition:   definition,
 		Status:       provider.TASK_STOPPED,
@@ -265,7 +266,12 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 	}
 
 	for _, taskState := range providerState.TaskStates {
-		droplet, err := digitalOceanProvider.doClient.GetDroplet(ctx, taskState.ID)
+		id, err := strconv.Atoi(taskState.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		droplet, err := digitalOceanProvider.doClient.GetDroplet(ctx, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get droplet for task state: %w", err)
 		}
@@ -384,7 +390,7 @@ func (p *Provider) teardownTag(ctx context.Context) error {
 	return p.doClient.DeleteTag(ctx, p.GetState().PetriTag)
 }
 
-func (p *Provider) removeTask(_ context.Context, taskID int) error {
+func (p *Provider) removeTask(_ context.Context, taskID string) error {
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
 
