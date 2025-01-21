@@ -81,6 +81,16 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 		dockerClients: dockerClients,
 	}
 
+	pState := &ProviderState{
+		TaskStates: make(map[int]*TaskState),
+		UserIPs:    userIPs,
+		Name:       providerName,
+		SSHKeyPair: sshKeyPair,
+		PetriTag:   petriTag,
+	}
+
+	digitalOceanProvider.state = pState
+
 	_, err = digitalOceanProvider.createTag(ctx, petriTag)
 	if err != nil {
 		return nil, err
@@ -91,16 +101,7 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
-	pState := &ProviderState{
-		TaskStates: make(map[int]*TaskState),
-		UserIPs:    userIPs,
-		Name:       providerName,
-		SSHKeyPair: sshKeyPair,
-		PetriTag:   petriTag,
-		FirewallID: firewall.ID,
-	}
-
-	digitalOceanProvider.state = pState
+	pState.FirewallID = firewall.ID
 
 	//TODO(Zygimantass): TOCTOU issue
 	if key, err := doClient.GetKeyByFingerprint(ctx, sshKeyPair.Fingerprint); err != nil || key == nil {
