@@ -34,14 +34,11 @@ type TaskState struct {
 	SSHKeyPair   *SSHKeyPair             `json:"ssh_key_pair"`
 }
 
-// RemoveTaskFunc is a callback function type for removing a task from its provider
-type RemoveTaskFunc func(ctx context.Context, taskID int) error
-
 type Task struct {
 	state   *TaskState
 	stateMu sync.Mutex
 
-	removeTask   RemoveTaskFunc
+	removeTask   provider.RemoveTaskFunc
 	logger       *zap.Logger
 	sshClient    *ssh.Client
 	doClient     DoClient

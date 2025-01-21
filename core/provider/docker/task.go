@@ -39,7 +39,7 @@ type Task struct {
 	stateMu      sync.Mutex
 	logger       *zap.Logger
 	dockerClient clients.DockerClient
-	removeTask   func(ctx context.Context, taskID string) error
+	removeTask   provider.RemoveTaskFunc
 }
 
 var _ provider.TaskI = (*Task)(nil)
