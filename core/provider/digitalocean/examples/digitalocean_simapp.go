@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
+
 	"github.com/skip-mev/petri/cosmos/v2/chain"
 	"github.com/skip-mev/petri/cosmos/v2/node"
 
@@ -33,8 +37,10 @@ func main() {
 		logger.Fatal("failed to create SSH key pair", zap.Error(err))
 	}
 
-	// Add your IP address below
-	doProvider, err := digitalocean.NewProvider(ctx, logger, "cosmos-hub", doToken, []string{"INSERT IP ADDRESS HERE"}, sshKeyPair)
+	externalIP, err := getExternalIP()
+	logger.Info("External IP", zap.String("address", externalIP))
+
+	doProvider, err := digitalocean.NewProvider(ctx, logger, "cosmos-hub", doToken, []string{externalIP}, sshKeyPair)
 	if err != nil {
 		logger.Fatal("failed to create DigitalOcean provider", zap.Error(err))
 	}
@@ -105,4 +111,18 @@ func main() {
 	}
 
 	logger.Info("All Digital Ocean resources created have been successfully deleted!")
+}
+
+func getExternalIP() (string, error) {
+	resp, err := http.Get("https://ifconfig.me")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	ip, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(ip)), nil
 }
