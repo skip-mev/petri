@@ -329,7 +329,6 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 		},
 		logger:       t.logger.With(zap.String("temp_task", definition.Name)),
 		dockerClient: t.dockerClient,
-		removeTask:   t.removeTask,
 	}
 
 	err = tempTask.Start(ctx)
