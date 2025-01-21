@@ -17,12 +17,12 @@ import (
 )
 
 type TaskState struct {
-	Id         string                  `json:"id"`
-	Name       string                  `json:"name"`
-	Volume     *VolumeState            `json:"volumes"`
-	Definition provider.TaskDefinition `json:"definition"`
-	Status     provider.TaskStatus     `json:"status"`
-    IpAddress  string                  `json:"ip_address"`
+	Id               string                  `json:"id"`
+	Name             string                  `json:"name"`
+	Volume           *VolumeState            `json:"volumes"`
+	Definition       provider.TaskDefinition `json:"definition"`
+	Status           provider.TaskStatus     `json:"status"`
+	IpAddress        string                  `json:"ip_address"`
 	BuilderImageName string                  `json:"builder_image_name"`
 	ProviderName     string                  `json:"provider_name"`
 	NetworkName      string                  `json:"network_name"`
@@ -44,9 +44,10 @@ type Task struct {
 var _ provider.TaskI = (*Task)(nil)
 
 func (t *Task) Start(ctx context.Context) error {
-	t.logger.Info("starting task", zap.String("id", t.state.Id))
+	state := t.GetState()
+	t.logger.Info("starting task", zap.String("id", state.Id))
 
-	err := t.dockerClient.ContainerStart(ctx, t.state.Id, container.StartOptions{})
+	err := t.dockerClient.ContainerStart(ctx, state.Id, container.StartOptions{})
 	if err != nil {
 		return err
 	}
@@ -64,9 +65,10 @@ func (t *Task) Start(ctx context.Context) error {
 }
 
 func (t *Task) Stop(ctx context.Context) error {
-	t.logger.Info("stopping task", zap.String("id", t.state.Id))
+	state := t.GetState()
+	t.logger.Info("stopping task", zap.String("id", state.Id))
 
-	err := t.dockerClient.ContainerStop(ctx, t.state.Id, container.StopOptions{})
+	err := t.dockerClient.ContainerStop(ctx, state.Id, container.StopOptions{})
 	if err != nil {
 		return err
 	}
@@ -84,9 +86,10 @@ func (t *Task) Stop(ctx context.Context) error {
 }
 
 func (t *Task) Destroy(ctx context.Context) error {
-	t.logger.Info("destroying task", zap.String("id", t.state.Id))
+	state := t.GetState()
+	t.logger.Info("destroying task", zap.String("id", state.Id))
 
-	err := t.dockerClient.ContainerRemove(ctx, t.state.Id, container.RemoveOptions{
+	err := t.dockerClient.ContainerRemove(ctx, state.Id, container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})
@@ -95,7 +98,7 @@ func (t *Task) Destroy(ctx context.Context) error {
 		return err
 	}
 
-	if err := t.removeTask(ctx, t.state.Id); err != nil {
+	if err := t.removeTask(ctx, state.Id); err != nil {
 		return err
 	}
 
@@ -103,9 +106,10 @@ func (t *Task) Destroy(ctx context.Context) error {
 }
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
-	t.logger.Debug("getting external address", zap.String("id", t.state.Id))
+	state := t.GetState()
+	t.logger.Debug("getting external address", zap.String("id", state.Id))
 
-	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, t.state.Id)
+	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect container: %w", err)
 	}
@@ -119,14 +123,15 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 }
 
 func (t *Task) GetIP(ctx context.Context) (string, error) {
-	t.logger.Debug("getting IP", zap.String("id", t.state.Id))
+	state := t.GetState()
+	t.logger.Debug("getting IP", zap.String("id", state.Id))
 
-	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, t.state.Id)
+	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
 	if err != nil {
 		return "", err
 	}
 
-	ip := dockerContainer.NetworkSettings.Networks[t.state.NetworkName].IPAMConfig.IPv4Address
+	ip := dockerContainer.NetworkSettings.Networks[state.NetworkName].IPAMConfig.IPv4Address
 	return ip, nil
 }
 
@@ -150,7 +155,7 @@ func (t *Task) WaitForStatus(ctx context.Context, interval time.Duration, desire
 }
 
 func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
-	containerJSON, err := t.dockerClient.ContainerInspect(ctx, t.state.Id)
+	containerJSON, err := t.dockerClient.ContainerInspect(ctx, t.GetState().Id)
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
@@ -193,15 +198,16 @@ func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, in
 }
 
 func (t *Task) runCommand(ctx context.Context, cmd []string) (string, string, int, error) {
-	t.logger.Debug("running command", zap.String("id", t.state.Id), zap.Strings("command", cmd))
+	state := t.GetState()
+	t.logger.Debug("running command", zap.String("id", state.Id), zap.Strings("command", cmd))
 
-	exec, err := t.dockerClient.ContainerExecCreate(ctx, t.state.Id, container.ExecOptions{
+	exec, err := t.dockerClient.ContainerExecCreate(ctx, state.Id, container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          cmd,
 	})
 	if err != nil {
-		if buf, err := t.dockerClient.ContainerLogs(ctx, t.state.Id, container.LogsOptions{
+		if buf, err := t.dockerClient.ContainerLogs(ctx, state.Id, container.LogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 		}); err == nil {
@@ -248,7 +254,7 @@ loop:
 	}
 
 	if err != nil {
-		t.logger.Error("failed to wait for exec", zap.Error(err), zap.String("id", t.state.Id))
+		t.logger.Error("failed to wait for exec", zap.Error(err), zap.String("id", t.GetState().Id))
 		return "", "", lastExitCode, err
 	}
 
@@ -262,12 +268,13 @@ loop:
 }
 
 func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string, string, int, error) {
+	state := t.GetState()
 	definition := t.GetState().Definition
 	if err := definition.ValidateBasic(); err != nil {
 		return "", "", 0, fmt.Errorf("failed to validate task definition: %w", err)
 	}
 
-	t.logger.Debug("running command while stopped", zap.String("id", t.state.Id), zap.Strings("command", cmd))
+	t.logger.Debug("running command while stopped", zap.String("id", state.Id), zap.Strings("command", cmd))
 
 	status, err := t.GetStatus(ctx)
 	if err != nil {
@@ -290,24 +297,24 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 		Tty:        false,
 		Hostname:   definition.Name,
 		Labels: map[string]string{
-			providerLabelName: t.state.ProviderName,
+			providerLabelName: state.ProviderName,
 		},
 		Env: convertEnvMapToList(definition.Environment),
 	}
 
 	var mounts []mount.Mount
-	if t.state.Volume != nil {
+	if state.Volume != nil {
 		mounts = []mount.Mount{
 			{
 				Type:   mount.TypeVolume,
-				Source: t.state.Volume.Name,
+				Source: state.Volume.Name,
 				Target: definition.DataDir,
 			},
 		}
 	}
 
 	hostConfig := &container.HostConfig{
-		NetworkMode: container.NetworkMode(t.state.NetworkName),
+		NetworkMode: container.NetworkMode(state.NetworkName),
 		Mounts:      mounts,
 	}
 
@@ -322,8 +329,8 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 			Name:         definition.Name,
 			Definition:   definition,
 			Status:       provider.TASK_STOPPED,
-			ProviderName: t.state.ProviderName,
-			NetworkName:  t.state.NetworkName,
+			ProviderName: state.ProviderName,
+			NetworkName:  state.NetworkName,
 		},
 		logger:       t.logger.With(zap.String("temp_task", definition.Name)),
 		dockerClient: t.dockerClient,
@@ -381,17 +388,18 @@ func (t *Task) ensureTask(ctx context.Context) error {
 }
 
 func (t *Task) ensureVolume(ctx context.Context) error {
-	if t.state.Volume == nil {
+	state := t.GetState()
+	if state.Volume == nil {
 		return nil
 	}
 
-	volume, err := t.dockerClient.VolumeInspect(ctx, t.state.Volume.Name)
+	volume, err := t.dockerClient.VolumeInspect(ctx, state.Volume.Name)
 	if err != nil {
 		return fmt.Errorf("failed to inspect volume: %w", err)
 	}
 
-	if volume.Name != t.state.Volume.Name {
-		return fmt.Errorf("volume name mismatch, expected: %s, got: %s", t.state.Volume.Name, volume.Name)
+	if volume.Name != state.Volume.Name {
+		return fmt.Errorf("volume name mismatch, expected: %s, got: %s", state.Volume.Name, volume.Name)
 	}
 
 	return nil
