@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"net"
 	"path"
 	"sync"
@@ -44,7 +45,7 @@ type Task struct {
 	logger       *zap.Logger
 	sshClient    *ssh.Client
 	doClient     DoClient
-	dockerClient provider.DockerClient
+	dockerClient clients.DockerClient
 }
 
 var _ provider.TaskI = (*Task)(nil)
@@ -289,7 +290,7 @@ func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, in
 	return t.runCommand(ctx, cmd)
 }
 
-func waitForExec(ctx context.Context, dockerClient provider.DockerClient, execID string) (int, error) {
+func waitForExec(ctx context.Context, dockerClient clients.DockerClient, execID string) (int, error) {
 	lastExitCode := 0
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
@@ -449,7 +450,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 	return stdout.String(), stderr.String(), exitCode, nil
 }
 
-func startContainerWithBlock(ctx context.Context, dockerClient provider.DockerClient, containerID string) error {
+func startContainerWithBlock(ctx context.Context, dockerClient clients.DockerClient, containerID string) error {
 	// start container
 	if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return err

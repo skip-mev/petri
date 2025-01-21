@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/docker/docker/api/types/image"
+	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"net"
 	"sync"
 
@@ -35,7 +36,7 @@ type Provider struct {
 	state   *ProviderState
 	stateMu sync.Mutex
 
-	dockerClient           provider.DockerClient
+	dockerClient           clients.DockerClient
 	dockerNetworkAllocator *ipallocator.Range
 	networkMu              sync.Mutex
 	logger                 *zap.Logger
@@ -44,7 +45,7 @@ type Provider struct {
 var _ provider.ProviderI = (*Provider)(nil)
 
 func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string) (*Provider, error) {
-	dockerClient, err := provider.NewDockerClient("")
+	dockerClient, err := clients.NewDockerClient("")
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +118,7 @@ func RestoreProvider(ctx context.Context, logger *zap.Logger, state []byte) (*Pr
 		logger: logger,
 	}
 
-	dockerClient, err := provider.NewDockerClient("")
+	dockerClient, err := clients.NewDockerClient("")
 	if err != nil {
 		return nil, err
 	}

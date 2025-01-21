@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"github.com/docker/docker/api/types/image"
+	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"strings"
 	"sync"
 	"time"
@@ -44,7 +45,7 @@ type Provider struct {
 
 	logger        *zap.Logger
 	doClient      DoClient
-	dockerClients map[string]provider.DockerClient // map of droplet ip address to docker clients
+	dockerClients map[string]clients.DockerClient // map of droplet ip address to docker clients
 }
 
 // NewProvider creates a provider that implements the Provider interface for DigitalOcean.
@@ -56,7 +57,7 @@ func NewProvider(ctx context.Context, logger *zap.Logger, providerName string, t
 
 // NewProviderWithClient creates a provider with custom digitalocean/docker client implementation.
 // This is primarily used for testing.
-func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName string, doClient DoClient, dockerClients map[string]provider.DockerClient, additionalUserIPS []string, sshKeyPair *SSHKeyPair) (*Provider, error) {
+func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName string, doClient DoClient, dockerClients map[string]clients.DockerClient, additionalUserIPS []string, sshKeyPair *SSHKeyPair) (*Provider, error) {
 	var err error
 	if sshKeyPair == nil {
 		sshKeyPair, err = MakeSSHKeyPair()
@@ -73,7 +74,7 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 	userIPs = append(userIPs, additionalUserIPS...)
 
 	if dockerClients == nil {
-		dockerClients = make(map[string]provider.DockerClient)
+		dockerClients = make(map[string]clients.DockerClient)
 	}
 
 	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
@@ -81,17 +82,14 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 		logger:        logger.Named("digitalocean_provider"),
 		doClient:      doClient,
 		dockerClients: dockerClients,
+		state: &ProviderState{
+			TaskStates: make(map[string]*TaskState),
+			UserIPs:    userIPs,
+			Name:       providerName,
+			SSHKeyPair: sshKeyPair,
+			PetriTag:   petriTag,
+		},
 	}
-
-	pState := &ProviderState{
-		TaskStates: make(map[string]*TaskState),
-		UserIPs:    userIPs,
-		Name:       providerName,
-		SSHKeyPair: sshKeyPair,
-		PetriTag:   petriTag,
-	}
-
-	digitalOceanProvider.state = pState
 
 	_, err = digitalOceanProvider.createTag(ctx, petriTag)
 	if err != nil {
@@ -103,7 +101,7 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
-	pState.FirewallID = firewall.ID
+	digitalOceanProvider.state.FirewallID = firewall.ID
 
 	//TODO(Zygimantass): TOCTOU issue
 	if key, err := doClient.GetKeyByFingerprint(ctx, sshKeyPair.Fingerprint); err != nil || key == nil {
@@ -153,7 +151,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	dockerClient := p.dockerClients[ip]
 	if dockerClient == nil {
-		dockerClient, err = provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+		dockerClient, err = clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 		if err != nil {
 			return nil, err
 		}
@@ -238,7 +236,7 @@ func (p *Provider) SerializeProvider(context.Context) ([]byte, error) {
 	return bz, err
 }
 
-func RestoreProvider(ctx context.Context, token string, state []byte, doClient DoClient, dockerClients map[string]provider.DockerClient) (*Provider, error) {
+func RestoreProvider(ctx context.Context, token string, state []byte, doClient DoClient, dockerClients map[string]clients.DockerClient) (*Provider, error) {
 	if doClient == nil && token == "" {
 		return nil, errors.New("a valid token or digital ocean client must be passed when restoring the provider")
 	}
@@ -250,7 +248,7 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 	}
 
 	if dockerClients == nil {
-		dockerClients = make(map[string]provider.DockerClient)
+		dockerClients = make(map[string]clients.DockerClient)
 	}
 
 	digitalOceanProvider := &Provider{
@@ -282,7 +280,7 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 		}
 
 		if digitalOceanProvider.dockerClients[ip] == nil {
-			dockerClient, err := provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+			dockerClient, err := clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 			if err != nil {
 				return nil, fmt.Errorf("failed to create docker client: %w", err)
 			}
@@ -345,7 +343,7 @@ func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) e
 	}
 
 	if p.dockerClients[ip] == nil {
-		dockerClient, err := provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+		dockerClient, err := clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 		if err != nil {
 			return fmt.Errorf("failed to create docker client: %w", err)
 		}
