@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/skip-mev/petri/core/v2/provider/clients"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -36,7 +38,7 @@ type Task struct {
 	state        *TaskState
 	stateMu      sync.Mutex
 	logger       *zap.Logger
-	dockerClient provider.DockerClient
+	dockerClient clients.DockerClient
 	removeTask   func(ctx context.Context, taskID string) error
 }
 
@@ -329,6 +331,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 		},
 		logger:       t.logger.With(zap.String("temp_task", definition.Name)),
 		dockerClient: t.dockerClient,
+		removeTask:   t.removeTask,
 	}
 
 	err = tempTask.Start(ctx)

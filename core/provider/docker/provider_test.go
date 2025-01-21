@@ -3,6 +3,7 @@ package docker_test
 import (
 	"context"
 	"fmt"
+	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"sync"
 	"testing"
 	"time"
@@ -231,7 +232,7 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	for task := range tasks {
 		taskState := task.GetState()
-		dockerClient, _ := provider.NewDockerClient("")
+		dockerClient, _ := clients.NewDockerClient("")
 		containerJSON, err := dockerClient.ContainerInspect(ctx, taskState.Id)
 		require.NoError(t, err)
 

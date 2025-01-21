@@ -3,6 +3,7 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"time"
 
 	"github.com/pkg/errors"
@@ -75,7 +76,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		if p.dockerClients[ip] == nil {
-			dockerClient, err := provider.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+			dockerClient, err := clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
 			if err != nil {
 				p.logger.Error("failed to create docker client", zap.Error(err))
 				return false, err

@@ -3,6 +3,7 @@ package digitalocean
 import (
 	"context"
 	"fmt"
+	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"sync"
 	"testing"
 	"time"
@@ -60,7 +61,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	mockDockerClients := map[string]provider.DockerClient{
+	mockDockerClients := map[string]clients.DockerClient{
 		"10.0.0.1": mockDocker,
 	}
 
@@ -146,7 +147,7 @@ func setupValidationTestProvider(t *testing.T, ctx context.Context) *Provider {
 	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	mockDockerClients := map[string]provider.DockerClient{
+	mockDockerClients := map[string]clients.DockerClient{
 		"10.0.0.1": mockDocker,
 	}
 
@@ -265,7 +266,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 	defer cancel()
 
 	logger, _ := zap.NewDevelopment()
-	mockDockerClients := make(map[string]provider.DockerClient)
+	mockDockerClients := make(map[string]clients.DockerClient)
 	mockDO := mocks.NewDoClient(t)
 
 	for i := 0; i < 10; i++ {
@@ -467,7 +468,7 @@ func TestProviderSerialization(t *testing.T) {
 	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	mockDockerClients := map[string]provider.DockerClient{
+	mockDockerClients := map[string]clients.DockerClient{
 		"10.0.0.1": mockDocker,
 	}
 
@@ -531,7 +532,7 @@ func TestProviderSerialization(t *testing.T) {
 	mockDocker2 := dockerMocks.NewDockerClient(t)
 	mockDocker2.On("Ping", ctx).Return(types.Ping{}, nil).Maybe()
 
-	mockDockerClients2 := map[string]provider.DockerClient{
+	mockDockerClients2 := map[string]clients.DockerClient{
 		"10.0.0.1": mockDocker2,
 	}
 
