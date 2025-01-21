@@ -92,7 +92,7 @@ func TestDockerE2E(t *testing.T) {
 	restoredProvider, err := docker.RestoreProvider(ctx, logger, serializedProvider)
 	require.NoError(t, err)
 
-	// restore the existing chains with the restored provider
+	// Restore the existing chains with the restored provider
 	restoredChains := make([]*cosmoschain.Chain, *numTestChains)
 	for i := 0; i < *numTestChains/2; i++ {
 		chainState, err := chains[i].Serialize(ctx, restoredProvider)

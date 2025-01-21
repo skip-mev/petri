@@ -124,7 +124,7 @@ func TestDOE2E(t *testing.T) {
 
 	// Test and teardown half the chains individually
 	for i := 0; i < *numTestChains/2; i++ {
-		originalChain := chains[i]
+		originalChain := restoredChains[i]
 		validators := originalChain.GetValidators()
 		nodes := originalChain.GetNodes()
 
@@ -158,7 +158,7 @@ func TestDOE2E(t *testing.T) {
 	// Test the remaining chains but let the provider teardown handle their cleanup
 	remainingChains := make([]*cosmoschain.Chain, 0)
 	for i := *numTestChains / 2; i < *numTestChains; i++ {
-		originalChain := chains[i]
+		originalChain := restoredChains[i]
 		remainingChains = append(remainingChains, originalChain)
 		validators := originalChain.GetValidators()
 		nodes := originalChain.GetNodes()
