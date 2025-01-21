@@ -150,7 +150,8 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 	}
 
 	chain := Chain{
-		State: packagedState.State,
+		State:  packagedState.State,
+		logger: logger,
 	}
 
 	for _, vs := range packagedState.ValidatorStates {
