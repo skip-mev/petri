@@ -24,11 +24,10 @@ type ProviderState struct {
 
 	Name string `json:"name"`
 
-	NetworkID      string   `json:"network_id"`
-	NetworkName    string   `json:"network_name"`
-	NetworkCIDR    string   `json:"network_cidr"`
-	NetworkGateway string   `json:"network_gateway"`
-	AllocatedIPs   []string `json:"allocated_ips"`
+	NetworkID      string `json:"network_id"`
+	NetworkName    string `json:"network_name"`
+	NetworkCIDR    string `json:"network_cidr"`
+	NetworkGateway string `json:"network_gateway"`
 
 	BuilderImageName string `json:"builder_image_name"`
 }
@@ -262,7 +261,6 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	taskState.Id = createdContainer.ID
 	taskState.Status = provider.TASK_STOPPED
 	taskState.NetworkName = state.NetworkName
-	taskState.ProviderName = state.Name
 	taskState.IpAddress = ip
 
 	p.stateMu.Lock()
