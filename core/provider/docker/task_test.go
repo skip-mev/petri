@@ -54,8 +54,10 @@ func TestTaskLifecycle(t *testing.T) {
 	err = task.Stop(ctx)
 	require.NoError(t, err)
 
+	require.Equal(t, 1, len(p.GetState().TaskStates))
 	err = task.Destroy(ctx)
 	require.NoError(t, err)
+	require.Equal(t, 0, len(p.GetState().TaskStates))
 
 	dockerTask, ok := task.(*docker.Task)
 	require.True(t, ok)
