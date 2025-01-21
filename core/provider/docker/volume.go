@@ -94,7 +94,7 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 			},
 
 			Labels: map[string]string{
-				providerLabelName: t.state.ProviderName,
+				providerLabelName: t.GetState().ProviderName,
 			},
 
 			// Use root user to avoid permission issues when reading files from the volume.

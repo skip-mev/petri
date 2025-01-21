@@ -164,16 +164,17 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	if err := definition.ValidateBasic(); err != nil {
 		return &Task{}, fmt.Errorf("failed to validate task definition: %w", err)
 	}
+	state := p.GetState()
 
 	taskState := &TaskState{
 		Name:             definition.Name,
 		Definition:       definition,
-		BuilderImageName: p.state.BuilderImageName,
+		BuilderImageName: state.BuilderImageName,
 	}
 
 	logger := p.logger.Named("docker_provider")
 
-	if err := p.dockerClient.ImagePull(ctx, p.logger, p.GetState().BuilderImageName, image.PullOptions{}); err != nil {
+	if err := p.dockerClient.ImagePull(ctx, p.logger, state.BuilderImageName, image.PullOptions{}); err != nil {
 		return nil, err
 	}
 
@@ -236,17 +237,17 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Tty:        false,
 		Hostname:   definition.Name,
 		Labels: map[string]string{
-			providerLabelName: p.state.Name,
+			providerLabelName: state.Name,
 		},
 		Env:          convertEnvMapToList(definition.Environment),
 		ExposedPorts: portSet,
 	}, &container.HostConfig{
 		Mounts:       mounts,
 		PortBindings: portBindings,
-		NetworkMode:  container.NetworkMode(p.state.NetworkName),
+		NetworkMode:  container.NetworkMode(state.NetworkName),
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
-			p.state.NetworkName: {
+			state.NetworkName: {
 				IPAMConfig: &network.EndpointIPAMConfig{
 					IPv4Address: ip,
 				},
@@ -260,8 +261,8 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	taskState.Id = createdContainer.ID
 	taskState.Status = provider.TASK_STOPPED
-	taskState.NetworkName = p.state.NetworkName
-	taskState.ProviderName = p.state.Name
+	taskState.NetworkName = state.NetworkName
+	taskState.ProviderName = state.Name
 	taskState.IpAddress = ip
 
 	p.stateMu.Lock()
@@ -336,7 +337,7 @@ func (p *Provider) removeTask(_ context.Context, taskID string) error {
 func (p *Provider) Teardown(ctx context.Context) error {
 	p.logger.Info("tearing down Docker provider")
 
-	for _, task := range p.state.TaskStates {
+	for _, task := range p.GetState().TaskStates {
 		if err := p.dockerClient.ContainerRemove(ctx, task.Id, container.RemoveOptions{
 			Force: true,
 		}); err != nil {
