@@ -92,11 +92,9 @@ func TestDockerE2E(t *testing.T) {
 	restoredProvider, err := docker.RestoreProvider(ctx, logger, serializedProvider)
 	require.NoError(t, err)
 
-	// Create second half of chains with restored provider
-	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2, *numTestChains, chains, defaultChainConfig, defaultChainOptions)
-
+	// restore the existing chains with the restored provider
 	restoredChains := make([]*cosmoschain.Chain, *numTestChains)
-	for i := 0; i < *numTestChains; i++ {
+	for i := 0; i < *numTestChains/2; i++ {
 		chainState, err := chains[i].Serialize(ctx, restoredProvider)
 		require.NoError(t, err)
 
@@ -108,6 +106,9 @@ func TestDockerE2E(t *testing.T) {
 
 		restoredChains[i] = restoredChain
 	}
+
+	// Create second half of chains with restored provider
+	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2, *numTestChains, restoredChains, defaultChainConfig, defaultChainOptions)
 
 	// Test and teardown half the chains individually
 	for i := 0; i < *numTestChains/2; i++ {
