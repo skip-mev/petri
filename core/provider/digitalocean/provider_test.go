@@ -308,7 +308,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 	errors := make(chan error, numTasks)
 	tasks := make(chan *Task, numTasks)
 	taskMutex := sync.Mutex{}
-	dropletIDs := make(map[int]bool)
+	dropletIDs := make(map[string]bool)
 	ipAddresses := make(map[string]bool)
 
 	for i := 0; i < numTasks; i++ {
@@ -373,7 +373,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 			state := doTask.GetState()
 
 			if dropletIDs[state.ID] {
-				errors <- fmt.Errorf("duplicate droplet ID found: %d", state.ID)
+				errors <- fmt.Errorf("duplicate droplet ID found: %s", state.ID)
 			}
 			dropletIDs[state.ID] = true
 

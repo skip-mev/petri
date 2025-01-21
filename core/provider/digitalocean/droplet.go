@@ -113,7 +113,11 @@ func (t *Task) deleteDroplet(ctx context.Context) error {
 }
 
 func (t *Task) getDroplet(ctx context.Context) (*godo.Droplet, error) {
-	return t.doClient.GetDroplet(ctx, t.GetState().ID)
+	dropletId, err := strconv.Atoi(t.GetState().ID)
+	if err != nil {
+		return nil, err
+	}
+	return t.doClient.GetDroplet(ctx, dropletId)
 }
 
 func (t *Task) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.Client, error) {
