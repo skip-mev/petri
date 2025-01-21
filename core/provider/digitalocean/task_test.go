@@ -403,7 +403,7 @@ func TestTaskDestroy(t *testing.T) {
 		logger:       logger,
 		dockerClient: mockDocker,
 		doClient:     mockDO,
-		removeTask: func(ctx context.Context, taskID int) error {
+		removeTask: func(ctx context.Context, taskID string) error {
 			delete(provider.state.TaskStates, taskID)
 			return nil
 		},
