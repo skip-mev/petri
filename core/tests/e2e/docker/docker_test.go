@@ -3,9 +3,9 @@ package e2e
 import (
 	"context"
 	"flag"
-	"fmt"
-	"sync"
 	"testing"
+
+	"github.com/skip-mev/petri/core/v2/tests/e2e"
 
 	"github.com/skip-mev/petri/cosmos/v2/node"
 
@@ -64,9 +64,6 @@ func TestDockerE2E(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	p, err := docker.CreateProvider(ctx, logger, "docker_provider")
-	require.NoError(t, err)
-
 	defer func() {
 		dockerClient, err := client.NewClientWithOpts()
 		if err != nil {
@@ -79,68 +76,25 @@ func TestDockerE2E(t *testing.T) {
 		}
 	}()
 
-	var wg sync.WaitGroup
-	chainErrors := make(chan error, *numTestChains*2)
+	p, err := docker.CreateProvider(ctx, logger, "docker_provider")
+	require.NoError(t, err)
+
 	chains := make([]*cosmoschain.Chain, *numTestChains)
 
 	// Create first half of chains
-	for i := 0; i < *numTestChains/2; i++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-			chainConfig := defaultChainConfig
-			chainConfig.ChainId = fmt.Sprintf("chain-%d", index)
-			chainConfig.NumNodes = *numNodes
-			chainConfig.NumValidators = *numValidators
-			c, err := cosmoschain.CreateChain(ctx, logger, p, chainConfig, defaultChainOptions)
-			if err != nil {
-				t.Logf("Chain creation error: %v", err)
-				chainErrors <- fmt.Errorf("failed to create chain %d: %w", index, err)
-				return
-			}
-			if err := c.Init(ctx, defaultChainOptions); err != nil {
-				t.Logf("Chain creation error: %v", err)
-				chainErrors <- fmt.Errorf("failed to init chain %d: %w", index, err)
-				return
-			}
-			chains[index] = c
-		}(i)
-	}
-	wg.Wait()
-	require.Empty(t, chainErrors)
+	defaultChainConfig.NumNodes = *numNodes
+	defaultChainConfig.NumValidators = *numValidators
+	e2e.CreateChainsConcurrently(ctx, t, logger, p, 0, *numTestChains/2, chains, defaultChainConfig, defaultChainOptions)
 
+	// Restore provider before creating second half of chains
 	serializedProvider, err := p.SerializeProvider(ctx)
 	require.NoError(t, err)
 	restoredProvider, err := docker.RestoreProvider(ctx, logger, serializedProvider)
 	require.NoError(t, err)
 
 	// Create second half of chains with restored provider
-	for i := *numTestChains / 2; i < *numTestChains; i++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-			chainConfig := defaultChainConfig
-			chainConfig.ChainId = fmt.Sprintf("chain-%d", index)
-			chainConfig.NumNodes = *numNodes
-			chainConfig.NumValidators = *numValidators
-			c, err := cosmoschain.CreateChain(ctx, logger, restoredProvider, chainConfig, defaultChainOptions)
-			if err != nil {
-				t.Logf("Chain creation error: %v", err)
-				chainErrors <- fmt.Errorf("failed to create chain %d: %w", index, err)
-				return
-			}
-			if err := c.Init(ctx, defaultChainOptions); err != nil {
-				t.Logf("Chain creation error: %v", err)
-				chainErrors <- fmt.Errorf("failed to init chain %d: %w", index, err)
-				return
-			}
-			chains[index] = c
-		}(i)
-	}
-	wg.Wait()
-	require.Empty(t, chainErrors)
+	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2, *numTestChains, chains, defaultChainConfig, defaultChainOptions)
 
-	// Serialize and restore all chains with the restored provider
 	restoredChains := make([]*cosmoschain.Chain, *numTestChains)
 	for i := 0; i < *numTestChains; i++ {
 		chainState, err := chains[i].Serialize(ctx, restoredProvider)
@@ -162,32 +116,11 @@ func TestDockerE2E(t *testing.T) {
 		nodes := originalChain.GetNodes()
 
 		for _, validator := range validators {
-			status, err := validator.GetStatus(ctx)
-			require.NoError(t, err)
-			require.Equal(t, provider.TASK_RUNNING, status)
-
-			ip, err := validator.GetIP(ctx)
-			require.NoError(t, err)
-			require.NotEmpty(t, ip)
-
-			testFile := "test.txt"
-			testContent := []byte("test content")
-			err = validator.WriteFile(ctx, testFile, testContent)
-			require.NoError(t, err)
-
-			readContent, err := validator.ReadFile(ctx, testFile)
-			require.NoError(t, err)
-			require.Equal(t, testContent, readContent)
+			e2e.AssertNodeRunning(t, ctx, validator)
 		}
 
 		for _, node := range nodes {
-			status, err := node.GetStatus(ctx)
-			require.NoError(t, err)
-			require.Equal(t, provider.TASK_RUNNING, status)
-
-			ip, err := node.GetIP(ctx)
-			require.NoError(t, err)
-			require.NotEmpty(t, ip)
+			e2e.AssertNodeRunning(t, ctx, node)
 		}
 
 		err = originalChain.WaitForBlocks(ctx, 2)
@@ -198,23 +131,11 @@ func TestDockerE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, validator := range validators {
-			status, err := validator.GetStatus(ctx)
-			logger.Info("validator status", zap.Any("", status))
-			require.Error(t, err)
-			require.Equal(t, provider.TASK_STATUS_UNDEFINED, status, "validator task should report undefined as container isn't available")
-
-			_, err = validator.GetIP(ctx)
-			require.Error(t, err, "validator IP should not be accessible after teardown")
+			e2e.AssertNodeShutdown(t, ctx, validator)
 		}
 
 		for _, node := range nodes {
-			status, err := node.GetStatus(ctx)
-			logger.Info("node status", zap.Any("", status))
-			require.Error(t, err)
-			require.Equal(t, provider.TASK_STATUS_UNDEFINED, status, "node task should report undefined as container isn't available")
-
-			_, err = node.GetIP(ctx)
-			require.Error(t, err, "node IP should not be accessible after teardown")
+			e2e.AssertNodeShutdown(t, ctx, node)
 		}
 	}
 
@@ -226,31 +147,10 @@ func TestDockerE2E(t *testing.T) {
 		validators := originalChain.GetValidators()
 		nodes := originalChain.GetNodes()
 		for _, validator := range validators {
-			status, err := validator.GetStatus(ctx)
-			require.NoError(t, err)
-			require.Equal(t, provider.TASK_RUNNING, status)
-
-			ip, err := validator.GetIP(ctx)
-			require.NoError(t, err)
-			require.NotEmpty(t, ip)
-
-			testFile := "test.txt"
-			testContent := []byte("test content")
-			err = validator.WriteFile(ctx, testFile, testContent)
-			require.NoError(t, err)
-
-			readContent, err := validator.ReadFile(ctx, testFile)
-			require.NoError(t, err)
-			require.Equal(t, testContent, readContent)
+			e2e.AssertNodeRunning(t, ctx, validator)
 		}
 		for _, node := range nodes {
-			status, err := node.GetStatus(ctx)
-			require.NoError(t, err)
-			require.Equal(t, provider.TASK_RUNNING, status)
-
-			ip, err := node.GetIP(ctx)
-			require.NoError(t, err)
-			require.NotEmpty(t, ip)
+			e2e.AssertNodeRunning(t, ctx, node)
 		}
 
 		err = originalChain.WaitForBlocks(ctx, 2)
@@ -264,23 +164,11 @@ func TestDockerE2E(t *testing.T) {
 		nodes := chain.GetNodes()
 
 		for _, validator := range validators {
-			status, err := validator.GetStatus(ctx)
-			logger.Info("validator status after provider teardown", zap.Any("", status))
-			require.Error(t, err)
-			require.Equal(t, provider.TASK_STATUS_UNDEFINED, status, "validator task should report undefined as container isn't available")
-
-			_, err = validator.GetIP(ctx)
-			require.Error(t, err, "validator IP should not be accessible after teardown")
+			e2e.AssertNodeShutdown(t, ctx, validator)
 		}
 
 		for _, node := range nodes {
-			status, err := node.GetStatus(ctx)
-			logger.Info("node status after provider teardown", zap.Any("", status))
-			require.Error(t, err)
-			require.Equal(t, provider.TASK_STATUS_UNDEFINED, status, "node task should report undefined as container isn't available")
-
-			_, err = node.GetIP(ctx)
-			require.Error(t, err, "node IP should not be accessible after teardown")
+			e2e.AssertNodeShutdown(t, ctx, node)
 		}
 	}
 }
