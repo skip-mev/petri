@@ -24,7 +24,6 @@ type TaskState struct {
 	Status           provider.TaskStatus     `json:"status"`
 	IpAddress        string                  `json:"ip_address"`
 	BuilderImageName string                  `json:"builder_image_name"`
-	ProviderName     string                  `json:"provider_name"`
 	NetworkName      string                  `json:"network_name"`
 }
 
@@ -296,10 +295,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 		Cmd:        definition.Command,
 		Tty:        false,
 		Hostname:   definition.Name,
-		Labels: map[string]string{
-			providerLabelName: state.ProviderName,
-		},
-		Env: convertEnvMapToList(definition.Environment),
+		Env:        convertEnvMapToList(definition.Environment),
 	}
 
 	var mounts []mount.Mount
@@ -325,12 +321,11 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 
 	tempTask := &Task{
 		state: &TaskState{
-			Id:           resp.ID,
-			Name:         definition.Name,
-			Definition:   definition,
-			Status:       provider.TASK_STOPPED,
-			ProviderName: state.ProviderName,
-			NetworkName:  state.NetworkName,
+			Id:          resp.ID,
+			Name:        definition.Name,
+			Definition:  definition,
+			Status:      provider.TASK_STOPPED,
+			NetworkName: state.NetworkName,
 		},
 		logger:       t.logger.With(zap.String("temp_task", definition.Name)),
 		dockerClient: t.dockerClient,

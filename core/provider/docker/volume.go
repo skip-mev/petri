@@ -93,10 +93,6 @@ func (t *Task) WriteTar(ctx context.Context, relPath string, localTarPath string
 				mountPath,
 			},
 
-			Labels: map[string]string{
-				providerLabelName: t.GetState().ProviderName,
-			},
-
 			// Use root user to avoid permission issues when reading files from the volume.
 			User: "0:0",
 		},
@@ -216,10 +212,6 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 				"_", // Meaningless arg0 for sh -c with positional args.
 				mountPath,
 				mountPath,
-			},
-
-			Labels: map[string]string{
-				providerLabelName: state.ProviderName,
 			},
 
 			// Use root user to avoid permission issues when reading files from the volume.
@@ -343,10 +335,6 @@ func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 		&container.Config{
 			Image: state.BuilderImageName,
 
-			Labels: map[string]string{
-				providerLabelName: state.ProviderName,
-			},
-
 			// Use root user to avoid permission issues when reading files from the volume.
 			User: "0",
 		},
@@ -431,11 +419,6 @@ func (t *Task) DownloadDir(ctx context.Context, relPath, localPath string) error
 		ctx,
 		&container.Config{
 			Image: state.BuilderImageName,
-
-			Labels: map[string]string{
-				providerLabelName: state.ProviderName,
-			},
-
 			// Use root user to avoid permission issues when reading files from the volume.
 			User: "0",
 		},
