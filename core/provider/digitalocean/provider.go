@@ -74,20 +74,14 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 		dockerClients = make(map[string]DockerClient)
 	}
 
+	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
 	digitalOceanProvider := &Provider{
 		logger:        logger.Named("digitalocean_provider"),
 		doClient:      doClient,
 		dockerClients: dockerClients,
-		state: &ProviderState{
-			TaskStates: make(map[int]*TaskState),
-			UserIPs:    userIPs,
-			Name:       providerName,
-			SSHKeyPair: sshKeyPair,
-			PetriTag:   fmt.Sprintf("petri-droplet-%s", util.RandomString(5)),
-		},
 	}
 
-	_, err = digitalOceanProvider.createTag(ctx, digitalOceanProvider.state.PetriTag)
+	_, err = digitalOceanProvider.createTag(ctx, petriTag)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +91,16 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
-	digitalOceanProvider.state.FirewallID = firewall.ID
+	pState := &ProviderState{
+		TaskStates: make(map[int]*TaskState),
+		UserIPs:    userIPs,
+		Name:       providerName,
+		SSHKeyPair: sshKeyPair,
+		PetriTag:   petriTag,
+		FirewallID: firewall.ID,
+	}
+
+	digitalOceanProvider.state = pState
 
 	//TODO(Zygimantass): TOCTOU issue
 	if key, err := doClient.GetKeyByFingerprint(ctx, sshKeyPair.Fingerprint); err != nil || key == nil {
@@ -319,7 +322,8 @@ func (p *Provider) DeserializeTask(ctx context.Context, bz []byte) (provider.Tas
 }
 
 func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) error {
-	task.logger = p.logger.With(zap.String("task", task.state.Name))
+	taskState := task.GetState()
+	task.logger = p.logger.With(zap.String("task", taskState.Name))
 	task.doClient = p.doClient
 	task.provider = p
 

@@ -389,6 +389,7 @@ func TestTaskDestroy(t *testing.T) {
 			TaskStates: make(map[int]*TaskState),
 		},
 	}
+	providerState := provider.GetState()
 
 	task := &Task{
 		state: &TaskState{
@@ -402,11 +403,11 @@ func TestTaskDestroy(t *testing.T) {
 		provider:     provider,
 	}
 
-	provider.state.TaskStates[task.GetState().ID] = task.state
+	providerState.TaskStates[task.GetState().ID] = task.state
 
 	err := task.Destroy(ctx)
 	require.NoError(t, err)
-	require.Empty(t, provider.state.TaskStates)
+	require.Empty(t, providerState.TaskStates)
 
 	mockDocker.AssertExpectations(t)
 	mockDO.AssertExpectations(t)
