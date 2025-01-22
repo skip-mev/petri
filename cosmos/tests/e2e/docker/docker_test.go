@@ -8,8 +8,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/skip-mev/petri/core/v2/tests/e2e"
-
 	"github.com/skip-mev/petri/cosmos/v2/node"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
