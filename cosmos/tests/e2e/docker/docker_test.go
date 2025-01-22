@@ -3,17 +3,16 @@ package e2e
 import (
 	"context"
 	"flag"
-	"os"
+	"github.com/skip-mev/petri/cosmos/v2/tests/e2e"
 	"testing"
-	"time"
-
-	"github.com/skip-mev/petri/core/v2/tests/e2e"
 
 	"github.com/skip-mev/petri/cosmos/v2/node"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/provider/digitalocean"
+	"github.com/skip-mev/petri/core/v2/provider/docker"
 	"github.com/skip-mev/petri/core/v2/types"
 	cosmoschain "github.com/skip-mev/petri/cosmos/v2/chain"
 	"github.com/stretchr/testify/require"
@@ -32,11 +31,12 @@ var (
 			UID:   "1000",
 			GID:   "1000",
 		},
-		GasPrices:    "0.0005stake",
-		Bech32Prefix: "cosmos",
-		HomeDir:      "/gaia",
-		CoinType:     "118",
-		ChainId:      "stake-1",
+		GasPrices:            "0.0005stake",
+		Bech32Prefix:         "cosmos",
+		HomeDir:              "/gaia",
+		CoinType:             "118",
+		ChainId:              "stake-1",
+		UseGenesisSubCommand: false,
 	}
 
 	defaultChainOptions = types.ChainOptions{
@@ -48,17 +48,6 @@ var (
 			DerivationFn:     hd.Secp256k1.Derive(),
 			GenerationFn:     hd.Secp256k1.Generate(),
 		},
-		NodeOptions: types.NodeOptions{
-			NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig types.NodeConfig) provider.TaskDefinition {
-				doConfig := digitalocean.DigitalOceanTaskConfig{
-					"size":     "s-2vcpu-4gb",
-					"region":   "ams3",
-					"image_id": os.Getenv("DO_IMAGE_ID"),
-				}
-				def.ProviderSpecificConfig = doConfig
-				return def
-			},
-		},
 	}
 
 	numTestChains = flag.Int("num-chains", 3, "number of chains to create for concurrent testing")
@@ -66,7 +55,7 @@ var (
 	numValidators = flag.Int("num-validators", 1, "number of validators per chain")
 )
 
-func TestDOE2E(t *testing.T) {
+func TestDockerE2E(t *testing.T) {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -74,21 +63,19 @@ func TestDOE2E(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	doToken := os.Getenv("DO_API_TOKEN")
-	if doToken == "" {
-		logger.Fatal("DO_API_TOKEN environment variable not set")
-	}
+	defer func() {
+		dockerClient, err := client.NewClientWithOpts()
+		if err != nil {
+			t.Logf("Failed to create Docker client for volume cleanup: %v", err)
+			return
+		}
+		_, err = dockerClient.VolumesPrune(ctx, filters.Args{})
+		if err != nil {
+			t.Logf("Failed to prune volumes: %v", err)
+		}
+	}()
 
-	imageID := os.Getenv("DO_IMAGE_ID")
-	if imageID == "" {
-		logger.Fatal("DO_IMAGE_ID environment variable not set")
-	}
-
-	externalIP, err := e2e.GetExternalIP()
-	logger.Info("External IP", zap.String("address", externalIP))
-	require.NoError(t, err)
-
-	p, err := digitalocean.NewProvider(ctx, logger, "digitalocean_provider", doToken, []string{externalIP}, nil)
+	p, err := docker.CreateProvider(ctx, logger, "docker_provider")
 	require.NoError(t, err)
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)
@@ -101,7 +88,7 @@ func TestDOE2E(t *testing.T) {
 	// Restore provider before creating second half of chains
 	serializedProvider, err := p.SerializeProvider(ctx)
 	require.NoError(t, err)
-	restoredProvider, err := digitalocean.RestoreProvider(ctx, doToken, serializedProvider, nil, nil)
+	restoredProvider, err := docker.RestoreProvider(ctx, logger, serializedProvider)
 	require.NoError(t, err)
 
 	// Restore the existing chains with the restored provider
@@ -143,9 +130,6 @@ func TestDOE2E(t *testing.T) {
 		err = originalChain.Teardown(ctx)
 		require.NoError(t, err)
 
-		// wait for status to update on DO client side
-		time.Sleep(15 * time.Second)
-
 		for _, validator := range validators {
 			e2e.AssertNodeShutdown(t, ctx, validator)
 		}
@@ -174,9 +158,6 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	require.NoError(t, restoredProvider.Teardown(ctx))
-	// wait for status to update on DO client side
-	time.Sleep(15 * time.Second)
-
 	// Verify all remaining chains are properly torn down
 	for _, chain := range remainingChains {
 		validators := chain.GetValidators()
