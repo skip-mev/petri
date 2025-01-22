@@ -14,7 +14,7 @@ digitalocean-e2e:
 	@cd ./cosmos && go test ./tests/e2e/digitalocean/... -race -v
 
 e2e-test:
-    @cd ./cosmos && go test ./tests/e2e/... -race -v
+	@cd ./cosmos && go test ./tests/e2e/... -race -v
 
 govulncheck:
 	@echo "--> Running govulncheck"
