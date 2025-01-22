@@ -3,9 +3,18 @@ tidy:
 	@cd ./core && go mod tidy
 	@cd ./cosmos && go mod tidy
 
-test:
+unit-test:
 	@cd ./core && go test ./... -race
-	@cd ./cosmos && go test ./... -race
+	@cd ./cosmos && go test `go list ./... | grep -v e2e` -race
+
+docker-e2e:
+	@cd ./cosmos && go test ./tests/e2e/docker/... -race -v
+
+digitalocean-e2e:
+	@cd ./cosmos && go test ./tests/e2e/digitalocean/... -race -v
+
+e2e-test:
+    @cd ./cosmos && go test ./tests/e2e/... -race -v
 
 govulncheck:
 	@echo "--> Running govulncheck"
@@ -28,4 +37,4 @@ format:
 	@find . -name '*.go' -type f -not -path "*.git*" | xargs go run github.com/client9/misspell/cmd/misspell -w
 	@find . -name '*.go' -type f -not -path "*.git*" | xargs go run golang.org/x/tools/cmd/goimports -w -local github.com/skip-mev/petri
 
-.PHONY: format lint-fix lint govulncheck test tidy
+.PHONY: format lint-fix lint govulncheck unit-test docker-e2e digitalocean-e2e e2e-test tidy
