@@ -15,11 +15,13 @@ import (
 const providerLabelName = "petri-provider"
 
 func (p *Provider) initNetwork(ctx context.Context) (network.Inspect, error) {
-	p.logger.Info("creating network", zap.String("name", p.state.NetworkName))
+	state := p.GetState()
+
+	p.logger.Info("creating network", zap.String("name", state.NetworkName))
 	subnet1 := rand.Intn(255)
 	subnet2 := rand.Intn(255)
 
-	networkResponse, err := p.dockerClient.NetworkCreate(ctx, p.state.NetworkName, network.CreateOptions{
+	networkResponse, err := p.dockerClient.NetworkCreate(ctx, state.NetworkName, network.CreateOptions{
 		Scope:  "local",
 		Driver: "bridge",
 		Options: map[string]string{ // https://docs.docker.com/engine/reference/commandline/network_create/#bridge-driver-options
@@ -32,7 +34,7 @@ func (p *Provider) initNetwork(ctx context.Context) (network.Inspect, error) {
 		Attachable: false,
 		Ingress:    false,
 		Labels: map[string]string{
-			providerLabelName: p.state.Name,
+			providerLabelName: state.Name,
 		},
 		IPAM: &network.IPAM{
 			Driver: "default",
@@ -59,33 +61,34 @@ func (p *Provider) initNetwork(ctx context.Context) (network.Inspect, error) {
 
 // ensureNetwork checks if the network exists and has the expected configuration.
 func (p *Provider) ensureNetwork(ctx context.Context) error {
-	network, err := p.dockerClient.NetworkInspect(ctx, p.state.NetworkID, network.InspectOptions{})
+	state := p.GetState()
+	network, err := p.dockerClient.NetworkInspect(ctx, state.NetworkID, network.InspectOptions{})
 
 	if err != nil {
 		return err
 	}
 
-	if network.ID != p.state.NetworkID {
-		return fmt.Errorf("network ID mismatch: %s != %s", network.ID, p.state.NetworkID)
+	if network.ID != state.NetworkID {
+		return fmt.Errorf("network ID mismatch: %s != %s", network.ID, state.NetworkID)
 	}
 
-	if network.Name != p.state.NetworkName {
-		return fmt.Errorf("network name mismatch: %s != %s", network.Name, p.state.NetworkName)
+	if network.Name != state.NetworkName {
+		return fmt.Errorf("network name mismatch: %s != %s", network.Name, state.NetworkName)
 	}
 
 	if len(network.IPAM.Config) != 1 {
 		return fmt.Errorf("unexpected number of IPAM configs: %d", len(network.IPAM.Config))
 	}
 
-	if network.IPAM.Config[0].Subnet != p.state.NetworkCIDR {
-		return fmt.Errorf("network CIDR mismatch: %s != %s", network.IPAM.Config[0].Subnet, p.state.NetworkCIDR)
+	if network.IPAM.Config[0].Subnet != state.NetworkCIDR {
+		return fmt.Errorf("network CIDR mismatch: %s != %s", network.IPAM.Config[0].Subnet, state.NetworkCIDR)
 	}
 
 	return nil
 }
 
 func (p *Provider) destroyNetwork(ctx context.Context) error {
-	return p.dockerClient.NetworkRemove(ctx, p.state.NetworkID)
+	return p.dockerClient.NetworkRemove(ctx, p.GetState().NetworkID)
 }
 
 // openListenerOnFreePort opens the next free port
