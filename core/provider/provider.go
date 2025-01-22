@@ -10,6 +10,9 @@ import (
 // TaskStatus defines the status of a task's underlying workload
 type TaskStatus int
 
+// RemoveTaskFunc is a callback function type for removing a task from its provider
+type RemoveTaskFunc func(ctx context.Context, taskID string) error
+
 const (
 	TASK_STATUS_UNDEFINED TaskStatus = iota
 	TASK_RUNNING

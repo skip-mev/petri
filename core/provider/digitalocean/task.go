@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
+	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"net"
 	"path"
 	"sync"
@@ -13,11 +13,9 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
 	"github.com/spf13/afero"
 	"github.com/spf13/afero/sftpfs"
@@ -40,11 +38,11 @@ type Task struct {
 	state   *TaskState
 	stateMu sync.Mutex
 
-	provider     *Provider
+	removeTask   provider.RemoveTaskFunc
 	logger       *zap.Logger
 	sshClient    *ssh.Client
 	doClient     DoClient
-	dockerClient DockerClient
+	dockerClient clients.DockerClient
 }
 
 var _ provider.TaskI = (*Task)(nil)
@@ -128,8 +126,7 @@ func (t *Task) Destroy(ctx context.Context) error {
 		return err
 	}
 
-	// TODO(nadim-az): remove reference to provider in Task struct
-	if err := t.provider.removeTask(ctx, t.GetState().ID); err != nil {
+	if err := t.removeTask(ctx, t.GetState().ID); err != nil {
 		return err
 	}
 	return nil
@@ -290,7 +287,7 @@ func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, in
 	return t.runCommand(ctx, cmd)
 }
 
-func waitForExec(ctx context.Context, dockerClient DockerClient, execID string) (int, error) {
+func waitForExec(ctx context.Context, dockerClient clients.DockerClient, execID string) (int, error) {
 	lastExitCode := 0
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
@@ -450,7 +447,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 	return stdout.String(), stderr.String(), exitCode, nil
 }
 
-func startContainerWithBlock(ctx context.Context, dockerClient DockerClient, containerID string) error {
+func startContainerWithBlock(ctx context.Context, dockerClient clients.DockerClient, containerID string) error {
 	// start container
 	if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return err
@@ -480,20 +477,4 @@ func startContainerWithBlock(ctx context.Context, dockerClient DockerClient, con
 			}
 		}
 	}
-}
-
-func pullImage(ctx context.Context, dockerClient DockerClient, logger *zap.Logger, img string) error {
-	logger.Info("pulling image", zap.String("image", img))
-	resp, err := dockerClient.ImagePull(ctx, img, image.PullOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to pull docker image")
-	}
-
-	defer resp.Close()
-	// throw away the image pull stdout response
-	_, err = io.Copy(io.Discard, resp)
-	if err != nil {
-		return errors.Wrap(err, "failed to pull docker image")
-	}
-	return nil
 }
