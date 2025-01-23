@@ -3,10 +3,11 @@ package docker_test
 import (
 	"context"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"

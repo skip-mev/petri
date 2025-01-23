@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"net"
 	"path"
 	"sync"
 	"time"
+
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 
 	"golang.org/x/crypto/ssh"
 

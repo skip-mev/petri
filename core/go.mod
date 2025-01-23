@@ -14,9 +14,9 @@ require (
 	github.com/go-rod/rod v0.114.6
 	github.com/golangci/golangci-lint v1.56.2
 	github.com/matoous/go-nanoid/v2 v2.1.0
+	github.com/opencontainers/image-spec v1.1.0-rc2
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.6
-	github.com/puzpuzpuz/xsync/v3 v3.4.0
 	github.com/spf13/afero v1.11.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.26.0
@@ -199,7 +199,6 @@ require (
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/petermattis/goid v0.0.0-20231207134359-e60b3f734c67 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

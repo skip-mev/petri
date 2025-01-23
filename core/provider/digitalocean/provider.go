@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"github.com/docker/docker/api/types/image"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/docker/docker/api/types/image"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 
 	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types/container"
@@ -19,8 +20,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/util"
 )
 
 var _ provider.ProviderI = (*Provider)(nil)

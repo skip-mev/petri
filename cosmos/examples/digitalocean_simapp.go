@@ -1,7 +1,8 @@
-package main
+package examples
 
 import (
 	"context"
+	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
 	"io"
 	"net/http"
 	"os"
@@ -9,12 +10,11 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 
-	"github.com/skip-mev/petri/cosmos/v2/chain"
-	"github.com/skip-mev/petri/cosmos/v2/node"
+	"github.com/skip-mev/petri/cosmos/v3/chain"
+	"github.com/skip-mev/petri/cosmos/v3/node"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/provider/digitalocean"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/v3/provider"
+	petritypes "github.com/skip-mev/petri/core/v3/types"
 	"go.uber.org/zap"
 )
 

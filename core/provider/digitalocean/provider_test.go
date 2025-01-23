@@ -3,12 +3,13 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/skip-mev/petri/core/v2/provider/digitalocean/mocks"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
+
+	"github.com/skip-mev/petri/core/v3/provider/digitalocean/mocks"
 
 	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types"
@@ -22,9 +23,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	dockerMocks "github.com/skip-mev/petri/core/v2/provider/mocks"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/v3/provider"
+	dockerMocks "github.com/skip-mev/petri/core/v3/provider/mocks"
+	"github.com/skip-mev/petri/core/v3/util"
 )
 
 func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoClient, *dockerMocks.DockerClient) {

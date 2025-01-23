@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skip-mev/petri/core/v2/provider/clients"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
