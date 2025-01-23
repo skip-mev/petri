@@ -2,14 +2,15 @@ package node_test
 
 import (
 	"context"
+	"testing"
+
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/provider/docker"
-	"github.com/skip-mev/petri/core/v2/types"
-	"github.com/skip-mev/petri/cosmos/v2/node"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/docker"
+	"github.com/skip-mev/petri/core/v3/types"
+	"github.com/skip-mev/petri/cosmos/v3/node"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"testing"
 )
 
 const idAlphabet = "abcdefghijklqmnoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"

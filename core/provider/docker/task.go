@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
-	"github.com/skip-mev/petri/core/v2/util"
-	"sync"
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/util"
 	"go.uber.org/zap"
-	"time"
 )
 
 type TaskState struct {
@@ -20,7 +21,7 @@ type TaskState struct {
 	Volume     *VolumeState            `json:"volumes"`
 	Definition provider.TaskDefinition `json:"definition"`
 	Status     provider.TaskStatus     `json:"status"`
-    IpAddress  string                  `json:"ip_address"` 
+	IpAddress  string                  `json:"ip_address"`
 }
 
 type VolumeState struct {

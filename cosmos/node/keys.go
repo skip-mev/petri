@@ -7,9 +7,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"go.uber.org/zap"
 
-	"github.com/skip-mev/petri/core/v2/types"
-	"github.com/skip-mev/petri/core/v2/util"
-	"github.com/skip-mev/petri/cosmos/v2/wallet"
+	"github.com/skip-mev/petri/core/v3/types"
+	"github.com/skip-mev/petri/core/v3/util"
+	"github.com/skip-mev/petri/cosmos/v3/wallet"
 )
 
 // CreateWallet creates a new wallet on the node using a randomly generated mnemonic

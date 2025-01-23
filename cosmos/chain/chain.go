@@ -17,8 +17,8 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	petritypes "github.com/skip-mev/petri/core/v2/types"
+	"github.com/skip-mev/petri/core/v3/provider"
+	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
 type PackagedState struct {

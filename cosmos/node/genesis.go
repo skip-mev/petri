@@ -9,7 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"go.uber.org/zap"
 
-	petritypes "github.com/skip-mev/petri/core/v2/types"
+	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
 // GenesisFileContent returns the genesis file on the node in byte format
