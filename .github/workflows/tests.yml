@@ -27,6 +27,13 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.22'
+      - name: Set up Docker
+        run: |
+          echo "DOCKER_API_VERSION=1.45" >> $GITHUB_ENV
+      - name: Debug Docker Setup
+        run: |
+          docker version
+          echo "DOCKER_API_VERSION=$DOCKER_API_VERSION"
       - name: Run Docker E2E tests
         run: |
           make tidy
@@ -70,6 +77,13 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.22'
+      - name: Set up Docker
+        run: |
+          echo "DOCKER_API_VERSION=1.45" >> $GITHUB_ENV
+      - name: Debug Docker Setup
+        run: |
+          docker version
+          echo "DOCKER_API_VERSION=$DOCKER_API_VERSION"
       - name: Run unit tests
         run: |
           make tidy
