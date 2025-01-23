@@ -10,7 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 )
 
 //go:embed files/prometheus/config/prometheus.yml

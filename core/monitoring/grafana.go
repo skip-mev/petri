@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 )
 
 const DEFAULT_PROMETHEUS_URL = "http://prometheus:9090"

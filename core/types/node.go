@@ -3,13 +3,14 @@ package types
 import (
 	"context"
 	"fmt"
+
 	"go.uber.org/zap"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 )
 
 // NodeOptions is a struct that contains the options for creating a node

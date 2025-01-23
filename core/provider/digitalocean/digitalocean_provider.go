@@ -10,8 +10,8 @@ import (
 
 	xsync "github.com/puzpuzpuz/xsync/v3"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/util"
 	"golang.org/x/crypto/ssh"
 )
 
