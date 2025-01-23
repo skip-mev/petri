@@ -7,15 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skip-mev/petri/cosmos/v3/tests/e2e"
-
-	"github.com/skip-mev/petri/cosmos/v3/node"
-
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
 	"github.com/skip-mev/petri/core/v3/types"
 	cosmoschain "github.com/skip-mev/petri/cosmos/v3/chain"
+	"github.com/skip-mev/petri/cosmos/v3/node"
+	"github.com/skip-mev/petri/cosmos/v3/tests/e2e"
+
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )

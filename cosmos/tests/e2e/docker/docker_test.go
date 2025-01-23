@@ -3,21 +3,18 @@ package e2e
 import (
 	"context"
 	"flag"
-	"os"
 	"testing"
 
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/docker"
+	"github.com/skip-mev/petri/core/v3/types"
+	cosmoschain "github.com/skip-mev/petri/cosmos/v3/chain"
 	"github.com/skip-mev/petri/cosmos/v3/node"
 	"github.com/skip-mev/petri/cosmos/v3/tests/e2e"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/skip-mev/petri/core/v3/provider"
-	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
-	"github.com/skip-mev/petri/core/v3/provider/docker"
-	"github.com/skip-mev/petri/core/v3/types"
-	cosmoschain "github.com/skip-mev/petri/cosmos/v3/chain"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
@@ -51,17 +48,6 @@ var (
 			DerivationFn:     hd.Secp256k1.Derive(),
 			GenerationFn:     hd.Secp256k1.Generate(),
 		},
-		NodeOptions: types.NodeOptions{
-			NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig types.NodeConfig) provider.TaskDefinition {
-				doConfig := digitalocean.DigitalOceanTaskConfig{
-					"size":     "s-2vcpu-4gb",
-					"region":   "ams3",
-					"image_id": os.Getenv("DO_IMAGE_ID"),
-				}
-				def.ProviderSpecificConfig = doConfig
-				return def
-			},
-		},
 	}
 
 	numTestChains = flag.Int("num-chains", 3, "number of chains to create for concurrent testing")
@@ -76,13 +62,8 @@ func TestDockerE2E(t *testing.T) {
 
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
-	providerName := gonanoid.MustGenerate("abcdefghijklqmnoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", 10)
-
-	p, err := docker.CreateProvider(ctx, logger, providerName)
-	require.NoError(t, err)
 
 	defer func() {
-		require.NoError(t, p.Teardown(ctx))
 		dockerClient, err := client.NewClientWithOpts()
 		if err != nil {
 			t.Logf("Failed to create Docker client for volume cleanup: %v", err)
