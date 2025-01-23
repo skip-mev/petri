@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-
 	"github.com/pkg/errors"
 
 	"github.com/digitalocean/godo"
@@ -13,7 +12,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/skip-mev/petri/core/v3/provider"
-  "github.com/skip-mev/petri/core/v3/provider/clients"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 	"github.com/skip-mev/petri/core/v3/util"
 
 	"strconv"

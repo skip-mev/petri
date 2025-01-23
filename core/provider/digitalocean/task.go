@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-
 	"golang.org/x/crypto/ssh"
 
 	"github.com/docker/docker/api/types/container"
@@ -22,7 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/skip-mev/petri/core/v3/provider"
-  "github.com/skip-mev/petri/core/v3/provider/clients"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 	"github.com/skip-mev/petri/core/v3/util"
 )
 
@@ -110,6 +109,7 @@ func (t *Task) Stop(ctx context.Context) error {
 }
 
 func (t *Task) Initialize(ctx context.Context) error {
+	panic("implement me")
 }
 
 func (t *Task) Modify(ctx context.Context, definition provider.TaskDefinition) error {
