@@ -3,8 +3,8 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"time"
+
 
 	"github.com/pkg/errors"
 
@@ -12,8 +12,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/v3/provider"
+  "github.com/skip-mev/petri/core/v3/provider/clients"
+	"github.com/skip-mev/petri/core/v3/util"
 
 	"strconv"
 

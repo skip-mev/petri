@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/api/types/image"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"net"
 	"sync"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/docker/docker/api/types/image"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 
 	"github.com/cilium/ipam/service/ipallocator"
 	"github.com/docker/docker/api/types/network"

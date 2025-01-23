@@ -3,18 +3,18 @@ package e2e
 import (
 	"context"
 	"flag"
-	"github.com/skip-mev/petri/cosmos/v2/tests/e2e"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/skip-mev/petri/cosmos/v2/node"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
+	"github.com/skip-mev/petri/core/v3/types"
+	cosmoschain "github.com/skip-mev/petri/cosmos/v3/chain"
+	"github.com/skip-mev/petri/cosmos/v3/node"
+	"github.com/skip-mev/petri/cosmos/v3/tests/e2e"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/provider/digitalocean"
-	"github.com/skip-mev/petri/core/v2/types"
-	cosmoschain "github.com/skip-mev/petri/cosmos/v2/chain"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )

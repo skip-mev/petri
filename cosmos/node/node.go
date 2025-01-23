@@ -14,9 +14,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 
-	petritypes "github.com/skip-mev/petri/core/v2/types"
+	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
 type PackagedState struct {

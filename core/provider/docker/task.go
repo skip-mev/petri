@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/v3/provider"
+  "github.com/skip-mev/petri/core/v3/provider/clients"
+	"github.com/skip-mev/petri/core/v3/util"
 	"go.uber.org/zap"
 )
 

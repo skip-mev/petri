@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"net"
 	"path"
 	"sync"
 	"time"
+
 
 	"golang.org/x/crypto/ssh"
 
@@ -21,8 +21,9 @@ import (
 	"github.com/spf13/afero/sftpfs"
 	"go.uber.org/zap"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/v3/provider"
+  "github.com/skip-mev/petri/core/v3/provider/clients"
+	"github.com/skip-mev/petri/core/v3/util"
 )
 
 type TaskState struct {
@@ -109,7 +110,6 @@ func (t *Task) Stop(ctx context.Context) error {
 }
 
 func (t *Task) Initialize(ctx context.Context) error {
-	panic("implement me")
 }
 
 func (t *Task) Modify(ctx context.Context, definition provider.TaskDefinition) error {

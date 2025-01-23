@@ -9,9 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/types"
-	cosmoschain "github.com/skip-mev/petri/cosmos/v2/chain"
+  "github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/types"
+	cosmoschain "github.com/skip-mev/petri/cosmos/v3/chain"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )

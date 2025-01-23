@@ -8,7 +8,7 @@ import (
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"google.golang.org/grpc"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 )
 
 // GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes

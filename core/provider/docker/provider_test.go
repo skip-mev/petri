@@ -3,19 +3,20 @@ package docker_test
 import (
 	"context"
 	"fmt"
-	"github.com/skip-mev/petri/core/v2/provider/clients"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/skip-mev/petri/core/v2/provider/docker"
+	"github.com/skip-mev/petri/core/v3/provider/docker"
 	"go.uber.org/zap/zaptest"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
