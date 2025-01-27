@@ -4,17 +4,20 @@ tidy:
 	@cd ./cosmos && go mod tidy
 
 unit-test:
+	@docker pull nginx:latest
+	@docker pull interchainio/simapp:latest
 	@cd ./core && go test ./... -race
 	@cd ./cosmos && go test `go list ./... | grep -v e2e` -race
 
 docker-e2e:
+	@docker pull nginx:latest
+	@docker pull interchainio/simapp:latest
 	@cd ./cosmos && go test ./tests/e2e/docker/... -race -v
 
 digitalocean-e2e:
 	@cd ./cosmos && go test ./tests/e2e/digitalocean/... -race -v
 
-e2e-test:
-	@cd ./cosmos && go test ./tests/e2e/... -race -v
+e2e-test: docker-e2e digitalocean-e2e
 
 govulncheck:
 	@echo "--> Running govulncheck"
