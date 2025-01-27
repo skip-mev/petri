@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/skip-mev/petri/core/v3/provider/clients"
-
 	"golang.org/x/crypto/ssh"
 
 	"github.com/docker/docker/api/types/container"
@@ -23,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 	"github.com/skip-mev/petri/core/v3/util"
 )
 

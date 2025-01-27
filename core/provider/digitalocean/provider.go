@@ -10,17 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/image"
-	"github.com/skip-mev/petri/core/v3/provider/clients"
-
 	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 
 	"go.uber.org/zap"
 
 	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
 	"github.com/skip-mev/petri/core/v3/util"
 )
 

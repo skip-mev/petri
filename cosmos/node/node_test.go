@@ -20,9 +20,9 @@ var defaultChainConfig = types.ChainConfig{
 	Decimals:      6,
 	NumValidators: 1,
 	NumNodes:      0,
-	BinaryName:    "/simd/simd",
+	BinaryName:    "/usr/bin/simd",
 	Image: provider.ImageDefinition{
-		Image: "cosmossdk/simd:latest",
+		Image: "interchainio/simapp:latest",
 		UID:   "1000",
 		GID:   "1000",
 	},
@@ -31,7 +31,7 @@ var defaultChainConfig = types.ChainConfig{
 	HomeDir:              "/gaia",
 	CoinType:             "118",
 	ChainId:              "stake-1",
-	UseGenesisSubCommand: true,
+	UseGenesisSubCommand: false,
 }
 
 func TestNodeLifecycle(t *testing.T) {
