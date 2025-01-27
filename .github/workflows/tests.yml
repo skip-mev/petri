@@ -27,13 +27,12 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.22'
-      - name: Set up Docker
+      - name: Install Latest Docker
         run: |
-          echo "DOCKER_API_VERSION=1.45" >> $GITHUB_ENV
-      - name: Debug Docker Setup
-        run: |
-          docker version
-          echo "DOCKER_API_VERSION=$DOCKER_API_VERSION"
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+          sudo apt-get update
+          sudo apt-get install docker-ce
       - name: Run Docker E2E tests
         run: |
           make tidy
@@ -77,13 +76,12 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.22'
-      - name: Set up Docker
+      - name: Install Latest Docker
         run: |
-          echo "DOCKER_API_VERSION=1.45" >> $GITHUB_ENV
-      - name: Debug Docker Setup
-        run: |
-          docker version
-          echo "DOCKER_API_VERSION=$DOCKER_API_VERSION"
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+          sudo apt-get update
+          sudo apt-get install docker-ce
       - name: Run unit tests
         run: |
           make tidy
