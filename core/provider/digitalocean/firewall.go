@@ -8,9 +8,10 @@ import (
 )
 
 func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*godo.Firewall, error) {
+	state := p.GetState()
 	req := &godo.FirewallRequest{
-		Name: fmt.Sprintf("%s-firewall", p.petriTag),
-		Tags: []string{p.petriTag},
+		Name: fmt.Sprintf("%s-firewall", state.PetriTag),
+		Tags: []string{state.PetriTag},
 		OutboundRules: []godo.OutboundRule{
 			{
 				Protocol:  "tcp",
@@ -39,7 +40,7 @@ func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*go
 				Protocol:  "tcp",
 				PortRange: "0",
 				Sources: &godo.Sources{
-					Tags:      []string{p.petriTag},
+					Tags:      []string{state.PetriTag},
 					Addresses: allowedIPs,
 				},
 			},
@@ -47,21 +48,12 @@ func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*go
 				Protocol:  "udp",
 				PortRange: "0",
 				Sources: &godo.Sources{
-					Tags:      []string{p.petriTag},
+					Tags:      []string{state.PetriTag},
 					Addresses: allowedIPs,
 				},
 			},
 		},
 	}
 
-	firewall, res, err := p.doClient.Firewalls.Create(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return firewall, nil
+	return p.doClient.CreateFirewall(ctx, req)
 }

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skip-mev/petri/core/v3/provider/clients"
+
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -231,12 +233,11 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	for task := range tasks {
 		taskState := task.GetState()
-		client, _ := client.NewClientWithOpts()
-		containerJSON, err := client.ContainerInspect(ctx, taskState.Id)
+		dockerClient, _ := clients.NewDockerClient("")
+		containerJSON, err := dockerClient.ContainerInspect(ctx, taskState.Id)
 		require.NoError(t, err)
 
 		ip := containerJSON.NetworkSettings.Networks[providerState.NetworkName].IPAddress
-		fmt.Println(ip)
 		assert.False(t, ips[ip], "Duplicate IP found: %s", ip)
 		ips[ip] = true
 	}

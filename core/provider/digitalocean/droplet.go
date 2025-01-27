@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/skip-mev/petri/core/v3/provider/clients"
+
 	"github.com/pkg/errors"
 
 	"github.com/digitalocean/godo"
-	dockerclient "github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 
@@ -19,11 +20,6 @@ import (
 
 	_ "embed"
 )
-
-// nolint
-//
-//go:embed files/docker-cloud-init.yaml
-var dockerCloudInit string
 
 func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDefinition) (*godo.Droplet, error) {
 	if err := definition.ValidateBasic(); err != nil {
@@ -42,8 +38,9 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		return nil, fmt.Errorf("failed to parse image ID: %w", err)
 	}
 
+	state := p.GetState()
 	req := &godo.DropletCreateRequest{
-		Name:   fmt.Sprintf("%s-%s", p.petriTag, definition.Name),
+		Name:   fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
 		Region: doConfig["region"],
 		Size:   doConfig["size"],
 		Image: godo.DropletCreateImage{
@@ -51,25 +48,21 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		},
 		SSHKeys: []godo.DropletCreateSSHKey{
 			{
-				Fingerprint: p.sshKeyPair.Fingerprint,
+				Fingerprint: state.SSHKeyPair.Fingerprint,
 			},
 		},
-		Tags: []string{p.petriTag},
+		Tags: []string{state.PetriTag},
 	}
 
-	droplet, res, err := p.doClient.Droplets.Create(ctx, req)
+	droplet, err := p.doClient.CreateDroplet(ctx, req)
 	if err != nil {
 		return nil, err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
 	start := time.Now()
 
 	err = util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
-		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
+		d, err := p.doClient.GetDroplet(ctx, droplet.ID)
 		if err != nil {
 			return false, err
 		}
@@ -80,16 +73,19 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 		ip, err := d.PublicIPv4()
 		if err != nil {
-			return false, nil
-		}
-
-		dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
-		if err != nil {
-			p.logger.Error("failed to create docker client", zap.Error(err))
 			return false, err
 		}
 
-		_, err = dockerClient.Ping(ctx)
+		if p.dockerClients[ip] == nil {
+			dockerClient, err := clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+			if err != nil {
+				p.logger.Error("failed to create docker client", zap.Error(err))
+				return false, err
+			}
+			p.dockerClients[ip] = dockerClient
+		}
+
+		_, err = p.dockerClients[ip].Ping(ctx)
 		if err != nil {
 			return false, nil
 		}
@@ -104,83 +100,47 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 	end := time.Now()
 
-	p.logger.Info("droplet %s is ready after %s", zap.String("name", droplet.Name), zap.Duration("took", end.Sub(start)))
+	p.logger.Info("droplet is ready after", zap.String("droplet_name", droplet.Name), zap.Duration("startup_time", end.Sub(start)))
 
 	return droplet, nil
 }
 
-func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
-	droplet, err := p.getDroplet(ctx, name)
-
+func (t *Task) deleteDroplet(ctx context.Context) error {
+	droplet, err := t.getDroplet(ctx)
 	if err != nil {
 		return err
 	}
 
-	res, err := p.doClient.Droplets.Delete(ctx, droplet.ID)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return nil
+	return t.doClient.DeleteDropletByID(ctx, droplet.ID)
 }
 
-func (p *Provider) getDroplet(ctx context.Context, name string) (*godo.Droplet, error) {
-	// TODO(Zygimantass): this change assumes that all Petri droplets are unique by name
-	// which should be technically true, but there might be edge cases where it's not.
-	droplets, res, err := p.doClient.Droplets.ListByName(ctx, name, nil)
-
+func (t *Task) getDroplet(ctx context.Context) (*godo.Droplet, error) {
+	dropletId, err := strconv.Atoi(t.GetState().ID)
 	if err != nil {
 		return nil, err
 	}
-
-	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	if len(droplets) == 0 {
-		return nil, fmt.Errorf("could not find droplet")
-	}
-
-	return &droplets[0], nil
+	return t.doClient.GetDroplet(ctx, dropletId)
 }
 
-func (p *Provider) getDropletDockerClient(ctx context.Context, taskName string) (*dockerclient.Client, error) {
-	ip, err := p.GetIP(ctx, taskName)
-	if err != nil {
-		return nil, err
-	}
-
-	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
-	if err != nil {
-		return nil, err
-	}
-
-	return dockerClient, nil
-}
-
-func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.Client, error) {
-	if _, err := p.getDroplet(ctx, taskName); err != nil {
+func (t *Task) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.Client, error) {
+	if _, err := t.getDroplet(ctx); err != nil {
 		return nil, fmt.Errorf("droplet %s does not exist", taskName)
 	}
 
-	if client, ok := p.sshClients.Load(taskName); ok {
-		status, _, err := client.SendRequest("ping", true, []byte("ping"))
+	if t.sshClient != nil {
+		status, _, err := t.sshClient.SendRequest("ping", true, []byte("ping"))
 
 		if err == nil && status {
-			return client, nil
+			return t.sshClient, nil
 		}
 	}
 
-	ip, err := p.GetIP(ctx, taskName)
+	ip, err := t.GetIP(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(p.sshKeyPair.PrivateKey))
+	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(t.GetState().SSHKeyPair.PrivateKey))
 	if err != nil {
 		return nil, err
 	}
@@ -201,8 +161,6 @@ func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*s
 	if err != nil {
 		return nil, err
 	}
-
-	p.sshClients.Store(taskName, client)
 
 	return client, nil
 }
