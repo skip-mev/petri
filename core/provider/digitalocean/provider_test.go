@@ -66,7 +66,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 		"10.0.0.1": mockDocker,
 	}
 
-	p, err := NewProviderWithClient(ctx, logger, "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p, err := NewProvider(ctx, logger, "test-provider", WithDigitalOceanClient(mockDO), WithDockerClients(mockDockerClients))
 	require.NoError(t, err)
 
 	droplet := &godo.Droplet{
@@ -152,7 +152,7 @@ func setupValidationTestProvider(t *testing.T, ctx context.Context) *Provider {
 		"10.0.0.1": mockDocker,
 	}
 
-	p, err := NewProviderWithClient(ctx, logger, "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p, err := NewProvider(ctx, logger, "test-provider", WithDigitalOceanClient(mockDO), WithDockerClients(mockDockerClients))
 	require.NoError(t, err)
 
 	return p
@@ -240,14 +240,6 @@ func TestSerializeAndRestoreTask(t *testing.T) {
 	t1State := t1.GetState()
 	t2State := t2.GetState()
 
-	if configMap, ok := t2State.Definition.ProviderSpecificConfig.(map[string]interface{}); ok {
-		doConfig := make(DigitalOceanTaskConfig)
-		for k, v := range configMap {
-			doConfig[k] = v.(string)
-		}
-		t2State.Definition.ProviderSpecificConfig = doConfig
-	}
-
 	assert.Equal(t, t1State, t2State)
 	assert.NotNil(t, t2.logger)
 	assert.NotNil(t, t2State.SSHKeyPair)
@@ -308,7 +300,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 		Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	p, err := NewProviderWithClient(ctx, logger, "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p, err := NewProvider(ctx, logger, "test-provider", WithDigitalOceanClient(mockDO), WithDockerClients(mockDockerClients))
 	require.NoError(t, err)
 
 	numTasks := 10
@@ -473,7 +465,7 @@ func TestProviderSerialization(t *testing.T) {
 		"10.0.0.1": mockDocker,
 	}
 
-	p1, err := NewProviderWithClient(ctx, zap.NewExample(), "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p1, err := NewProvider(ctx, zap.NewExample(), "test-provider", WithDigitalOceanClient(mockDO), WithDockerClients(mockDockerClients))
 	require.NoError(t, err)
 
 	droplet := &godo.Droplet{
@@ -537,7 +529,7 @@ func TestProviderSerialization(t *testing.T) {
 		"10.0.0.1": mockDocker2,
 	}
 
-	p2, err := RestoreProvider(ctx, "test-token", serialized, mockDO2, mockDockerClients2)
+	p2, err := RestoreProvider(ctx, zap.NewExample(), "test-token", serialized, mockDO2, mockDockerClients2)
 	require.NoError(t, err)
 
 	state2 := p2.GetState()
@@ -552,13 +544,6 @@ func TestProviderSerialization(t *testing.T) {
 		assert.Equal(t, task1.Name, task2.Name)
 		assert.Equal(t, task1.Status, task2.Status)
 
-		if configMap, ok := task2.Definition.ProviderSpecificConfig.(map[string]interface{}); ok {
-			doConfig := make(DigitalOceanTaskConfig)
-			for k, v := range configMap {
-				doConfig[k] = v.(string)
-			}
-			task2.Definition.ProviderSpecificConfig = doConfig
-		}
 		assert.Equal(t, task1.Definition, task2.Definition)
 	}
 }
