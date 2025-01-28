@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -48,75 +47,98 @@ type Provider struct {
 	dockerClients map[string]clients.DockerClient // map of droplet ip address to docker clients
 }
 
-// NewProvider creates a provider with custom digitalocean/docker client implementation.
-// This is primarily used for testing.
-func NewProvider(
-	ctx context.Context,
-	logger *zap.Logger,
-	providerName string,
-	opts ...func(*Provider),
-) (*Provider, error) {
+type ProviderConfig struct {
+	Name          string
+	Logger        *zap.Logger
+	Token         string
+	Client        DoClient
+	DockerClients map[string]clients.DockerClient
+	SSHKeyPair    *SSHKeyPair
+	UserIPs       []string
+}
+
+func (c *ProviderConfig) validate() error {
+	if c.Name == "" {
+		return errors.New("provider name is required")
+	}
+
+	if c.Token == "" && c.Client == nil {
+		return errors.New("must provide either token or client")
+	}
+	if c.Token != "" && c.Client != nil {
+		return errors.New("cannot provide both token and client")
+	}
+
+	return nil
+}
+
+// NewProvider creates a new Provider with the given configuration.
+func NewProvider(ctx context.Context, config ProviderConfig) (*Provider, error) {
+	if err := config.validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
+
+	logger := config.Logger
+	if logger == nil {
+		logger = zap.L()
+	}
+
+	var doClient DoClient
+	if config.Client != nil {
+		doClient = config.Client
+	} else {
+		doClient = NewGodoClient(config.Token)
+	}
+
 	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
-	digitalOceanProvider := &Provider{
+	provider := &Provider{
 		logger: logger.Named("digitalocean_provider"),
 		state: &ProviderState{
 			TaskStates: make(map[string]*TaskState),
-			Name:       providerName,
+			Name:       config.Name,
 			PetriTag:   petriTag,
 		},
+		doClient: doClient,
 	}
 
-	for _, opt := range opts {
-		opt(digitalOceanProvider)
+	if config.DockerClients != nil {
+		provider.dockerClients = config.DockerClients
+	} else {
+		provider.dockerClients = make(map[string]clients.DockerClient)
 	}
 
-	if digitalOceanProvider.doClient == nil {
-		return nil, errors.New("digital ocean client is nil, please use either WithDigitalOceanToken or WithDigitalOceanClient")
-	}
-
-	if digitalOceanProvider.state.SSHKeyPair == nil {
+	if config.SSHKeyPair != nil {
+		provider.state.SSHKeyPair = config.SSHKeyPair
+	} else {
 		sshKeyPair, err := MakeSSHKeyPair()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to generate SSH key pair: %w", err)
 		}
-
-		digitalOceanProvider.state.SSHKeyPair = sshKeyPair
+		provider.state.SSHKeyPair = sshKeyPair
 	}
 
-	userIPs, err := getUserIPs(ctx)
+	if len(config.UserIPs) > 0 {
+		provider.state.UserIPs = config.UserIPs
+	} else {
+		userIPs, err := getUserIPs(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user IPs: %w", err)
+		}
+		provider.state.UserIPs = userIPs
+	}
+
+	_, err := provider.createTag(ctx, petriTag)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create tag: %w", err)
 	}
 
-	digitalOceanProvider.state.UserIPs = append(digitalOceanProvider.state.UserIPs, userIPs...)
-
-	if digitalOceanProvider.dockerClients == nil {
-		digitalOceanProvider.dockerClients = make(map[string]clients.DockerClient)
-	}
-
-	_, err = digitalOceanProvider.createTag(ctx, petriTag)
-	if err != nil {
-		return nil, err
-	}
-
-	firewall, err := digitalOceanProvider.createFirewall(ctx, userIPs)
+	firewall, err := provider.createFirewall(ctx, provider.state.UserIPs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
-	digitalOceanProvider.state.FirewallID = firewall.ID
-
-	//TODO(Zygimantass): TOCTOU issue
-	if key, err := digitalOceanProvider.doClient.GetKeyByFingerprint(ctx, digitalOceanProvider.state.SSHKeyPair.Fingerprint); err != nil || key == nil {
-		_, err = digitalOceanProvider.createSSHKey(ctx, digitalOceanProvider.state.SSHKeyPair.PublicKey)
-		if err != nil {
-			if !strings.Contains(err.Error(), "422") {
-				return nil, err
-			}
-		}
-	}
-
-	return digitalOceanProvider, nil
+	provider.state.FirewallID = firewall.ID
+	return provider, nil
 }
 
 func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefinition) (provider.TaskI, error) {
@@ -128,11 +150,13 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		return nil, fmt.Errorf("digitalocean specific config is nil for %s", definition.Name)
 	}
 
-	var doConfig DigitalOceanTaskConfig
-	doConfig = definition.ProviderSpecificConfig
+	doConfig, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid provider specific config type for %s: expected DigitalOceanTaskConfig", definition.Name)
+	}
 
 	if err := doConfig.ValidateBasic(); err != nil {
-		return nil, fmt.Errorf("could not cast digitalocean specific config: %w", err)
+		return nil, fmt.Errorf("invalid digitalocean specific config: %w", err)
 	}
 
 	p.logger.Info("creating droplet", zap.String("name", definition.Name))
