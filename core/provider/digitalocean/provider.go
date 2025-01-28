@@ -27,7 +27,6 @@ var _ provider.ProviderI = (*Provider)(nil)
 
 const (
 	providerLabelName = "petri-provider"
-	dockerPort        = "2375"
 )
 
 type ProviderState struct {
@@ -48,17 +47,25 @@ type Provider struct {
 	dockerClients map[string]clients.DockerClient // map of droplet ip address to docker clients
 }
 
-// NewProvider creates a provider with custom digitalocean/docker client implementation.
-// This is primarily used for testing.
-func NewProvider(
-	ctx context.Context,
-	logger *zap.Logger,
-	providerName string,
-	opts ...func(*Provider),
-) (*Provider, error) {
+func NewProvider(ctx context.Context, providerName, token string, opts ...func(*Provider)) (*Provider, error) {
+	if token == "" {
+		return nil, errors.New("a non-empty token must be passed when creating a DigitalOcean provider")
+	}
+
+	doClient := NewGodoClient(token)
+	return NewProviderWithClient(ctx, providerName, doClient, opts...)
+}
+
+// NewProviderWithClient creates a DigitalOcean provider given an existing DigitalOcean client
+// with additional options to configure behaviour.
+func NewProviderWithClient(ctx context.Context, providerName string, doClient DoClient, opts ...func(*Provider)) (*Provider, error) {
+	if doClient == nil {
+		return nil, errors.New("a valid digital ocean client must be passed when creating a provider")
+	}
+
 	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
 	digitalOceanProvider := &Provider{
-		logger: logger.Named("digitalocean_provider"),
+		doClient: doClient,
 		state: &ProviderState{
 			TaskStates: make(map[string]*TaskState),
 			Name:       providerName,
@@ -70,8 +77,8 @@ func NewProvider(
 		opt(digitalOceanProvider)
 	}
 
-	if digitalOceanProvider.doClient == nil {
-		return nil, errors.New("digital ocean client is nil, please use either WithDigitalOceanToken or WithDigitalOceanClient")
+	if digitalOceanProvider.logger == nil {
+		digitalOceanProvider.logger = zap.NewNop()
 	}
 
 	if digitalOceanProvider.state.SSHKeyPair == nil {
@@ -235,10 +242,20 @@ func (p *Provider) SerializeProvider(context.Context) ([]byte, error) {
 	return bz, err
 }
 
-func RestoreProvider(ctx context.Context, logger *zap.Logger, token string, state []byte, doClient DoClient, dockerClients map[string]clients.DockerClient) (*Provider, error) {
-	if doClient == nil && token == "" {
-		return nil, errors.New("a valid token or digital ocean client must be passed when restoring the provider")
+func RestoreProvider(ctx context.Context, state []byte, token string, opts ...func(*Provider)) (*Provider, error) {
+	if token == "" {
+		return nil, errors.New("a non-empty token must be passed when restoring a DigitalOcean provider")
 	}
+
+	doClient := NewGodoClient(token)
+	return RestoreProviderWithClient(ctx, state, doClient, opts...)
+}
+
+func RestoreProviderWithClient(ctx context.Context, state []byte, doClient DoClient, opts ...func(*Provider)) (*Provider, error) {
+	if doClient == nil {
+		return nil, errors.New("a valid digital ocean client must be passed when restoring the provider")
+	}
+
 	var providerState ProviderState
 
 	err := json.Unmarshal(state, &providerState)
@@ -246,24 +263,21 @@ func RestoreProvider(ctx context.Context, logger *zap.Logger, token string, stat
 		return nil, err
 	}
 
-	if dockerClients == nil {
-		dockerClients = make(map[string]clients.DockerClient)
-	}
-
-	if logger == nil {
-		logger = zap.L()
-	}
-
 	digitalOceanProvider := &Provider{
-		state:         &providerState,
-		dockerClients: dockerClients,
-		logger:        logger.Named("digitalocean_provider"),
+		state:    &providerState,
+		doClient: doClient,
 	}
 
-	if doClient != nil {
-		digitalOceanProvider.doClient = doClient
-	} else {
-		digitalOceanProvider.doClient = NewGodoClient(token)
+	for _, opt := range opts {
+		opt(digitalOceanProvider)
+	}
+
+	if digitalOceanProvider.dockerClients == nil {
+		digitalOceanProvider.dockerClients = make(map[string]clients.DockerClient)
+	}
+
+	if digitalOceanProvider.logger == nil {
+		digitalOceanProvider.logger = zap.NewNop()
 	}
 
 	for _, taskState := range providerState.TaskStates {
