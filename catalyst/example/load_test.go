@@ -26,7 +26,7 @@ var (
 		Denom:         "stake",
 		Decimals:      6,
 		NumValidators: 1,
-		NumNodes:      1,
+		NumNodes:      2,
 		BinaryName:    "/usr/bin/simd",
 		Image: provider.ImageDefinition{
 			Image: "interchainio/simapp:latest",
@@ -156,33 +156,34 @@ func TestPetriIntegration(t *testing.T) {
 	// Wait for transactions to be included in a block
 	time.Sleep(10 * time.Second)
 
-	grpcAddress, err := c.GetNodes()[0].GetExternalAddress(ctx, "9090")
-	if err != nil {
-		t.Fatal("Failed to get node grpc address", zap.Error(err))
+	var nodeAddresses []loadtesttypes.NodeAddress
+	for _, n := range c.GetNodes() {
+		grpcAddress, err := n.GetExternalAddress(ctx, "9090")
+		if err != nil {
+			t.Fatal("Failed to get node grpc address", zap.Error(err))
+		}
+		rpcAddress, err := n.GetExternalAddress(ctx, "26657")
+		if err != nil {
+			t.Fatal("Failed to get node rpc address", zap.Error(err))
+		}
+		logger.Info("Node addresses",
+			zap.String("grpc", grpcAddress),
+			zap.String("rpc", rpcAddress))
+		nodeAddresses = append(nodeAddresses, loadtesttypes.NodeAddress{
+			GRPC: grpcAddress,
+			RPC:  "http://" + rpcAddress,
+		})
 	}
-	rpcAddress, err := c.GetNodes()[0].GetExternalAddress(ctx, "26657")
-	if err != nil {
-		t.Fatal("Failed to get node rpc address", zap.Error(err))
-	}
-
-	logger.Info("Node addresses",
-		zap.String("grpc", grpcAddress),
-		zap.String("rpc", rpcAddress))
 
 	spec := loadtesttypes.LoadTestSpec{
 		ChainID:             defaultChainConfig.ChainId,
 		BlockGasLimitTarget: 0.3,
 		Runtime:             1 * time.Minute,
-		NumOfBlocks:         20,
-		NodesAddresses: []loadtesttypes.NodeAddress{
-			{
-				GRPC: grpcAddress,
-				RPC:  "http://" + rpcAddress,
-			},
-		},
-		PrivateKeys:  []cryptotypes.PrivKey{k1PrivKey, k2PrivKey},
-		GasDenom:     defaultChainConfig.Denom,
-		Bech32Prefix: defaultChainConfig.Bech32Prefix,
+		NumOfBlocks:         10,
+		NodesAddresses:      nodeAddresses,
+		PrivateKeys:         []cryptotypes.PrivKey{k1PrivKey, k2PrivKey},
+		GasDenom:            defaultChainConfig.Denom,
+		Bech32Prefix:        defaultChainConfig.Bech32Prefix,
 	}
 
 	test, err := loadtest.New(ctx, spec)

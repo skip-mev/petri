@@ -191,6 +191,11 @@ func (c *Chain) BroadcastTx(ctx context.Context, txBytes []byte) (*sdk.TxRespons
 		return resp.TxResponse, err
 	}
 
+	if resp.TxResponse.Code != 0 {
+		c.Logger.Error("checktx failed", zap.Any("", resp.TxResponse.String()))
+		return resp.TxResponse, fmt.Errorf("checkTx for the transaction failed with error code: %d", resp.TxResponse.Code)
+	}
+
 	return resp.TxResponse, nil
 }
 
