@@ -4,14 +4,16 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/skip-mev/catalyst/internal/types"
 )
 
 // MetricsCollector is responsible for collecting and aggregating metrics during a load test
 type MetricsCollector interface {
 	RecordTransactionSuccess(txHash string, latencyMs float64, gasUsed int64, nodeAddress string)
-	RecordTransactionFailure(txHash string, blockHeight int, err error, nodeAddress string)
-	RecordBlockStats(blockHeight, gasLimit, gasUsed int64, txsSent int, successfulTxs int, failedTxs int, productionTime time.Duration)
+	RecordTransactionFailure(txHash string, err error, nodeAddress string)
+	RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int, productionTime time.Duration)
 	GetResults() types.LoadTestResult
 }
 
@@ -46,13 +48,14 @@ func NewMetricsCollector() *DefaultMetricsCollector {
 func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, latencyMs float64, gasUsed int64, nodeAddress string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	logger, _ := zap.NewDevelopment()
+	logger.Info("Recording TransactionSuccess", zap.Any("hash", txHash))
 
 	c.totalTxs++
 	c.successfulTxs++
 	c.totalGasUsed += gasUsed
 	c.totalLatency += latencyMs
 
-	// Update node-specific stats
 	stats, exists := c.nodeStats[nodeAddress]
 	if !exists {
 		stats = &types.NodeStats{
@@ -70,20 +73,20 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, latenc
 	stats.AvgLatencyMs = ((stats.AvgLatencyMs * float64(stats.TransactionsSent-1)) + latencyMs) / float64(stats.TransactionsSent)
 }
 
-func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, blockHeight int, err error, nodeAddress string) {
+func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error, nodeAddress string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	logger, _ := zap.NewDevelopment()
+	logger.Info("Recording TransactionFailure", zap.Any("hash", txHash))
 
 	c.totalTxs++
 	c.failedTxs++
 
 	c.broadcastErrors = append(c.broadcastErrors, types.BroadcastError{
-		BlockHeight: blockHeight,
-		TxHash:      txHash,
-		Error:       err.Error(),
+		TxHash: txHash,
+		Error:  err.Error(),
 	})
 
-	// Update node-specific stats
 	stats, exists := c.nodeStats[nodeAddress]
 	if !exists {
 		stats = &types.NodeStats{
@@ -100,7 +103,7 @@ func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, blockH
 	stats.FailedTxs++
 }
 
-func (c *DefaultMetricsCollector) RecordBlockStats(blockHeight, gasLimit, gasUsed int64, txsSent int, successfulTxs int, failedTxs int, productionTime time.Duration) {
+func (c *DefaultMetricsCollector) RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int, productionTime time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -32,7 +32,6 @@ func NewInteractingWallet(privKey cryptotypes.PrivKey, bech32Prefix string, pool
 
 // CreateAndBroadcastTx creates and broadcasts a transaction
 func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, gas uint64, fees sdk.Coins, blocking bool, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
-	// Get a client from the pool and use it consistently throughout the transaction
 	client := w.pool.GetClient()
 
 	acc, err := client.GetAccount(ctx, w.signer.FormattedAddress())
@@ -50,7 +49,6 @@ func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, gas uint64
 		return nil, err
 	}
 
-	// Broadcast the transaction
 	txResp, err := client.BroadcastTx(ctx, txBytes)
 	if err != nil {
 		return nil, err
@@ -64,11 +62,10 @@ func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, gas uint64
 		return txResp, nil
 	}
 
-	// Wait for transaction to be included in block and get full response
-	return w.getTxResponse(ctx, client, txResp.TxHash)
+	return w.GetTxResponse(ctx, client, txResp.TxHash)
 }
 
-func (w *InteractingWallet) getTxResponse(ctx context.Context, client types.ChainI, txHash string) (*sdk.TxResponse, error) {
+func (w *InteractingWallet) GetTxResponse(ctx context.Context, client types.ChainI, txHash string) (*sdk.TxResponse, error) {
 	var txResp *sdk.TxResponse
 
 	cometClient := client.GetCometClient(ctx)
@@ -78,7 +75,7 @@ func (w *InteractingWallet) getTxResponse(ctx context.Context, client types.Chai
 		WithTxConfig(client.GetEncodingConfig().TxConfig).
 		WithInterfaceRegistry(client.GetEncodingConfig().InterfaceRegistry)
 
-	err := util.WaitForCondition(ctx, time.Second*60, time.Millisecond*100, func() (bool, error) {
+	err := util.WaitForCondition(ctx, time.Second*10, time.Millisecond*100, func() (bool, error) {
 		res, err := authtx.QueryTx(clientCtx, txHash)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
@@ -101,7 +98,6 @@ func (w *InteractingWallet) getTxResponse(ctx context.Context, client types.Chai
 func (w *InteractingWallet) CreateSignedTx(ctx context.Context, client types.ChainI, gas uint64, fees sdk.Coins, sequence, accountNumber uint64, msgs ...sdk.Msg) (sdk.Tx, error) {
 	encodingConfig := client.GetEncodingConfig()
 
-	// Create transaction
 	txBuilder := encodingConfig.TxConfig.NewTxBuilder()
 	if err := txBuilder.SetMsgs(msgs...); err != nil {
 		return nil, err
@@ -128,7 +124,6 @@ func (w *InteractingWallet) CreateSignedTx(ctx context.Context, client types.Cha
 		return nil, err
 	}
 
-	// Sign transaction
 	signerData := xauthsigning.SignerData{
 		ChainID:       chainID,
 		AccountNumber: accountNumber,

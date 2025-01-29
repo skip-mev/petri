@@ -81,7 +81,6 @@ func NewClient(ctx context.Context, rpcAddress, grpcAddress, chainID, denom stri
 		Logger: logging.FromContext(ctx),
 	}
 
-	// Verify chain ID from node matches what we expect
 	status, err := c.cometClient.Status(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node status: %w", err)
