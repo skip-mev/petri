@@ -44,10 +44,6 @@ func (c *Chain) Balances(ctx context.Context, address string) (sdk.Coins, error)
 		}
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
 	return balances, nil
 }
 
@@ -87,7 +83,7 @@ func (c *Chain) BankSend(ctx context.Context, user wallet.InteractingWallet, toA
 
 	msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
 
-	return user.CreateAndBroadcastTx(ctx, uint64(gasSettings.Gas), GetFeeAmountsFromGasSettings(gasSettings), msg)
+	return user.CreateAndBroadcastTx(ctx, uint64(gasSettings.Gas), GetFeeAmountsFromGasSettings(gasSettings), blocking, msg)
 }
 
 // GetFeeAmountsFromGasSettings returns the fee amounts from the gas settings

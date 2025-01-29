@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	logging "github.com/skip-mev/catalyst/internal/shared"
+
 	sdkClient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -76,6 +78,7 @@ func NewClient(ctx context.Context, rpcAddress, grpcAddress, chainID, denom stri
 			Codec:             getCodec(),
 			TxConfig:          getTxConfig(),
 		},
+		Logger: logging.FromContext(ctx),
 	}
 
 	// Verify chain ID from node matches what we expect
@@ -93,10 +96,10 @@ func NewClient(ctx context.Context, rpcAddress, grpcAddress, chainID, denom stri
 	return c, nil
 }
 
-// SubscribeToBlocks subscribes to new blocks and calls the handler for each new block
 func (c *Chain) SubscribeToBlocks(ctx context.Context, handler types.BlockHandler) error {
 	query := fmt.Sprintf("%s = '%s'", tmtypes.EventTypeKey, tmtypes.EventNewBlock)
-	eventCh, err := c.cometClient.Subscribe(ctx, "loadtest", query)
+
+	eventCh, err := c.cometClient.Subscribe(ctx, "loadtest", query, 100)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to blocks: %w", err)
 	}
@@ -112,15 +115,21 @@ func (c *Chain) SubscribeToBlocks(ctx context.Context, handler types.BlockHandle
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case event := <-eventCh:
+		case event, ok := <-eventCh:
+			if !ok {
+				return fmt.Errorf("event channel closed unexpectedly")
+			}
+
 			newBlockEvent, ok := event.Data.(tmtypes.EventDataNewBlock)
 			if !ok {
+				fmt.Printf("Unexpected event type: %T\n", event.Data)
 				continue
 			}
+			c.Logger.Info("received new block event", zap.Int64("height", newBlockEvent.Block.Height))
 
 			params, err := c.cometClient.ConsensusParams(ctx, nil)
 			if err != nil {
-				fmt.Println("Failed to get consensus params from the block")
+				c.Logger.Error("Failed to get consensus params from the block", zap.Error(err))
 				continue
 			}
 
@@ -129,7 +138,6 @@ func (c *Chain) SubscribeToBlocks(ctx context.Context, handler types.BlockHandle
 				GasLimit:  params.ConsensusParams.Block.MaxGas,
 				Timestamp: newBlockEvent.Block.Time,
 			}
-
 			handler(block)
 		}
 	}
@@ -183,7 +191,7 @@ func (c *Chain) BroadcastTx(ctx context.Context, txBytes []byte) (*sdk.TxRespons
 	if err != nil {
 		return resp.TxResponse, err
 	}
-	
+
 	return resp.TxResponse, nil
 }
 

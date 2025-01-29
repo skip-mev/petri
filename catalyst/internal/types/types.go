@@ -2,11 +2,12 @@ package types
 
 import (
 	"context"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"math/rand"
 	"sync"
 	"time"
+
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"

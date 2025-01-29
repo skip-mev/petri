@@ -46,7 +46,7 @@ var (
 		ModifyGenesis: chain.ModifyGenesis([]chain.GenesisKV{
 			{
 				Key:   "consensus_params.block.max_gas",
-				Value: "10000000",
+				Value: "1330000",
 			},
 		}),
 		WalletConfig: petritypes.WalletConfig{

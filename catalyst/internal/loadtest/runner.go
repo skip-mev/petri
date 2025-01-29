@@ -8,6 +8,9 @@ import (
 	"sync"
 	"time"
 
+	logging "github.com/skip-mev/catalyst/internal/shared"
+	"go.uber.org/zap"
+
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -27,6 +30,10 @@ type Runner struct {
 	mu        sync.Mutex
 	processed int
 	collector metrics.MetricsCollector
+	logger    *zap.Logger
+	// Track nonces for each wallet
+	nonces   map[string]uint64
+	noncesMu sync.RWMutex
 }
 
 // NewRunner creates a new load test runner for a given spec
@@ -60,6 +67,16 @@ func NewRunner(ctx context.Context, spec types.LoadTestSpec) (*Runner, error) {
 		clients:   clients,
 		wallets:   wallets,
 		collector: metrics.NewMetricsCollector(),
+		logger:    logging.FromContext(ctx),
+		nonces:    make(map[string]uint64),
+	}
+
+	for _, w := range wallets {
+		acc, err := clients[0].GetAccount(ctx, w.FormattedAddress())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get account for wallet %s: %w", w.FormattedAddress(), err)
+		}
+		runner.nonces[w.FormattedAddress()] = acc.GetSequence()
 	}
 
 	if err := runner.initGasEstimation(ctx); err != nil {
@@ -135,64 +152,90 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 	defer cancelSub()
 
 	subscriptionErr := make(chan error, 1)
+	blockCh := make(chan types.Block, 1)
+
 	go func() {
 		err := r.clients[0].SubscribeToBlocks(subCtx, func(block types.Block) {
-			r.mu.Lock()
-			r.processed++
-
-			blockTime := block.Timestamp
-			var productionTime time.Duration
-			if !lastBlockTime.IsZero() {
-				productionTime = blockTime.Sub(lastBlockTime)
-			}
-			lastBlockTime = blockTime
-
-			txsSent, successfulTxs, failedTxs, gasUsed, err := r.sendBlockTransactions(ctx)
-			if err != nil {
-				fmt.Printf("error sending block transactions: %v\n", err)
-			}
-
-			r.collector.RecordBlockStats(
-				block.Height,
-				block.GasLimit,
-				gasUsed,
-				txsSent,
-				successfulTxs,
-				failedTxs,
-				productionTime,
-			)
-
-			if r.processed >= r.spec.NumOfBlocks {
-				fmt.Printf("Completed %d blocks\n", r.processed)
-				r.mu.Unlock()
-				cancelSub()
-				select {
-				case done <- struct{}{}:
-				default:
-				}
+			select {
+			case blockCh <- block:
+			case <-subCtx.Done():
 				return
 			}
-
-			if time.Since(startTime) >= r.spec.Runtime {
-				fmt.Println("Load test completed - runtime elapsed")
-				r.mu.Unlock()
-				cancelSub()
-				select {
-				case done <- struct{}{}:
-				default:
-				}
-				return
-			}
-
-			r.mu.Unlock()
 		})
 		subscriptionErr <- err
 	}()
 
-	// Wait for completion or interruption
+	go func() {
+		for {
+			select {
+			case <-subCtx.Done():
+				return
+			case block := <-blockCh:
+				r.mu.Lock()
+				r.logger.Info("acquired mutex", zap.Int64("height", block.Height),
+					zap.Time("timestamp", block.Timestamp), zap.Int64("gas_limit", block.GasLimit))
+
+				r.processed++
+
+				r.logger.Info("processing block", zap.Int64("height", block.Height),
+					zap.Time("timestamp", block.Timestamp), zap.Int64("gas_limit", block.GasLimit))
+				blockTime := block.Timestamp
+				var productionTime time.Duration
+				if !lastBlockTime.IsZero() {
+					productionTime = blockTime.Sub(lastBlockTime)
+				}
+				lastBlockTime = blockTime
+
+				txsSent, successfulTxs, failedTxs, gasUsed, err := r.sendBlockTransactions(ctx)
+				if err != nil {
+					r.logger.Error("error sending block transactions", zap.Error(err))
+				}
+				r.logger.Info("sent block transactions successfully", zap.Int("txsSent", txsSent),
+					zap.Int("successfulTxs", successfulTxs), zap.Int("failedTxs", failedTxs))
+
+				r.collector.RecordBlockStats(
+					block.Height,
+					block.GasLimit,
+					gasUsed,
+					txsSent,
+					successfulTxs,
+					failedTxs,
+					productionTime,
+				)
+
+				if r.processed >= r.spec.NumOfBlocks {
+					fmt.Printf("Completed %d blocks\n", r.processed)
+					r.mu.Unlock()
+					cancelSub()
+					select {
+					case done <- struct{}{}:
+					default:
+					}
+					return
+				}
+
+				if time.Since(startTime) >= r.spec.Runtime {
+					r.logger.Info("Load test completed - runtime elapsed")
+					r.mu.Unlock()
+					cancelSub()
+					select {
+					case done <- struct{}{}:
+					default:
+					}
+					return
+				}
+
+				r.mu.Unlock()
+				r.logger.Info("unlocked mutex", zap.Int64("height", block.Height),
+					zap.Time("timestamp", block.Timestamp), zap.Int64("gas_limit", block.GasLimit))
+
+			}
+		}
+	}()
+
 	select {
 	case <-ctx.Done():
-		fmt.Println("Load test interrupted")
+		r.logger.Info("Load test interrupted")
 		return types.LoadTestResult{}, ctx.Err()
 	case <-done:
 		// Test completed normally (either by blocks or runtime)
@@ -214,66 +257,112 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent, successfulTxs, failedTxs int, gasUsed int64, err error) {
 	startTime := time.Now()
 
+	type txResult struct {
+		txHash    string
+		gasUsed   int64
+		err       error
+		latencyMs float64
+		nodeRPC   string
+	}
+	results := make(chan txResult, r.numTxs)
+
+	var wg sync.WaitGroup
 	for i := 0; i < r.numTxs; i++ {
-		// Select random wallet - it already has its assigned client
-		wallet := r.wallets[rand.Intn(len(r.wallets))]
-		amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(1000000)))
-		toAddr := r.wallets[rand.Intn(len(r.wallets))].Address()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		gasSettings := types.GasSettings{
-			Gas:         r.gasUsed,
-			PricePerGas: 1,
-			GasDenom:    r.spec.GasDenom,
-		}
+			wallet := r.wallets[rand.Intn(len(r.wallets))]
+			amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(1000000)))
+			toAddr := r.wallets[rand.Intn(len(r.wallets))].Address()
 
-		fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(wallet.Address()))
-		if err != nil {
-			failedTxs++
-			r.collector.RecordTransactionFailure(
-				"",
-				r.processed,
-				err,
-				wallet.GetClient().GetNodeAddress().RPC,
-			)
-			continue
-		}
+			gasSettings := types.GasSettings{
+				Gas:         r.gasUsed,
+				PricePerGas: 1,
+				GasDenom:    r.spec.GasDenom,
+			}
 
-		toAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(toAddr))
-		if err != nil {
-			failedTxs++
-			r.collector.RecordTransactionFailure(
-				"",
-				r.processed,
-				err,
-				wallet.GetClient().GetNodeAddress().RPC,
-			)
-			continue
-		}
+			fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(wallet.Address()))
+			if err != nil {
+				results <- txResult{err: err, nodeRPC: wallet.GetClient().GetNodeAddress().RPC}
+				return
+			}
 
-		msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
-		fees := sdk.NewCoins(sdk.NewCoin(gasSettings.GasDenom, math.NewInt(int64(gasSettings.Gas*gasSettings.PricePerGas))))
+			toAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(toAddr))
+			if err != nil {
+				results <- txResult{err: err, nodeRPC: wallet.GetClient().GetNodeAddress().RPC}
+				return
+			}
 
-		txResp, err := wallet.CreateAndBroadcastTx(ctx, uint64(gasSettings.Gas), fees, msg)
+			msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
+			gasWithBuffer := uint64(float64(gasSettings.Gas) * 1.2)
+			fees := sdk.NewCoins(sdk.NewCoin(gasSettings.GasDenom, math.NewInt(int64(gasWithBuffer)*gasSettings.PricePerGas)))
+
+			r.noncesMu.Lock()
+			nonce := r.nonces[wallet.FormattedAddress()]
+			r.nonces[wallet.FormattedAddress()]++
+			r.noncesMu.Unlock()
+
+			acc, err := wallet.GetClient().GetAccount(ctx, wallet.FormattedAddress())
+			if err != nil {
+				results <- txResult{err: err, nodeRPC: wallet.GetClient().GetNodeAddress().RPC}
+				return
+			}
+
+			tx, err := wallet.CreateSignedTx(ctx, wallet.GetClient(), gasWithBuffer, fees, nonce, acc.GetAccountNumber(), msg)
+			if err != nil {
+				results <- txResult{err: err, nodeRPC: wallet.GetClient().GetNodeAddress().RPC}
+				return
+			}
+
+			txBytes, err := wallet.GetClient().GetEncodingConfig().TxConfig.TxEncoder()(tx)
+			if err != nil {
+				results <- txResult{err: err, nodeRPC: wallet.GetClient().GetNodeAddress().RPC}
+				return
+			}
+
+			res, err := wallet.GetClient().BroadcastTx(ctx, txBytes)
+			latencyMs := float64(time.Since(startTime).Milliseconds())
+
+			if err != nil {
+				results <- txResult{err: err, nodeRPC: wallet.GetClient().GetNodeAddress().RPC}
+				return
+			}
+
+			results <- txResult{
+				txHash:    res.TxHash,
+				gasUsed:   int64(gasWithBuffer),
+				latencyMs: latencyMs,
+				nodeRPC:   wallet.GetClient().GetNodeAddress().RPC,
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for result := range results {
 		txsSent++
-		if err != nil {
+		if result.err != nil {
 			failedTxs++
 			r.collector.RecordTransactionFailure(
 				"",
 				r.processed,
-				err,
-				wallet.GetClient().GetNodeAddress().RPC,
+				result.err,
+				result.nodeRPC,
 			)
 			continue
 		}
 
 		successfulTxs++
-		gasUsed += txResp.GasUsed
-		latencyMs := float64(time.Since(startTime).Milliseconds())
+		gasUsed += result.gasUsed
 		r.collector.RecordTransactionSuccess(
-			txResp.TxHash,
-			latencyMs,
-			txResp.GasUsed,
-			wallet.GetClient().GetNodeAddress().RPC,
+			result.txHash,
+			result.latencyMs,
+			result.gasUsed,
+			result.nodeRPC,
 		)
 	}
 
