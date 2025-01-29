@@ -1,6 +1,10 @@
 package metrics
 
 import (
+	"context"
+	"fmt"
+	"github.com/skip-mev/catalyst/internal/cosmos/wallet"
+	"sort"
 	"sync"
 	"time"
 
@@ -15,6 +19,7 @@ type MetricsCollector interface {
 	RecordTransactionFailure(txHash string, err error)
 	RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int)
 	GetResults() types.LoadTestResult
+	ProcessSentTxs(ctx context.Context, sentTxs []types.SentTx, gasLimit int, client types.ChainI)
 }
 
 // DefaultMetricsCollector implements the MetricsCollector interface
@@ -27,6 +32,7 @@ type DefaultMetricsCollector struct {
 	totalTxs      int
 	successfulTxs int
 	failedTxs     int
+	logger        *zap.Logger
 
 	totalGasUsed int64
 
@@ -43,6 +49,77 @@ func NewMetricsCollector() *DefaultMetricsCollector {
 		startTime:  time.Now(),
 		nodeStats:  make(map[string]*types.NodeStats),
 		blockStats: make([]types.BlockStat, 0),
+		logger:     zap.NewNop(),
+	}
+}
+
+func (c *DefaultMetricsCollector) ProcessSentTxs(ctx context.Context, sentTxs []types.SentTx, gasLimit int, client types.ChainI) {
+	c.logger.Info("querying transaction results and recording metrics")
+
+	type blockStats struct {
+		gasUsed       int64
+		txsSent       int
+		successfulTxs int
+		failedTxs     int
+		timestamp     time.Time
+	}
+	blockStatsMap := make(map[int64]*blockStats)
+
+	for _, tx := range sentTxs {
+		txResp, err := wallet.GetTxResponse(ctx, client, tx.TxHash)
+		if err != nil {
+			c.logger.Error("failed to get transaction response",
+				zap.String("txHash", tx.TxHash),
+				zap.Error(err))
+			c.RecordTransactionFailure(
+				tx.TxHash,
+				err,
+			)
+			continue
+		}
+
+		if _, exists := blockStatsMap[txResp.Height]; !exists {
+			blockStatsMap[txResp.Height] = &blockStats{}
+		}
+		stats := blockStatsMap[txResp.Height]
+		stats.txsSent++
+
+		if txResp.Code != 0 {
+			stats.failedTxs++
+			c.RecordTransactionFailure(
+				tx.TxHash,
+				fmt.Errorf("transaction failed: %s", txResp.RawLog),
+			)
+			continue
+		}
+
+		stats.successfulTxs++
+		stats.gasUsed += txResp.GasUsed
+
+		c.RecordTransactionSuccess(
+			tx.TxHash,
+			txResp.GasUsed,
+			client.GetNodeAddress().RPC,
+		)
+	}
+
+	var heights []int64
+	for height := range blockStatsMap {
+		heights = append(heights, height)
+	}
+	sort.Slice(heights, func(i, j int) bool { return heights[i] < heights[j] })
+
+	for _, height := range heights {
+		stats := blockStatsMap[height]
+
+		c.RecordBlockStats(
+			height,
+			gasLimit,
+			stats.gasUsed,
+			stats.txsSent,
+			stats.successfulTxs,
+			stats.failedTxs,
+		)
 	}
 }
 

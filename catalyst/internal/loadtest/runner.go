@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
-	"sort"
 	"sync"
 	"time"
 
@@ -224,75 +223,8 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 		if err := <-subscriptionErr; err != nil && err != context.Canceled {
 			return types.LoadTestResult{}, fmt.Errorf("subscription error: %w", err)
 		}
-
-		r.logger.Info("querying transaction results and recording metrics")
-
-		type blockStats struct {
-			gasUsed       int64
-			txsSent       int
-			successfulTxs int
-			failedTxs     int
-			timestamp     time.Time
-		}
-		blockStatsMap := make(map[int64]*blockStats)
-
 		client := r.clients[0]
-		for _, tx := range r.sentTxs {
-			txResp, err := wallet.GetTxResponse(ctx, client, tx.TxHash)
-			if err != nil {
-				r.logger.Error("failed to get transaction response",
-					zap.String("txHash", tx.TxHash),
-					zap.Error(err))
-				r.collector.RecordTransactionFailure(
-					tx.TxHash,
-					err,
-				)
-				continue
-			}
-
-			if _, exists := blockStatsMap[txResp.Height]; !exists {
-				blockStatsMap[txResp.Height] = &blockStats{}
-			}
-			stats := blockStatsMap[txResp.Height]
-			stats.txsSent++
-
-			if txResp.Code != 0 {
-				stats.failedTxs++
-				r.collector.RecordTransactionFailure(
-					tx.TxHash,
-					fmt.Errorf("transaction failed: %s", txResp.RawLog),
-				)
-				continue
-			}
-
-			stats.successfulTxs++
-			stats.gasUsed += txResp.GasUsed
-
-			r.collector.RecordTransactionSuccess(
-				tx.TxHash,
-				txResp.GasUsed,
-				client.GetNodeAddress().RPC,
-			)
-		}
-
-		var heights []int64
-		for height := range blockStatsMap {
-			heights = append(heights, height)
-		}
-		sort.Slice(heights, func(i, j int) bool { return heights[i] < heights[j] })
-
-		for _, height := range heights {
-			stats := blockStatsMap[height]
-
-			r.collector.RecordBlockStats(
-				height,
-				r.gasLimit,
-				stats.gasUsed,
-				stats.txsSent,
-				stats.successfulTxs,
-				stats.failedTxs,
-			)
-		}
+		r.collector.ProcessSentTxs(ctx, r.sentTxs, r.gasLimit, client)
 	case err := <-subscriptionErr:
 		// Subscription ended with error before completion
 		if err != context.Canceled {

@@ -89,14 +89,13 @@ type BroadcastError struct {
 
 // BlockStat represents stats for each individual block
 type BlockStat struct {
-	BlockHeight         int64         // Height of the block
-	TransactionsSent    int           // Number of transactions sent for the block
-	SuccessfulTxs       int           // Number of successful transactions included in the block
-	FailedTxs           int           // Number of transactions that failed
-	GasLimit            int           // Gas limit of the block
-	TotalGasUsed        int64         // Total gas used in the block
-	BlockGasUtilization float64       // Percentage of block gas limit utilized
-	BlockProductionTime time.Duration // Time taken to produce the block
+	BlockHeight         int64   // Height of the block
+	TransactionsSent    int     // Number of transactions sent for the block
+	SuccessfulTxs       int     // Number of successful transactions included in the block
+	FailedTxs           int     // Number of transactions that failed
+	GasLimit            int     // Gas limit of the block
+	TotalGasUsed        int64   // Total gas used in the block
+	BlockGasUtilization float64 // Percentage of block gas limit utilized
 }
 
 // NodeStats represents stats for transactions handled by a specific node
