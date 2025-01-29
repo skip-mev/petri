@@ -35,11 +35,7 @@ type Runner struct {
 	logger    *zap.Logger
 	nonces    map[string]uint64
 	noncesMu  sync.RWMutex
-	sentTxs   []struct {
-		txHash string
-		wallet *wallet.InteractingWallet
-		sentAt time.Time
-	}
+	sentTxs   []types.SentTx
 	sentTxsMu sync.RWMutex
 }
 
@@ -76,11 +72,7 @@ func NewRunner(ctx context.Context, spec types.LoadTestSpec) (*Runner, error) {
 		collector: metrics.NewMetricsCollector(),
 		logger:    logging.FromContext(ctx),
 		nonces:    make(map[string]uint64),
-		sentTxs: make([]struct {
-			txHash string
-			wallet *wallet.InteractingWallet
-			sentAt time.Time
-		}, 0),
+		sentTxs:   make([]types.SentTx, 0),
 	}
 
 	for _, w := range wallets {
@@ -246,13 +238,13 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 
 		client := r.clients[0]
 		for _, tx := range r.sentTxs {
-			txResp, err := tx.wallet.GetTxResponse(ctx, client, tx.txHash)
+			txResp, err := wallet.GetTxResponse(ctx, client, tx.TxHash)
 			if err != nil {
 				r.logger.Error("failed to get transaction response",
-					zap.String("txHash", tx.txHash),
+					zap.String("txHash", tx.TxHash),
 					zap.Error(err))
 				r.collector.RecordTransactionFailure(
-					tx.txHash,
+					tx.TxHash,
 					err,
 				)
 				continue
@@ -267,7 +259,7 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 			if txResp.Code != 0 {
 				stats.failedTxs++
 				r.collector.RecordTransactionFailure(
-					tx.txHash,
+					tx.TxHash,
 					fmt.Errorf("transaction failed: %s", txResp.RawLog),
 				)
 				continue
@@ -276,17 +268,8 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 			stats.successfulTxs++
 			stats.gasUsed += txResp.GasUsed
 
-			txTime, err := time.Parse(time.RFC3339, txResp.Timestamp)
-			if err != nil {
-				r.logger.Error("failed to parse tx timestamp",
-					zap.String("txHash", tx.txHash),
-					zap.Error(err))
-				txTime = time.Now()
-			}
-
 			r.collector.RecordTransactionSuccess(
-				tx.txHash,
-				float64(txTime.Sub(tx.sentAt).Milliseconds()),
+				tx.TxHash,
 				txResp.GasUsed,
 				client.GetNodeAddress().RPC,
 			)
@@ -322,15 +305,7 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 
 // sendBlockTransactions sends transactions for a single block
 func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err error) {
-	startTime := time.Now()
-
-	type txResult struct {
-		txHash  string
-		wallet  *wallet.InteractingWallet
-		err     error
-		nodeRPC string
-	}
-	results := make(chan txResult, r.numTxs)
+	results := make(chan types.SentTx, r.numTxs)
 
 	var wg sync.WaitGroup
 	for i := 0; i < r.numTxs; i++ {
@@ -351,18 +326,18 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err er
 
 			fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(wallet.Address()))
 			if err != nil {
-				results <- txResult{err: err, nodeRPC: client.GetNodeAddress().RPC}
+				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 
 			toAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(toAddr))
 			if err != nil {
-				results <- txResult{err: err, nodeRPC: client.GetNodeAddress().RPC}
+				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 
 			msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
-			gasWithBuffer := uint64(float64(gasSettings.Gas) * 1.3)
+			gasWithBuffer := uint64(float64(gasSettings.Gas) * 1.4)
 			fees := sdk.NewCoins(sdk.NewCoin(gasSettings.GasDenom, math.NewInt(int64(gasWithBuffer)*gasSettings.PricePerGas)))
 
 			r.noncesMu.Lock()
@@ -371,7 +346,7 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err er
 
 			acc, err := client.GetAccount(ctx, wallet.FormattedAddress())
 			if err != nil {
-				results <- txResult{err: err, nodeRPC: client.GetNodeAddress().RPC}
+				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 
@@ -384,27 +359,27 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err er
 						zap.Uint64("actual_nonce", acc.GetSequence()),
 						zap.Error(err))
 				}
-				results <- txResult{err: err, nodeRPC: client.GetNodeAddress().RPC}
+				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 
 			txBytes, err := client.GetEncodingConfig().TxConfig.TxEncoder()(tx)
 			if err != nil {
-				results <- txResult{err: err, nodeRPC: client.GetNodeAddress().RPC}
+				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 
 			res, err := client.BroadcastTx(ctx, txBytes)
 			if err != nil {
-				results <- txResult{err: err, nodeRPC: client.GetNodeAddress().RPC}
+				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 			r.noncesMu.Unlock()
 
-			results <- txResult{
-				txHash:  res.TxHash,
-				wallet:  wallet,
-				nodeRPC: client.GetNodeAddress().RPC,
+			results <- types.SentTx{
+				TxHash:      res.TxHash,
+				NodeAddress: client.GetNodeAddress().RPC,
+				Err:         nil,
 			}
 		}()
 	}
@@ -416,23 +391,15 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err er
 
 	for result := range results {
 		txsSent++
-		if result.err != nil {
+		if result.Err != nil {
 			r.logger.Error("failed to send transaction",
-				zap.Error(result.err),
-				zap.String("node", result.nodeRPC))
+				zap.Error(result.Err),
+				zap.String("node", result.NodeAddress))
 			continue
 		}
 
 		r.sentTxsMu.Lock()
-		r.sentTxs = append(r.sentTxs, struct {
-			txHash string
-			wallet *wallet.InteractingWallet
-			sentAt time.Time
-		}{
-			txHash: result.txHash,
-			wallet: result.wallet,
-			sentAt: startTime,
-		})
+		r.sentTxs = append(r.sentTxs, result)
 		r.sentTxsMu.Unlock()
 	}
 

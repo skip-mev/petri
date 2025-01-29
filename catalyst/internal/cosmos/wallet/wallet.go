@@ -62,10 +62,10 @@ func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, gas uint64
 		return txResp, nil
 	}
 
-	return w.GetTxResponse(ctx, client, txResp.TxHash)
+	return GetTxResponse(ctx, client, txResp.TxHash)
 }
 
-func (w *InteractingWallet) GetTxResponse(ctx context.Context, client types.ChainI, txHash string) (*sdk.TxResponse, error) {
+func GetTxResponse(ctx context.Context, client types.ChainI, txHash string) (*sdk.TxResponse, error) {
 	var txResp *sdk.TxResponse
 
 	cometClient := client.GetCometClient(ctx)

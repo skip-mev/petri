@@ -11,7 +11,7 @@ import (
 
 // MetricsCollector is responsible for collecting and aggregating metrics during a load test
 type MetricsCollector interface {
-	RecordTransactionSuccess(txHash string, latencyMs float64, gasUsed int64, nodeAddress string)
+	RecordTransactionSuccess(txHash string, gasUsed int64, nodeAddress string)
 	RecordTransactionFailure(txHash string, err error)
 	RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int)
 	GetResults() types.LoadTestResult
@@ -29,13 +29,14 @@ type DefaultMetricsCollector struct {
 	failedTxs     int
 
 	totalGasUsed int64
-	totalLatency float64
 
 	broadcastErrors []types.BroadcastError
 	blockStats      []types.BlockStat
 
 	nodeStats map[string]*types.NodeStats
 }
+
+var _ MetricsCollector = (*DefaultMetricsCollector)(nil)
 
 func NewMetricsCollector() *DefaultMetricsCollector {
 	return &DefaultMetricsCollector{
@@ -45,7 +46,7 @@ func NewMetricsCollector() *DefaultMetricsCollector {
 	}
 }
 
-func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, latencyMs float64, gasUsed int64, nodeAddress string) {
+func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, gasUsed int64, nodeAddress string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logger, _ := zap.NewDevelopment()
@@ -54,7 +55,6 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, latenc
 	c.totalTxs++
 	c.successfulTxs++
 	c.totalGasUsed += gasUsed
-	c.totalLatency += latencyMs
 
 	stats, exists := c.nodeStats[nodeAddress]
 	if !exists {
@@ -63,14 +63,12 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, latenc
 			TransactionsSent: 0,
 			SuccessfulTxs:    0,
 			FailedTxs:        0,
-			AvgLatencyMs:     0,
 		}
 		c.nodeStats[nodeAddress] = stats
 	}
 
 	stats.TransactionsSent++
 	stats.SuccessfulTxs++
-	stats.AvgLatencyMs = ((stats.AvgLatencyMs * float64(stats.TransactionsSent-1)) + latencyMs) / float64(stats.TransactionsSent)
 }
 
 func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error) {
@@ -117,11 +115,6 @@ func (c *DefaultMetricsCollector) GetResults() types.LoadTestResult {
 
 	c.endTime = time.Now()
 
-	avgLatency := 0.0
-	if c.successfulTxs > 0 {
-		avgLatency = c.totalLatency / float64(c.successfulTxs)
-	}
-
 	avgGasPerTx := 0
 	if c.totalTxs > 0 {
 		avgGasPerTx = int(c.totalGasUsed) / c.totalTxs
@@ -146,7 +139,6 @@ func (c *DefaultMetricsCollector) GetResults() types.LoadTestResult {
 		SuccessfulTransactions: c.successfulTxs,
 		FailedTransactions:     c.failedTxs,
 		BroadcastErrors:        c.broadcastErrors,
-		AvgBroadcastLatency:    avgLatency,
 		AvgGasPerTransaction:   avgGasPerTx,
 		AvgBlockGasUtilization: avgBlockGasUtilization,
 		BlocksProcessed:        totalBlocks,

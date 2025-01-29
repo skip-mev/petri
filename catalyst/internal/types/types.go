@@ -70,7 +70,6 @@ type LoadTestResult struct {
 	SuccessfulTransactions int
 	FailedTransactions     int
 	BroadcastErrors        []BroadcastError
-	AvgBroadcastLatency    float64
 	AvgGasPerTransaction   int
 	AvgBlockGasUtilization float64
 	BlocksProcessed        int
@@ -108,6 +107,12 @@ type NodeStats struct {
 	FailedTxs          int         // Number of transactions that failed on this node
 	AvgLatencyMs       float64     // Average broadcast latency for this node
 	BlockParticipation int         // Number of blocks where this node participated
+}
+
+type SentTx struct {
+	TxHash      string
+	NodeAddress string
+	Err         error
 }
 
 // ClientPool manages a pool of node clients
