@@ -32,7 +32,7 @@ func NewInteractingWallet(privKey cryptotypes.PrivKey, bech32Prefix string, pool
 
 // CreateAndBroadcastTx creates and broadcasts a transaction
 func (w *InteractingWallet) CreateAndBroadcastTx(ctx context.Context, gas uint64, fees sdk.Coins, blocking bool, msgs ...sdk.Msg) (*sdk.TxResponse, error) {
-	client := w.pool.GetClient()
+	client := w.GetClient()
 
 	acc, err := client.GetAccount(ctx, w.signer.FormattedAddress())
 	if err != nil {

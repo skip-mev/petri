@@ -12,8 +12,8 @@ import (
 // MetricsCollector is responsible for collecting and aggregating metrics during a load test
 type MetricsCollector interface {
 	RecordTransactionSuccess(txHash string, latencyMs float64, gasUsed int64, nodeAddress string)
-	RecordTransactionFailure(txHash string, err error, nodeAddress string)
-	RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int, productionTime time.Duration)
+	RecordTransactionFailure(txHash string, err error)
+	RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int)
 	GetResults() types.LoadTestResult
 }
 
@@ -73,7 +73,7 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, latenc
 	stats.AvgLatencyMs = ((stats.AvgLatencyMs * float64(stats.TransactionsSent-1)) + latencyMs) / float64(stats.TransactionsSent)
 }
 
-func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error, nodeAddress string) {
+func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logger, _ := zap.NewDevelopment()
@@ -86,24 +86,9 @@ func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err er
 		TxHash: txHash,
 		Error:  err.Error(),
 	})
-
-	stats, exists := c.nodeStats[nodeAddress]
-	if !exists {
-		stats = &types.NodeStats{
-			NodeAddresses:    types.NodeAddress{RPC: nodeAddress},
-			TransactionsSent: 0,
-			SuccessfulTxs:    0,
-			FailedTxs:        0,
-			AvgLatencyMs:     0,
-		}
-		c.nodeStats[nodeAddress] = stats
-	}
-
-	stats.TransactionsSent++
-	stats.FailedTxs++
 }
 
-func (c *DefaultMetricsCollector) RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int, productionTime time.Duration) {
+func (c *DefaultMetricsCollector) RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -115,7 +100,6 @@ func (c *DefaultMetricsCollector) RecordBlockStats(blockHeight int64, gasLimit i
 		GasLimit:            gasLimit,
 		TotalGasUsed:        gasUsed,
 		BlockGasUtilization: float64(gasUsed) / float64(gasLimit),
-		BlockProductionTime: productionTime,
 	}
 
 	c.blockStats = append(c.blockStats, blockStat)
