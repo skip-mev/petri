@@ -228,9 +228,9 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 }
 
 // sendBlockTransactions sends transactions for a single block
-func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err error) {
+func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 	results := make(chan types.SentTx, r.numTxs)
-
+	txsSent := 0
 	var wg sync.WaitGroup
 	for i := 0; i < r.numTxs; i++ {
 		wg.Add(1)
@@ -241,11 +241,6 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err er
 			amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(1000000)))
 			toAddr := r.wallets[rand.Intn(len(r.wallets))].Address()
 
-			gasSettings := types.GasSettings{
-				Gas:         r.txGasEstimation,
-				PricePerGas: 1,
-				GasDenom:    r.spec.GasDenom,
-			}
 			client := wallet.GetClient()
 
 			fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(wallet.Address()))
@@ -261,12 +256,11 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err er
 			}
 
 			msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
-			gasWithBuffer := uint64(float64(gasSettings.Gas) * 1.4)
-			fees := sdk.NewCoins(sdk.NewCoin(gasSettings.GasDenom, math.NewInt(int64(gasWithBuffer)*gasSettings.PricePerGas)))
+			gasWithBuffer := uint64(float64(r.txGasEstimation) * 1.4)
+			fees := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(int64(gasWithBuffer)*1)))
 
 			r.noncesMu.Lock()
 			nonce := r.nonces[wallet.FormattedAddress()]
-			r.nonces[wallet.FormattedAddress()]++
 
 			acc, err := client.GetAccount(ctx, wallet.FormattedAddress())
 			if err != nil {
@@ -298,6 +292,7 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (txsSent int, err er
 				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
+			r.nonces[wallet.FormattedAddress()]++
 			r.noncesMu.Unlock()
 
 			results <- types.SentTx{

@@ -134,18 +134,15 @@ func main() {
 		}
 	}
 
-	if len(result.NodeDistribution) > 0 {
+	if len(result.NodeStats) > 0 {
 		fmt.Println()
 		fmt.Println("Node Distribution:")
 		fmt.Println("-----------------")
-		for addr, stats := range result.NodeDistribution {
+		for addr, stats := range result.NodeStats {
 			fmt.Printf("Node %s:\n", addr)
-			fmt.Printf("  GRPC Address: %s\n", stats.NodeAddresses.GRPC)
-			fmt.Printf("  RPC Address: %s\n", stats.NodeAddresses.RPC)
 			fmt.Printf("  Transactions Sent: %d\n", stats.TransactionsSent)
 			fmt.Printf("  Successful Transactions: %d\n", stats.SuccessfulTxs)
 			fmt.Printf("  Failed Transactions: %d\n", stats.FailedTxs)
-			fmt.Printf("  Block Participation: %d\n", stats.BlockParticipation)
 		}
 	}
 }

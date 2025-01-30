@@ -178,12 +178,6 @@ func (c *DefaultMetricsCollector) RecordBlockStats(blockHeight int64, gasLimit i
 	}
 
 	c.blockStats = append(c.blockStats, blockStat)
-
-	for _, stats := range c.nodeStats {
-		if stats.TransactionsSent > 0 {
-			stats.BlockParticipation++
-		}
-	}
 }
 
 func (c *DefaultMetricsCollector) GetResults() types.LoadTestResult {
@@ -223,6 +217,6 @@ func (c *DefaultMetricsCollector) GetResults() types.LoadTestResult {
 		EndTime:                c.endTime,
 		Runtime:                c.endTime.Sub(c.startTime),
 		BlockStats:             c.blockStats,
-		NodeDistribution:       nodeDistribution,
+		NodeStats:              nodeDistribution,
 	}
 }

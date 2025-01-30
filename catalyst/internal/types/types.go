@@ -43,12 +43,6 @@ type Block struct {
 	Timestamp time.Time
 }
 
-type GasSettings struct {
-	Gas         int64
-	PricePerGas int64
-	GasDenom    string
-}
-
 type LoadTestSpec struct {
 	ChainID             string
 	BlockGasLimitTarget float64 // Target percentage of block gas limit to use (0.0-1.0)
@@ -77,7 +71,7 @@ type LoadTestResult struct {
 	EndTime                time.Time
 	Runtime                time.Duration
 	BlockStats             []BlockStat
-	NodeDistribution       map[string]NodeStats
+	NodeStats              map[string]NodeStats
 }
 
 // BroadcastError represents errors during broadcasting transactions
@@ -100,11 +94,10 @@ type BlockStat struct {
 
 // NodeStats represents stats for transactions handled by a specific node
 type NodeStats struct {
-	Address            string // Addresses of the node
-	TransactionsSent   int    // Number of transactions sent to this node
-	SuccessfulTxs      int    // Number of successful transactions broadcasted to this node
-	FailedTxs          int    // Number of transactions that failed on this node
-	BlockParticipation int    // Number of blocks where this node participated
+	Address          string // Addresses of the node
+	TransactionsSent int    // Number of transactions sent to this node
+	SuccessfulTxs    int    // Number of successful transactions broadcasted to this node
+	FailedTxs        int    // Number of transactions that failed on this node
 }
 
 type SentTx struct {
