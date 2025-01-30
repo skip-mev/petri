@@ -18,7 +18,7 @@ var prometheusConfigTemplate string
 
 type PrometheusOptions struct {
 	Targets                []string
-	ProviderSpecificConfig interface{}
+	ProviderSpecificConfig map[string]string
 }
 
 // SetupPrometheusTask sets up and configures (but does not start) a Prometheus task.

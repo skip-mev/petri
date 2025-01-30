@@ -14,9 +14,9 @@ import (
 const DEFAULT_PROMETHEUS_URL = "http://prometheus:9090"
 
 type GrafanaOptions struct {
-	PrometheusURL          string      // The URL of the Prometheus instance. This needs to be accessible from the Grafana container.
-	DashboardJSON          string      // The JSON of the Grafana dashboard to be provisioned. You can get the JSON by exporting a dashboard in the Grafana web interface
-	ProviderSpecificConfig interface{} // Provider-specific configuration for the Grafana task
+	PrometheusURL          string            // The URL of the Prometheus instance. This needs to be accessible from the Grafana container.
+	DashboardJSON          string            // The JSON of the Grafana dashboard to be provisioned. You can get the JSON by exporting a dashboard in the Grafana web interface
+	ProviderSpecificConfig map[string]string // Provider-specific configuration for the Grafana task
 }
 
 //go:embed files/grafana/config/config.ini
@@ -41,7 +41,7 @@ func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provid
 		Name:          "grafana",
 		ContainerName: "grafana",
 		Image: provider.ImageDefinition{
-			Image: "grafana/grafana:main",
+			Image: "ghcr.io/skip-mev/grafana:renderer-v11.4.0",
 			UID:   "472",
 			GID:   "0",
 		},
