@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -11,7 +12,7 @@ import (
 	logging "github.com/skip-mev/catalyst/internal/shared"
 	"go.uber.org/zap"
 
-	"cosmossdk.io/math"
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/skip-mev/catalyst/internal/cosmos/client"
@@ -71,7 +72,7 @@ func NewRunner(ctx context.Context, spec types.LoadTestSpec) (*Runner, error) {
 	}
 
 	for _, w := range wallets {
-		acc, err := clients[0].GetAccount(ctx, w.FormattedAddress())
+		acc, err := w.GetClient().GetAccount(ctx, w.FormattedAddress())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get account for wallet %s: %w", w.FormattedAddress(), err)
 		}
@@ -100,7 +101,7 @@ func (r *Runner) initGasEstimation(ctx context.Context) error {
 	}
 
 	fromWallet := r.wallets[0]
-	amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(1000000)))
+	amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
 	var toAddr []byte
 	if len(r.wallets) == 1 {
 		toAddr = fromWallet.Address()
@@ -132,7 +133,7 @@ func (r *Runner) initGasEstimation(ctx context.Context) error {
 
 	r.txGasEstimation = int64(gasUsed)
 	targetGasLimit := float64(blockGasLimit) * r.spec.BlockGasLimitTarget
-	r.numTxs = int(targetGasLimit / float64(gasUsed))
+	r.numTxs = int(math.Ceil(targetGasLimit / float64(gasUsed)))
 
 	r.logger.Info("Gas estimation results",
 		zap.Int("blockGasLimit", blockGasLimit),
@@ -238,7 +239,7 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 			defer wg.Done()
 
 			wallet := r.wallets[rand.Intn(len(r.wallets))]
-			amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(1000000)))
+			amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
 			toAddr := r.wallets[rand.Intn(len(r.wallets))].Address()
 
 			client := wallet.GetClient()
@@ -256,8 +257,8 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 			}
 
 			msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
-			gasWithBuffer := uint64(float64(r.txGasEstimation) * 1.2)
-			fees := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(int64(gasWithBuffer)*1)))
+			gasWithBuffer := uint64(float64(r.txGasEstimation) * 1.4)
+			fees := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(int64(gasWithBuffer)*1)))
 
 			r.noncesMu.Lock()
 			nonce := r.nonces[wallet.FormattedAddress()]
