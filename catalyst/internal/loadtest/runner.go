@@ -53,14 +53,10 @@ func NewRunner(ctx context.Context, spec types.LoadTestSpec) (*Runner, error) {
 		return nil, fmt.Errorf("no valid clients created")
 	}
 
-	var chainClients []types.ChainI
-	for _, c := range clients {
-		chainClients = append(chainClients, c)
-	}
-	clientPool := types.NewClientPool(chainClients)
 	var wallets []*wallet.InteractingWallet
-	for _, privKey := range spec.PrivateKeys {
-		wallet := wallet.NewInteractingWallet(privKey, spec.Bech32Prefix, clientPool)
+	for i, privKey := range spec.PrivateKeys {
+		client := clients[i%len(clients)]
+		wallet := wallet.NewInteractingWallet(privKey, spec.Bech32Prefix, client)
 		wallets = append(wallets, wallet)
 	}
 

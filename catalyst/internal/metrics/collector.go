@@ -99,7 +99,7 @@ func (c *DefaultMetricsCollector) ProcessSentTxs(ctx context.Context, sentTxs []
 		c.RecordTransactionSuccess(
 			tx.TxHash,
 			txResp.GasUsed,
-			client.GetNodeAddress().RPC,
+			tx.NodeAddress,
 		)
 	}
 
@@ -136,7 +136,7 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, gasUse
 	stats, exists := c.nodeStats[nodeAddress]
 	if !exists {
 		stats = &types.NodeStats{
-			NodeAddresses:    types.NodeAddress{RPC: nodeAddress},
+			Address:          nodeAddress,
 			TransactionsSent: 0,
 			SuccessfulTxs:    0,
 			FailedTxs:        0,

@@ -100,11 +100,11 @@ type BlockStat struct {
 
 // NodeStats represents stats for transactions handled by a specific node
 type NodeStats struct {
-	NodeAddresses      NodeAddress // Addresses of the node
-	TransactionsSent   int         // Number of transactions sent to this node
-	SuccessfulTxs      int         // Number of successful transactions broadcasted to this node
-	FailedTxs          int         // Number of transactions that failed on this node
-	BlockParticipation int         // Number of blocks where this node participated
+	Address            string // Addresses of the node
+	TransactionsSent   int    // Number of transactions sent to this node
+	SuccessfulTxs      int    // Number of successful transactions broadcasted to this node
+	FailedTxs          int    // Number of transactions that failed on this node
+	BlockParticipation int    // Number of blocks where this node participated
 }
 
 type SentTx struct {

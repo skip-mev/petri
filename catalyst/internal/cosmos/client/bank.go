@@ -2,9 +2,7 @@ package client
 
 import (
 	"context"
-	"encoding/hex"
 
-	"github.com/skip-mev/catalyst/internal/cosmos/wallet"
 	"github.com/skip-mev/catalyst/internal/types"
 
 	"cosmossdk.io/math"
@@ -69,22 +67,22 @@ func (c *Chain) Balance(ctx context.Context, address, denom string) (sdk.Coin, e
 	return *res.Balance, nil
 }
 
-// BankSend sends tokens from the given user to another address
-func (c *Chain) BankSend(ctx context.Context, user wallet.InteractingWallet, toAddress []byte, amount sdk.Coins, gasSettings types.GasSettings, blocking bool) (*sdk.TxResponse, error) {
-	fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(user.Address()))
-	if err != nil {
-		return nil, err
-	}
+// // BankSend sends tokens from the given user to another address
+// func (c *Chain) BankSend(ctx context.Context, user wallet.InteractingWallet, toAddress []byte, amount sdk.Coins, gasSettings types.GasSettings, blocking bool) (*sdk.TxResponse, error) {
+// 	fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(user.Address()))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	toAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(toAddress))
-	if err != nil {
-		return nil, err
-	}
+// 	toAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(toAddress))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
+// 	msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
 
-	return user.CreateAndBroadcastTx(ctx, uint64(gasSettings.Gas), GetFeeAmountsFromGasSettings(gasSettings), blocking, msg)
-}
+// 	return user.CreateAndBroadcastTx(ctx, uint64(gasSettings.Gas), GetFeeAmountsFromGasSettings(gasSettings), blocking, msg)
+// }
 
 // GetFeeAmountsFromGasSettings returns the fee amounts from the gas settings
 func GetFeeAmountsFromGasSettings(gasSettings types.GasSettings) sdk.Coins {

@@ -3,6 +3,7 @@ package wallet
 import (
 	"context"
 	"fmt"
+	"github.com/skip-mev/catalyst/internal/cosmos/client"
 	"strings"
 	"time"
 
@@ -19,14 +20,14 @@ import (
 // InteractingWallet represents a wallet that can interact with the chain
 type InteractingWallet struct {
 	signer *Signer
-	pool   *types.ClientPool
+	client *client.Chain
 }
 
 // NewInteractingWallet creates a new wallet
-func NewInteractingWallet(privKey cryptotypes.PrivKey, bech32Prefix string, pool *types.ClientPool) *InteractingWallet {
+func NewInteractingWallet(privKey cryptotypes.PrivKey, bech32Prefix string, client *client.Chain) *InteractingWallet {
 	return &InteractingWallet{
 		signer: NewSigner(privKey, bech32Prefix),
-		pool:   pool,
+		client: client,
 	}
 }
 
@@ -153,6 +154,6 @@ func (w *InteractingWallet) Address() []byte {
 	return w.signer.Address()
 }
 
-func (w *InteractingWallet) GetClient() types.ChainI {
-	return w.pool.GetClient()
+func (w *InteractingWallet) GetClient() *client.Chain {
+	return w.client
 }
