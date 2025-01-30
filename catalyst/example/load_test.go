@@ -26,7 +26,7 @@ var (
 		Denom:         "stake",
 		Decimals:      6,
 		NumValidators: 1,
-		NumNodes:      2,
+		NumNodes:      1,
 		BinaryName:    "/usr/bin/simd",
 		Image: provider.ImageDefinition{
 			Image: "interchainio/simapp:latest",

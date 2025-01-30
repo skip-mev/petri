@@ -1,0 +1,17 @@
+# Example load test configuration
+chain_id: "my-chain-1"
+block_gas_limit_target: 0.8  # Target 80% of block gas limit
+runtime: "5m"  # Run for 5 minutes
+num_of_blocks: 100  # Process 100 blocks
+nodes_addresses:
+  - grpc: "localhost:9090"
+    rpc: "http://localhost:26657"
+  - grpc: "localhost:9091"
+    rpc: "http://localhost:26658"
+private_keys:
+  # These are example base64-encoded secp256k1 private keys
+  # You should replace these with your actual private keys
+  - "A1B2C3D4E5F6G7H8I9J0..."  # Replace with actual base64-encoded private key
+  - "K1L2M3N4O5P6Q7R8S9T0..."  # Replace with actual base64-encoded private key
+gas_denom: "stake"
+bech32_prefix: "cosmos" 
