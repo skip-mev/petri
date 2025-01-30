@@ -16,7 +16,7 @@ import (
 // MetricsCollector is responsible for collecting and aggregating metrics during a load test
 type MetricsCollector interface {
 	RecordTransactionSuccess(txHash string, gasUsed int64, nodeAddress string)
-	RecordTransactionFailure(txHash string, err error)
+	RecordTransactionFailure(txHash string, err error, blockHeight int64)
 	RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int)
 	GetResults() types.LoadTestResult
 	ProcessSentTxs(ctx context.Context, sentTxs []types.SentTx, gasLimit int, client types.ChainI)
@@ -74,6 +74,7 @@ func (c *DefaultMetricsCollector) ProcessSentTxs(ctx context.Context, sentTxs []
 			c.RecordTransactionFailure(
 				tx.TxHash,
 				err,
+				0,
 			)
 			continue
 		}
@@ -89,6 +90,7 @@ func (c *DefaultMetricsCollector) ProcessSentTxs(ctx context.Context, sentTxs []
 			c.RecordTransactionFailure(
 				tx.TxHash,
 				fmt.Errorf("transaction failed: %s", txResp.RawLog),
+				txResp.Height,
 			)
 			continue
 		}
@@ -148,7 +150,7 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, gasUse
 	stats.SuccessfulTxs++
 }
 
-func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error) {
+func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error, blockHeight int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logger, _ := zap.NewDevelopment()
@@ -158,8 +160,9 @@ func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err er
 	c.failedTxs++
 
 	c.broadcastErrors = append(c.broadcastErrors, types.BroadcastError{
-		TxHash: txHash,
-		Error:  err.Error(),
+		TxHash:      txHash,
+		Error:       err.Error(),
+		BlockHeight: blockHeight,
 	})
 }
 

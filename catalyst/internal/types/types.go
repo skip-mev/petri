@@ -76,7 +76,7 @@ type LoadTestResult struct {
 
 // BroadcastError represents errors during broadcasting transactions
 type BroadcastError struct {
-	BlockHeight int    // Block height where the error occurred
+	BlockHeight int64  // Block height where the error occurred (0 indicates tx did not make it to a block)
 	TxHash      string // Hash of the transaction that failed
 	Error       string // Error message
 }

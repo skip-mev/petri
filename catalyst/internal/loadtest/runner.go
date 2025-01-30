@@ -256,7 +256,7 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 			}
 
 			msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
-			gasWithBuffer := uint64(float64(r.txGasEstimation) * 1.4)
+			gasWithBuffer := uint64(float64(r.txGasEstimation) * 1.2)
 			fees := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, math.NewInt(int64(gasWithBuffer)*1)))
 
 			r.noncesMu.Lock()
