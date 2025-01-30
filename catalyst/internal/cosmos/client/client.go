@@ -87,9 +87,8 @@ func NewClient(ctx context.Context, rpcAddress, grpcAddress, chainID, denom stri
 	}
 
 	nodeChainID := status.NodeInfo.Network
-	fmt.Printf("DEBUG: Node reports chain ID as: %s\n", nodeChainID)
 	if nodeChainID != chainID {
-		return nil, fmt.Errorf("chain ID mismatch: node reports %s but we expected %s", nodeChainID, chainID)
+		return nil, fmt.Errorf("chain ID mismatch: node reports %s but load test expects %s", nodeChainID, chainID)
 	}
 
 	return c, nil
@@ -121,7 +120,8 @@ func (c *Chain) SubscribeToBlocks(ctx context.Context, handler types.BlockHandle
 
 			newBlockEvent, ok := event.Data.(tmtypes.EventDataNewBlock)
 			if !ok {
-				fmt.Printf("Unexpected event type: %T\n", event.Data)
+				c.Logger.Error("Unexpected event type",
+					zap.Any("Event data received", event.Data))
 				continue
 			}
 			c.Logger.Info("received new block event", zap.Int64("height", newBlockEvent.Block.Height))
