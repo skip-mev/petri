@@ -43,9 +43,9 @@ type Provider struct {
 	state   *ProviderState
 	stateMu sync.Mutex
 
-	logger        *zap.Logger
-	doClient      DoClient
-	dockerClients map[string]clients.DockerClient // map of droplet ip address to docker clients
+	logger                *zap.Logger
+	doClient              DoClient
+	dockerClientOverrides map[string]clients.DockerClient
 }
 
 // NewProvider creates a provider that implements the Provider interface for DigitalOcean.
@@ -72,24 +72,6 @@ func NewProviderWithClient(ctx context.Context, logger *zap.Logger, providerName
 	}
 
 	userIPs = append(userIPs, additionalUserIPS...)
-
-	if dockerClients == nil {
-		dockerClients = make(map[string]clients.DockerClient)
-	}
-
-	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
-	digitalOceanProvider := &Provider{
-		logger:        logger.Named("digitalocean_provider"),
-		doClient:      doClient,
-		dockerClients: dockerClients,
-		state: &ProviderState{
-			TaskStates: make(map[string]*TaskState),
-			UserIPs:    userIPs,
-			Name:       providerName,
-			SSHKeyPair: sshKeyPair,
-			PetriTag:   petriTag,
-		},
-	}
 
 	_, err = digitalOceanProvider.createTag(ctx, petriTag)
 	if err != nil {
@@ -142,33 +124,64 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		return nil, err
 	}
 
-	ip, err := droplet.PublicIPv4()
-	if err != nil {
-		return nil, err
-	}
-
-	p.logger.Info("droplet created", zap.String("name", droplet.Name), zap.String("ip", ip))
-
-	dockerClient := p.dockerClients[ip]
-	if dockerClient == nil {
-		dockerClient, err = clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	_, _, err = dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
-	if err != nil {
-		p.logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
-		if err = dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{}); err != nil {
-			return nil, err
-		}
-	}
+	p.logger.Info("droplet created", zap.String("name", droplet.Name))
 
 	state := p.GetState()
 
+	taskState := &TaskState{
+		ID:               strconv.Itoa(droplet.ID),
+		Name:             definition.Name,
+		Definition:       definition,
+		Status:           provider.TASK_STOPPED,
+		ProviderName:     state.Name,
+		SSHKeyPair:       state.SSHKeyPair,
+	}
+
+	p.stateMu.Lock()
+	p.state.TaskStates[taskState.ID] = taskState
+	p.stateMu.Unlock()
+
+	task := &Task{
+		state:           taskState,
+		removeTask:      p.removeTask,
+		logger:          p.logger.With(zap.String("task", definition.Name)),
+		doClient:        p.doClient,
+	}
+
+	if err := task.waitForSSHClient(ctx); err != nil {
+		return nil, fmt.Errorf("failed to wait for docker start: %w", err)
+	}
+
+	ip, err := task.GetIP(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get droplet IP: %w", err)
+	}
+
+	task.dockerClient = p.getDockerClientOverride(task.GetState().Name)
+
+	if task.dockerClient == nil {
+		task.dockerClient, err = clients.NewDockerClient(ip)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to create docker client: %w", err)
+		}
+	}
+
+	if err := task.waitForDockerStart(ctx); err != nil {
+		return nil, fmt.Errorf("failed to wait for docker start: %w", err)
+	}
+
+	_, _, err = task.dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
+	if err != nil {
+		p.logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
+		if err = task.dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{}); err != nil {
+			return nil, err
+		}
+	}
+
 	err = util.WaitForCondition(ctx, 30*time.Second, 1*time.Second, func() (bool, error) {
-		_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		_, err := task.dockerClient.ContainerCreate(ctx, &container.Config{
 			Image:      definition.Image.Image,
 			Entrypoint: definition.Entrypoint,
 			Cmd:        definition.Command,
@@ -186,7 +199,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 					Target: definition.DataDir,
 				},
 			},
-			NetworkMode: container.NetworkMode("host"),
+			NetworkMode: "host",
 		}, nil, nil, definition.ContainerName)
 
 		if err != nil {
@@ -204,27 +217,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		return nil, fmt.Errorf("failed to create container after retries: %w", err)
 	}
 
-	taskState := &TaskState{
-		ID:           strconv.Itoa(droplet.ID),
-		Name:         definition.Name,
-		Definition:   definition,
-		Status:       provider.TASK_STOPPED,
-		ProviderName: state.Name,
-		SSHKeyPair:   state.SSHKeyPair,
-	}
-
-	p.stateMu.Lock()
-	defer p.stateMu.Unlock()
-
-	p.state.TaskStates[taskState.ID] = taskState
-
-	return &Task{
-		state:        taskState,
-		removeTask:   p.removeTask,
-		logger:       p.logger.With(zap.String("task", definition.Name)),
-		doClient:     p.doClient,
-		dockerClient: dockerClient,
-	}, nil
+	return task, nil
 }
 
 func (p *Provider) SerializeProvider(context.Context) ([]byte, error) {
@@ -240,6 +233,16 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 	if doClient == nil && token == "" {
 		return nil, errors.New("a valid token or digital ocean client must be passed when restoring the provider")
 	}
+
+	doClient := NewGodoClient(token)
+	return RestoreProviderWithClient(ctx, state, doClient, opts...)
+}
+
+func RestoreProviderWithClient(_ context.Context, state []byte, doClient DoClient, opts ...func(*Provider)) (*Provider, error) {
+	if doClient == nil {
+		return nil, errors.New("a valid digital ocean client must be passed when restoring the provider")
+	}
+
 	var providerState ProviderState
 
 	err := json.Unmarshal(state, &providerState)
@@ -257,35 +260,12 @@ func RestoreProvider(ctx context.Context, token string, state []byte, doClient D
 		logger:        zap.L().Named("digitalocean_provider"),
 	}
 
-	if doClient != nil {
-		digitalOceanProvider.doClient = doClient
-	} else {
-		digitalOceanProvider.doClient = NewGodoClient(token)
+	for _, opt := range opts {
+		opt(digitalOceanProvider)
 	}
 
-	for _, taskState := range providerState.TaskStates {
-		id, err := strconv.Atoi(taskState.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		droplet, err := digitalOceanProvider.doClient.GetDroplet(ctx, id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get droplet for task state: %w", err)
-		}
-
-		ip, err := droplet.PublicIPv4()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get droplet IP: %w", err)
-		}
-
-		if digitalOceanProvider.dockerClients[ip] == nil {
-			dockerClient, err := clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
-			if err != nil {
-				return nil, fmt.Errorf("failed to create docker client: %w", err)
-			}
-			digitalOceanProvider.dockerClients[ip] = dockerClient
-		}
+	if digitalOceanProvider.logger == nil {
+		digitalOceanProvider.logger = zap.NewNop()
 	}
 
 	return digitalOceanProvider, nil
@@ -320,37 +300,31 @@ func (p *Provider) DeserializeTask(ctx context.Context, bz []byte) (provider.Tas
 		removeTask: p.removeTask,
 	}
 
-	if err := p.initializeDeserializedTask(ctx, task); err != nil {
+	if err := p.initializeDeserializedTask(task); err != nil {
 		return nil, err
 	}
 
 	return task, nil
 }
 
-func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) error {
+func (p *Provider) initializeDeserializedTask(task *Task) error {
 	taskState := task.GetState()
 	task.logger = p.logger.With(zap.String("task", taskState.Name))
 	task.doClient = p.doClient
+	task.dockerClient = p.getDockerClientOverride(task.GetState().Name)
 
-	droplet, err := task.getDroplet(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get droplet for task initialization: %w", err)
-	}
-
-	ip, err := droplet.PublicIPv4()
-	if err != nil {
-		return fmt.Errorf("failed to get droplet IP: %w", err)
-	}
-
-	if p.dockerClients[ip] == nil {
-		dockerClient, err := clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+	if task.dockerClient == nil {
+		ip, err := task.GetIP(context.Background())
 		if err != nil {
-			return fmt.Errorf("failed to create docker client: %w", err)
+			return err
 		}
-		p.dockerClients[ip] = dockerClient
+
+		task.dockerClient, err = clients.NewDockerClient(ip)
+		if err != nil {
+			return err
+		}
 	}
 
-	task.dockerClient = p.dockerClients[ip]
 	return nil
 }
 
@@ -409,4 +383,15 @@ func (p *Provider) GetState() ProviderState {
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
 	return *p.state
+}
+
+func (p *Provider) getDockerClientOverride(task string) clients.DockerClient {
+	p.stateMu.Lock()
+	defer p.stateMu.Unlock()
+
+	if dockerClient, ok := p.dockerClientOverrides[task]; ok {
+		return dockerClient
+	}
+
+	return nil
 }
