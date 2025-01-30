@@ -63,7 +63,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
 	mockDockerClients := map[string]clients.DockerClient{
-		"10.0.0.1": mockDocker,
+		"test-task": mockDocker,
 	}
 
 	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithDockerClients(mockDockerClients), WithLogger(logger))
@@ -141,18 +141,13 @@ func TestCreateTask_ValidTask(t *testing.T) {
 func setupValidationTestProvider(t *testing.T, ctx context.Context) *Provider {
 	logger := zap.NewExample()
 	mockDO := mocks.NewDoClient(t)
-	mockDocker := dockerMocks.NewDockerClient(t)
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	mockDockerClients := map[string]clients.DockerClient{
-		"10.0.0.1": mockDocker,
-	}
-
-	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithDockerClients(mockDockerClients), WithLogger(logger))
+	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithLogger(logger))
 	require.NoError(t, err)
 
 	return p
@@ -263,9 +258,8 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 	mockDO := mocks.NewDoClient(t)
 
 	for i := 0; i < 10; i++ {
-		ip := fmt.Sprintf("10.0.0.%d", i+1)
 		mockDocker := dockerMocks.NewDockerClient(t)
-		mockDockerClients[ip] = mockDocker
+		mockDockerClients[fmt.Sprintf("test-task-%d", i)] = mockDocker
 
 		mockDocker.On("Ping", ctx).Return(types.Ping{}, nil).Once()
 		mockDocker.On("ImageInspectWithRaw", ctx, "nginx:latest").Return(types.ImageInspect{}, []byte{}, fmt.Errorf("image not found")).Once()
@@ -462,7 +456,7 @@ func TestProviderSerialization(t *testing.T) {
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
 	mockDockerClients := map[string]clients.DockerClient{
-		"10.0.0.1": mockDocker,
+		"test-task": mockDocker,
 	}
 
 	p1, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithDockerClients(mockDockerClients), WithLogger(zap.NewExample()))

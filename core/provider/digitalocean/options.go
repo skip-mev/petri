@@ -19,7 +19,7 @@ func WithSSHKeyPair(pair SSHKeyPair) func(*Provider) {
 
 func WithDockerClients(clients map[string]clients.DockerClient) func(*Provider) {
 	return func(p *Provider) {
-		p.dockerClients = clients
+		p.dockerClientOverrides = clients
 	}
 }
 
