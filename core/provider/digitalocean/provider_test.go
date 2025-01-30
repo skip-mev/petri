@@ -240,14 +240,6 @@ func TestSerializeAndRestoreTask(t *testing.T) {
 	t1State := t1.GetState()
 	t2State := t2.GetState()
 
-	if configMap, ok := t2State.Definition.ProviderSpecificConfig.(map[string]interface{}); ok {
-		doConfig := make(DigitalOceanTaskConfig)
-		for k, v := range configMap {
-			doConfig[k] = v.(string)
-		}
-		t2State.Definition.ProviderSpecificConfig = doConfig
-	}
-
 	assert.Equal(t, t1State, t2State)
 	assert.NotNil(t, t2.logger)
 	assert.NotNil(t, t2State.SSHKeyPair)
@@ -552,13 +544,6 @@ func TestProviderSerialization(t *testing.T) {
 		assert.Equal(t, task1.Name, task2.Name)
 		assert.Equal(t, task1.Status, task2.Status)
 
-		if configMap, ok := task2.Definition.ProviderSpecificConfig.(map[string]interface{}); ok {
-			doConfig := make(DigitalOceanTaskConfig)
-			for k, v := range configMap {
-				doConfig[k] = v.(string)
-			}
-			task2.Definition.ProviderSpecificConfig = doConfig
-		}
 		assert.Equal(t, task1.Definition, task2.Definition)
 	}
 }

@@ -41,7 +41,7 @@ type TaskDefinition struct {
 	Command       []string
 	Args          []string
 
-	ProviderSpecificConfig interface{}
+	ProviderSpecificConfig map[string]string
 }
 
 func (t *TaskDefinition) ValidateBasic() error {
