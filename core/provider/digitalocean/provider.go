@@ -125,11 +125,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		return nil, fmt.Errorf("digitalocean specific config is nil for %s", definition.Name)
 	}
 
-	var doConfig DigitalOceanTaskConfig
-	doConfig, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid provider specific config type for %s", definition.Name)
-	}
+	var doConfig DigitalOceanTaskConfig = definition.ProviderSpecificConfig
 
 	if err := doConfig.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("could not cast digitalocean specific config: %w", err)
