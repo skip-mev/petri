@@ -50,7 +50,7 @@ func NewMetricsCollector() *DefaultMetricsCollector {
 		startTime:  time.Now(),
 		nodeStats:  make(map[string]*types.NodeStats),
 		blockStats: make([]types.BlockStat, 0),
-		logger:     zap.NewNop(),
+		logger:     zap.L().Named("metrics-collector"),
 	}
 }
 
@@ -129,8 +129,7 @@ func (c *DefaultMetricsCollector) ProcessSentTxs(ctx context.Context, sentTxs []
 func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, gasUsed int64, nodeAddress string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	logger, _ := zap.NewDevelopment()
-	logger.Debug("Recording TransactionSuccess", zap.Any("hash", txHash))
+	c.logger.Debug("Recording TransactionSuccess", zap.Any("hash", txHash))
 
 	c.totalTxs++
 	c.successfulTxs++
@@ -154,8 +153,7 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, gasUse
 func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error, blockHeight int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	logger, _ := zap.NewDevelopment()
-	logger.Debug("Recording TransactionFailure", zap.Any("hash", txHash))
+	c.logger.Debug("Recording TransactionFailure", zap.Any("hash", txHash))
 
 	c.totalTxs++
 	c.failedTxs++

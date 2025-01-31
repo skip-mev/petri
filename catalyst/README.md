@@ -69,7 +69,7 @@ The binary will execute the load test according to the configuration and print t
 
 #### Private Key Format
 
-The private keys in the YAML configuration should be base64-encoded secp256k1 private keys. To convert an existing private key to the correct format:
+The private keys in the YAML configuration should be base64-encoded secp256k1 private keys.
 
 ## Results
 

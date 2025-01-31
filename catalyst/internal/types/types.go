@@ -2,8 +2,6 @@ package types
 
 import (
 	"context"
-	"math/rand"
-	"sync"
 	"time"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
@@ -104,24 +102,4 @@ type SentTx struct {
 	TxHash      string
 	NodeAddress string
 	Err         error
-}
-
-// ClientPool manages a pool of node clients
-type ClientPool struct {
-	clients []ChainI
-	mu      sync.RWMutex
-}
-
-// NewClientPool creates a new client pool
-func NewClientPool(clients []ChainI) *ClientPool {
-	return &ClientPool{
-		clients: clients,
-	}
-}
-
-// GetClient returns a random client from the pool
-func (p *ClientPool) GetClient() ChainI {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.clients[rand.Intn(len(p.clients))]
 }
