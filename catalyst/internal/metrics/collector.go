@@ -3,10 +3,11 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"github.com/skip-mev/catalyst/internal/cosmos/wallet"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/skip-mev/catalyst/internal/cosmos/wallet"
 
 	"go.uber.org/zap"
 
@@ -129,7 +130,7 @@ func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, gasUse
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logger, _ := zap.NewDevelopment()
-	logger.Info("Recording TransactionSuccess", zap.Any("hash", txHash))
+	logger.Debug("Recording TransactionSuccess", zap.Any("hash", txHash))
 
 	c.totalTxs++
 	c.successfulTxs++
@@ -154,7 +155,7 @@ func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err er
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logger, _ := zap.NewDevelopment()
-	logger.Info("Recording TransactionFailure", zap.Any("hash", txHash))
+	logger.Debug("Recording TransactionFailure", zap.Any("hash", txHash))
 
 	c.totalTxs++
 	c.failedTxs++

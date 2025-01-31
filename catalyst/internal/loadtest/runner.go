@@ -2,7 +2,6 @@ package loadtest
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"math/rand"
@@ -176,7 +175,7 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 				return
 			case block := <-blockCh:
 				r.mu.Lock()
-				r.logger.Info("processing block", zap.Int64("height", block.Height),
+				r.logger.Debug("processing block", zap.Int64("height", block.Height),
 					zap.Time("timestamp", block.Timestamp), zap.Int64("gas_limit", block.GasLimit))
 
 				_, err := r.sendBlockTransactions(ctx)
@@ -238,19 +237,17 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 		go func() {
 			defer wg.Done()
 
-			wallet := r.wallets[rand.Intn(len(r.wallets))]
+			fromWallet := r.wallets[rand.Intn(len(r.wallets))]
 			amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
-			toAddr := r.wallets[rand.Intn(len(r.wallets))].Address()
+			client := fromWallet.GetClient()
 
-			client := wallet.GetClient()
-
-			fromAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(wallet.Address()))
+			fromAccAddress, err := sdk.AccAddressFromBech32(fromWallet.FormattedAddress())
 			if err != nil {
 				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 
-			toAccAddress, err := sdk.AccAddressFromHexUnsafe(hex.EncodeToString(toAddr))
+			toAccAddress, err := sdk.AccAddressFromBech32(r.wallets[rand.Intn(len(r.wallets))].FormattedAddress())
 			if err != nil {
 				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
@@ -261,23 +258,17 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 			fees := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(int64(gasWithBuffer)*1)))
 
 			r.noncesMu.Lock()
-			nonce := r.nonces[wallet.FormattedAddress()]
+			defer r.noncesMu.Unlock()
+			nonce := r.nonces[fromWallet.FormattedAddress()]
 
-			acc, err := client.GetAccount(ctx, wallet.FormattedAddress())
+			acc, err := client.GetAccount(ctx, fromWallet.FormattedAddress())
 			if err != nil {
 				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
 
-			tx, err := wallet.CreateSignedTx(ctx, client, gasWithBuffer, fees, nonce, acc.GetAccountNumber(), msg)
+			tx, err := fromWallet.CreateSignedTx(ctx, client, gasWithBuffer, fees, nonce, acc.GetAccountNumber(), msg)
 			if err != nil {
-				if err.Error() == "account sequence mismatch" {
-					r.logger.Error("sequence mismatch",
-						zap.String("wallet", wallet.FormattedAddress()),
-						zap.Uint64("nonce_tracked", nonce),
-						zap.Uint64("actual_nonce", acc.GetSequence()),
-						zap.Error(err))
-				}
 				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
@@ -293,8 +284,7 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 				return
 			}
-			r.nonces[wallet.FormattedAddress()]++
-			r.noncesMu.Unlock()
+			r.nonces[fromWallet.FormattedAddress()]++
 
 			results <- types.SentTx{
 				TxHash:      res.TxHash,

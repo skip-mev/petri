@@ -124,7 +124,7 @@ func (c *Chain) SubscribeToBlocks(ctx context.Context, handler types.BlockHandle
 					zap.Any("Event data received", event.Data))
 				continue
 			}
-			c.Logger.Info("received new block event", zap.Int64("height", newBlockEvent.Block.Height))
+			c.Logger.Debug("received new block event", zap.Int64("height", newBlockEvent.Block.Height))
 
 			params, err := c.cometClient.ConsensusParams(ctx, nil)
 			if err != nil {
