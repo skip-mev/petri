@@ -175,6 +175,10 @@ func TestPetriIntegration(t *testing.T) {
 		})
 	}
 
+	msgs := []loadtesttypes.LoadTestMsg{
+		{Weight: 0.5, Type: loadtesttypes.MsgSend},
+		{Weight: 0.5, Type: loadtesttypes.MultiMsgSend},
+	}
 	spec := loadtesttypes.LoadTestSpec{
 		ChainID:             defaultChainConfig.ChainId,
 		BlockGasLimitTarget: 0.3,
@@ -184,6 +188,7 @@ func TestPetriIntegration(t *testing.T) {
 		PrivateKeys:         []cryptotypes.PrivKey{k1PrivKey, k2PrivKey},
 		GasDenom:            defaultChainConfig.Denom,
 		Bech32Prefix:        defaultChainConfig.Bech32Prefix,
+		Msgs:                msgs,
 	}
 
 	test, err := loadtest.New(ctx, spec)

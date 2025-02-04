@@ -4,13 +4,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/crypto/types"
+
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -39,17 +40,6 @@ type Block struct {
 	Height    int64
 	GasLimit  int64
 	Timestamp time.Time
-}
-
-type LoadTestSpec struct {
-	ChainID             string
-	BlockGasLimitTarget float64 // Target percentage of block gas limit to use (0.0-1.0)
-	Runtime             time.Duration
-	NumOfBlocks         int
-	NodesAddresses      []NodeAddress
-	PrivateKeys         []types.PrivKey
-	GasDenom            string
-	Bech32Prefix        string
 }
 
 type NodeAddress struct {
@@ -102,4 +92,39 @@ type SentTx struct {
 	TxHash      string
 	NodeAddress string
 	Err         error
+}
+
+type LoadTestSpec struct {
+	ChainID             string
+	BlockGasLimitTarget float64 // Target percentage of block gas limit to use (0.0-1.0)
+	Runtime             time.Duration
+	NumOfBlocks         int
+	NodesAddresses      []NodeAddress
+	PrivateKeys         []types.PrivKey
+	GasDenom            string
+	Bech32Prefix        string
+	Msgs                []LoadTestMsg
+}
+
+type LoadTestMsg struct {
+	Weight float64
+	Type   MsgType
+}
+
+type MsgType int
+
+const (
+	MsgSend MsgType = iota
+	MultiMsgSend
+)
+
+func (m MsgType) String() string {
+	switch m {
+	case MsgSend:
+		return "MsgSend"
+	case MultiMsgSend:
+		return "MultiMsgSend"
+	default:
+		return "Unknown"
+	}
 }

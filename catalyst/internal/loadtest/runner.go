@@ -20,14 +20,21 @@ import (
 	"github.com/skip-mev/catalyst/internal/types"
 )
 
+// MsgGasEstimation stores gas estimation for a specific message type
+type MsgGasEstimation struct {
+	gasUsed int64
+	weight  float64
+	numTxs  int
+}
+
 // Runner represents a load test runner that executes a single LoadTestSpec
 type Runner struct {
 	spec               types.LoadTestSpec
 	clients            []*client.Chain
 	wallets            []*wallet.InteractingWallet
-	txGasEstimation    int64
+	gasEstimations     map[types.MsgType]MsgGasEstimation
 	gasLimit           int
-	numTxs             int
+	totalTxsPerBlock   int
 	mu                 sync.Mutex
 	numBlocksProcessed int
 	collector          metrics.MetricsCollector
@@ -99,6 +106,14 @@ func (r *Runner) initGasEstimation(ctx context.Context) error {
 		return fmt.Errorf("block gas limit target must be between 0 and 1, got %f", r.spec.BlockGasLimitTarget)
 	}
 
+	var totalWeight float64
+	for _, msg := range r.spec.Msgs {
+		totalWeight += msg.Weight
+	}
+	if totalWeight != 1.0 {
+		return fmt.Errorf("total message weights must add up to 1.0, got %f", totalWeight)
+	}
+
 	fromWallet := r.wallets[0]
 	amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
 	var toAddr []byte
@@ -108,40 +123,95 @@ func (r *Runner) initGasEstimation(ctx context.Context) error {
 		toAddr = r.wallets[1].Address()
 	}
 
-	msg := banktypes.NewMsgSend(fromWallet.Address(), toAddr, amount)
+	r.gasEstimations = make(map[types.MsgType]MsgGasEstimation)
+	r.totalTxsPerBlock = 0
 
-	acc, err := client.GetAccount(ctx, fromWallet.FormattedAddress())
-	if err != nil {
-		return fmt.Errorf("failed to get account: %w", err)
+	for _, msgSpec := range r.spec.Msgs {
+		var msg sdk.Msg
+		switch msgSpec.Type {
+		case types.MsgSend:
+			msg = banktypes.NewMsgSend(fromWallet.Address(), toAddr, amount)
+		case types.MultiMsgSend:
+			numRecipients := len(r.wallets) - 1
+			if numRecipients == 0 {
+				numRecipients = 1
+			}
+			amountPerRecipient := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000/int64(numRecipients))))
+
+			outputs := make([]banktypes.Output, 0, numRecipients)
+			totalAmount := sdk.NewCoins()
+			for _, w := range r.wallets {
+				if w.FormattedAddress() == fromWallet.FormattedAddress() {
+					continue
+				}
+				outputs = append(outputs, banktypes.Output{
+					Address: w.FormattedAddress(),
+					Coins:   amountPerRecipient,
+				})
+				totalAmount = totalAmount.Add(amountPerRecipient...)
+			}
+
+			if len(outputs) == 0 {
+				outputs = append(outputs, banktypes.Output{
+					Address: fromWallet.FormattedAddress(),
+					Coins:   amountPerRecipient,
+				})
+				totalAmount = amountPerRecipient
+			}
+
+			msg = &banktypes.MsgMultiSend{
+				Inputs: []banktypes.Input{
+					{
+						Address: fromWallet.FormattedAddress(),
+						Coins:   totalAmount,
+					},
+				},
+				Outputs: outputs,
+			}
+		default:
+			return fmt.Errorf("unsupported message type: %v", msgSpec.Type)
+		}
+
+		acc, err := client.GetAccount(ctx, fromWallet.FormattedAddress())
+		if err != nil {
+			return fmt.Errorf("failed to get account: %w", err)
+		}
+
+		tx, err := fromWallet.CreateSignedTx(ctx, client, 0, sdk.Coins{}, acc.GetSequence(), acc.GetAccountNumber(), msg)
+		if err != nil {
+			return fmt.Errorf("failed to create transaction for simulation: %w", err)
+		}
+
+		txBytes, err := client.EncodingConfig.TxConfig.TxEncoder()(tx)
+		if err != nil {
+			return fmt.Errorf("failed to encode transaction: %w", err)
+		}
+
+		gasUsed, err := client.EstimateGasUsed(ctx, txBytes)
+		if err != nil {
+			return fmt.Errorf("failed to estimate gas: %w", err)
+		}
+
+		targetGasLimit := float64(blockGasLimit) * r.spec.BlockGasLimitTarget * msgSpec.Weight
+		numTxs := int(math.Ceil(targetGasLimit / float64(gasUsed)))
+
+		r.gasEstimations[msgSpec.Type] = MsgGasEstimation{
+			gasUsed: int64(gasUsed),
+			weight:  msgSpec.Weight,
+			numTxs:  numTxs,
+		}
+		r.totalTxsPerBlock += numTxs
+
+		r.logger.Info("Gas estimation results",
+			zap.String("msgType", msgSpec.Type.String()),
+			zap.Int("blockGasLimit", blockGasLimit),
+			zap.Uint64("txGasEstimation", gasUsed),
+			zap.Float64("targetGasLimit", targetGasLimit),
+			zap.Int("numTxs", numTxs))
 	}
 
-	tx, err := fromWallet.CreateSignedTx(ctx, client, 0, sdk.Coins{}, acc.GetSequence(), acc.GetAccountNumber(), msg)
-	if err != nil {
-		return fmt.Errorf("failed to create transaction for simulation: %w", err)
-	}
-
-	txBytes, err := client.EncodingConfig.TxConfig.TxEncoder()(tx)
-	if err != nil {
-		return fmt.Errorf("failed to encode transaction: %w", err)
-	}
-
-	gasUsed, err := client.EstimateGasUsed(ctx, txBytes)
-	if err != nil {
-		return fmt.Errorf("failed to estimate gas: %w", err)
-	}
-
-	r.txGasEstimation = int64(gasUsed)
-	targetGasLimit := float64(blockGasLimit) * r.spec.BlockGasLimitTarget
-	r.numTxs = int(math.Ceil(targetGasLimit / float64(gasUsed)))
-
-	r.logger.Info("Gas estimation results",
-		zap.Int("blockGasLimit", blockGasLimit),
-		zap.Uint64("txGasEstimation", gasUsed),
-		zap.Float64("targetGasLimit", targetGasLimit),
-		zap.Int("numTxs", r.numTxs))
-
-	if r.numTxs <= 0 {
-		return fmt.Errorf("calculated number of transactions per block is zero or negative: %d", r.numTxs)
+	if r.totalTxsPerBlock <= 0 {
+		return fmt.Errorf("calculated total number of transactions per block is zero or negative: %d", r.totalTxsPerBlock)
 	}
 
 	return nil
@@ -229,69 +299,113 @@ func (r *Runner) Run(ctx context.Context) (types.LoadTestResult, error) {
 
 // sendBlockTransactions sends transactions for a single block
 func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
-	results := make(chan types.SentTx, r.numTxs)
+	results := make(chan types.SentTx, r.totalTxsPerBlock)
 	txsSent := 0
 	var wg sync.WaitGroup
-	for i := 0; i < r.numTxs; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
 
-			fromWallet := r.wallets[rand.Intn(len(r.wallets))]
-			amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
-			client := fromWallet.GetClient()
+	for msgType, estimation := range r.gasEstimations {
+		for i := 0; i < estimation.numTxs; i++ {
+			wg.Add(1)
+			go func(msgType types.MsgType, gasEstimation MsgGasEstimation) {
+				defer wg.Done()
 
-			fromAccAddress, err := sdk.AccAddressFromBech32(fromWallet.FormattedAddress())
-			if err != nil {
-				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
-				return
-			}
+				fromWallet := r.wallets[rand.Intn(len(r.wallets))]
+				amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
+				client := fromWallet.GetClient()
 
-			toAccAddress, err := sdk.AccAddressFromBech32(r.wallets[rand.Intn(len(r.wallets))].FormattedAddress())
-			if err != nil {
-				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
-				return
-			}
+				fromAccAddress, err := sdk.AccAddressFromBech32(fromWallet.FormattedAddress())
+				if err != nil {
+					results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
+					return
+				}
 
-			msg := banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
-			gasWithBuffer := uint64(float64(r.txGasEstimation) * 1.4)
-			fees := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(int64(gasWithBuffer)*1)))
+				var msg sdk.Msg
+				switch msgType {
+				case types.MsgSend:
+					toAccAddress, err := sdk.AccAddressFromBech32(r.wallets[rand.Intn(len(r.wallets))].FormattedAddress())
+					if err != nil {
+						results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
+						return
+					}
+					msg = banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
+				case types.MultiMsgSend:
+					numRecipients := len(r.wallets) - 1
+					if numRecipients == 0 {
+						numRecipients = 1
+					}
+					amountPerRecipient := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000/int64(numRecipients))))
 
-			r.noncesMu.Lock()
-			defer r.noncesMu.Unlock()
-			nonce := r.nonces[fromWallet.FormattedAddress()]
+					outputs := make([]banktypes.Output, 0, numRecipients)
+					totalAmount := sdk.NewCoins()
+					for _, w := range r.wallets {
+						if w.FormattedAddress() == fromWallet.FormattedAddress() {
+							continue
+						}
+						outputs = append(outputs, banktypes.Output{
+							Address: w.FormattedAddress(),
+							Coins:   amountPerRecipient,
+						})
+						totalAmount = totalAmount.Add(amountPerRecipient...)
+					}
 
-			acc, err := client.GetAccount(ctx, fromWallet.FormattedAddress())
-			if err != nil {
-				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
-				return
-			}
+					if len(outputs) == 0 {
+						outputs = append(outputs, banktypes.Output{
+							Address: fromWallet.FormattedAddress(),
+							Coins:   amountPerRecipient,
+						})
+						totalAmount = amountPerRecipient
+					}
 
-			tx, err := fromWallet.CreateSignedTx(ctx, client, gasWithBuffer, fees, nonce, acc.GetAccountNumber(), msg)
-			if err != nil {
-				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
-				return
-			}
+					msg = &banktypes.MsgMultiSend{
+						Inputs: []banktypes.Input{
+							{
+								Address: fromWallet.FormattedAddress(),
+								Coins:   totalAmount,
+							},
+						},
+						Outputs: outputs,
+					}
+				}
 
-			txBytes, err := client.GetEncodingConfig().TxConfig.TxEncoder()(tx)
-			if err != nil {
-				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
-				return
-			}
+				gasWithBuffer := uint64(float64(gasEstimation.gasUsed) * 1.4)
+				fees := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(int64(gasWithBuffer)*1)))
 
-			res, err := client.BroadcastTx(ctx, txBytes)
-			if err != nil {
-				results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
-				return
-			}
-			r.nonces[fromWallet.FormattedAddress()]++
+				r.noncesMu.Lock()
+				defer r.noncesMu.Unlock()
+				nonce := r.nonces[fromWallet.FormattedAddress()]
 
-			results <- types.SentTx{
-				TxHash:      res.TxHash,
-				NodeAddress: client.GetNodeAddress().RPC,
-				Err:         nil,
-			}
-		}()
+				acc, err := client.GetAccount(ctx, fromWallet.FormattedAddress())
+				if err != nil {
+					results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
+					return
+				}
+
+				tx, err := fromWallet.CreateSignedTx(ctx, client, gasWithBuffer, fees, nonce, acc.GetAccountNumber(), msg)
+				if err != nil {
+					results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
+					return
+				}
+
+				txBytes, err := client.GetEncodingConfig().TxConfig.TxEncoder()(tx)
+				if err != nil {
+					results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
+					return
+				}
+
+				res, err := client.BroadcastTx(ctx, txBytes)
+				if err != nil {
+					results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
+					return
+				}
+				r.nonces[fromWallet.FormattedAddress()]++
+
+				results <- types.SentTx{
+					TxHash:      res.TxHash,
+					NodeAddress: client.GetNodeAddress().RPC,
+					Err:         nil,
+				}
+			}(msgType, estimation)
+		}
 	}
 
 	go func() {
