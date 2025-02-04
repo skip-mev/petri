@@ -177,11 +177,11 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		tailscaleServer: p.tailscaleServer,
 	}
 
-	if err := task.waitForSSHClient(ctx); err != nil {
-		return nil, fmt.Errorf("failed to wait for docker start: %w", err)
-	}
-
 	if p.tailscaleServer != nil {
+		if err := task.waitForSSHClient(ctx); err != nil {
+			return nil, fmt.Errorf("failed to wait for docker start: %w", err)
+		}
+
 		_, err = task.launchTailscale(ctx, p.tailscaleNodeAuthkey, p.tailscaleTags)
 		if err != nil {
 			return nil, fmt.Errorf("failed to launch tailscale server: %w", err)
