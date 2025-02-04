@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/puzpuzpuz/xsync/v3"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,7 +45,7 @@ type Provider struct {
 
 	logger        *zap.Logger
 	doClient      DoClient
-	dockerClients map[string]clients.DockerClient // map of droplet ip address to docker clients
+	dockerClients *xsync.MapOf[string, clients.DockerClient] // map of droplet ip address to docker clients
 }
 
 func NewProvider(ctx context.Context, providerName, token string, opts ...func(*Provider)) (*Provider, error) {
@@ -98,7 +99,7 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 	digitalOceanProvider.state.UserIPs = append(digitalOceanProvider.state.UserIPs, userIPs...)
 
 	if digitalOceanProvider.dockerClients == nil {
-		digitalOceanProvider.dockerClients = make(map[string]clients.DockerClient)
+		digitalOceanProvider.dockerClients = xsync.NewMapOf[string, clients.DockerClient]()
 	}
 
 	_, err = digitalOceanProvider.createTag(ctx, petriTag)
@@ -155,8 +156,8 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	p.logger.Info("droplet created", zap.String("name", droplet.Name), zap.String("ip", ip))
 
-	dockerClient := p.dockerClients[ip]
-	if dockerClient == nil {
+	dockerClient, ok := p.dockerClients.Load(ip)
+	if !ok {
 		dockerClient, err = clients.NewDockerClient(ip)
 		if err != nil {
 			return nil, err
@@ -273,7 +274,7 @@ func RestoreProviderWithClient(ctx context.Context, state []byte, doClient DoCli
 	}
 
 	if digitalOceanProvider.dockerClients == nil {
-		digitalOceanProvider.dockerClients = make(map[string]clients.DockerClient)
+		digitalOceanProvider.dockerClients = xsync.NewMapOf[string, clients.DockerClient]()
 	}
 
 	if digitalOceanProvider.logger == nil {
@@ -296,12 +297,12 @@ func RestoreProviderWithClient(ctx context.Context, state []byte, doClient DoCli
 			return nil, fmt.Errorf("failed to get droplet IP: %w", err)
 		}
 
-		if digitalOceanProvider.dockerClients[ip] == nil {
+		if _, ok := digitalOceanProvider.dockerClients.Load(ip); !ok {
 			dockerClient, err := clients.NewDockerClient(ip)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create docker client: %w", err)
 			}
-			digitalOceanProvider.dockerClients[ip] = dockerClient
+			digitalOceanProvider.dockerClients.Store(ip, dockerClient)
 		}
 	}
 
@@ -359,15 +360,15 @@ func (p *Provider) initializeDeserializedTask(ctx context.Context, task *Task) e
 		return fmt.Errorf("failed to get droplet IP: %w", err)
 	}
 
-	if p.dockerClients[ip] == nil {
+	if _, ok := p.dockerClients.Load(ip); !ok {
 		dockerClient, err := clients.NewDockerClient(ip)
 		if err != nil {
 			return fmt.Errorf("failed to create docker client: %w", err)
 		}
-		p.dockerClients[ip] = dockerClient
+		p.dockerClients.Store(ip, dockerClient)
 	}
 
-	task.dockerClient = p.dockerClients[ip]
+	task.dockerClient, _ = p.dockerClients.Load(ip)
 	return nil
 }
 
