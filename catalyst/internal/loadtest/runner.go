@@ -3,6 +3,7 @@ package loadtest
 import (
 	"context"
 	"fmt"
+	"github.com/skip-mev/catalyst/internal/cosmos/txfactory"
 	"math"
 	"math/rand"
 	"sync"
@@ -13,7 +14,6 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/skip-mev/catalyst/internal/cosmos/client"
 	"github.com/skip-mev/catalyst/internal/cosmos/wallet"
 	"github.com/skip-mev/catalyst/internal/metrics"
@@ -43,6 +43,7 @@ type Runner struct {
 	noncesMu           sync.RWMutex
 	sentTxs            []types.SentTx
 	sentTxsMu          sync.RWMutex
+	txFactory          *txfactory.TxFactory
 }
 
 // NewRunner creates a new load test runner for a given spec
@@ -75,6 +76,7 @@ func NewRunner(ctx context.Context, spec types.LoadTestSpec) (*Runner, error) {
 		logger:    logging.FromContext(ctx),
 		nonces:    make(map[string]uint64),
 		sentTxs:   make([]types.SentTx, 0),
+		txFactory: txfactory.NewTxFactory(spec.GasDenom, wallets),
 	}
 
 	for _, w := range wallets {
@@ -115,61 +117,13 @@ func (r *Runner) initGasEstimation(ctx context.Context) error {
 	}
 
 	fromWallet := r.wallets[0]
-	amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
-	var toAddr []byte
-	if len(r.wallets) == 1 {
-		toAddr = fromWallet.Address()
-	} else {
-		toAddr = r.wallets[1].Address()
-	}
-
 	r.gasEstimations = make(map[types.MsgType]MsgGasEstimation)
 	r.totalTxsPerBlock = 0
 
 	for _, msgSpec := range r.spec.Msgs {
-		var msg sdk.Msg
-		switch msgSpec.Type {
-		case types.MsgSend:
-			msg = banktypes.NewMsgSend(fromWallet.Address(), toAddr, amount)
-		case types.MultiMsgSend:
-			numRecipients := len(r.wallets) - 1
-			if numRecipients == 0 {
-				numRecipients = 1
-			}
-			amountPerRecipient := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000/int64(numRecipients))))
-
-			outputs := make([]banktypes.Output, 0, numRecipients)
-			totalAmount := sdk.NewCoins()
-			for _, w := range r.wallets {
-				if w.FormattedAddress() == fromWallet.FormattedAddress() {
-					continue
-				}
-				outputs = append(outputs, banktypes.Output{
-					Address: w.FormattedAddress(),
-					Coins:   amountPerRecipient,
-				})
-				totalAmount = totalAmount.Add(amountPerRecipient...)
-			}
-
-			if len(outputs) == 0 {
-				outputs = append(outputs, banktypes.Output{
-					Address: fromWallet.FormattedAddress(),
-					Coins:   amountPerRecipient,
-				})
-				totalAmount = amountPerRecipient
-			}
-
-			msg = &banktypes.MsgMultiSend{
-				Inputs: []banktypes.Input{
-					{
-						Address: fromWallet.FormattedAddress(),
-						Coins:   totalAmount,
-					},
-				},
-				Outputs: outputs,
-			}
-		default:
-			return fmt.Errorf("unsupported message type: %v", msgSpec.Type)
+		msg, err := r.txFactory.CreateMsg(msgSpec.Type, fromWallet)
+		if err != nil {
+			return fmt.Errorf("failed to create message for gas estimation: %w", err)
 		}
 
 		acc, err := client.GetAccount(ctx, fromWallet.FormattedAddress())
@@ -310,61 +264,12 @@ func (r *Runner) sendBlockTransactions(ctx context.Context) (int, error) {
 				defer wg.Done()
 
 				fromWallet := r.wallets[rand.Intn(len(r.wallets))]
-				amount := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000)))
 				client := fromWallet.GetClient()
 
-				fromAccAddress, err := sdk.AccAddressFromBech32(fromWallet.FormattedAddress())
+				msg, err := r.txFactory.CreateMsg(msgType, fromWallet)
 				if err != nil {
 					results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
 					return
-				}
-
-				var msg sdk.Msg
-				switch msgType {
-				case types.MsgSend:
-					toAccAddress, err := sdk.AccAddressFromBech32(r.wallets[rand.Intn(len(r.wallets))].FormattedAddress())
-					if err != nil {
-						results <- types.SentTx{Err: err, NodeAddress: client.GetNodeAddress().RPC}
-						return
-					}
-					msg = banktypes.NewMsgSend(fromAccAddress, toAccAddress, amount)
-				case types.MultiMsgSend:
-					numRecipients := len(r.wallets) - 1
-					if numRecipients == 0 {
-						numRecipients = 1
-					}
-					amountPerRecipient := sdk.NewCoins(sdk.NewCoin(r.spec.GasDenom, sdkmath.NewInt(1000000/int64(numRecipients))))
-
-					outputs := make([]banktypes.Output, 0, numRecipients)
-					totalAmount := sdk.NewCoins()
-					for _, w := range r.wallets {
-						if w.FormattedAddress() == fromWallet.FormattedAddress() {
-							continue
-						}
-						outputs = append(outputs, banktypes.Output{
-							Address: w.FormattedAddress(),
-							Coins:   amountPerRecipient,
-						})
-						totalAmount = totalAmount.Add(amountPerRecipient...)
-					}
-
-					if len(outputs) == 0 {
-						outputs = append(outputs, banktypes.Output{
-							Address: fromWallet.FormattedAddress(),
-							Coins:   amountPerRecipient,
-						})
-						totalAmount = amountPerRecipient
-					}
-
-					msg = &banktypes.MsgMultiSend{
-						Inputs: []banktypes.Input{
-							{
-								Address: fromWallet.FormattedAddress(),
-								Coins:   totalAmount,
-							},
-						},
-						Outputs: outputs,
-					}
 				}
 
 				gasWithBuffer := uint64(float64(gasEstimation.gasUsed) * 1.4)
