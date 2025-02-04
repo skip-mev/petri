@@ -26,7 +26,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		return nil, fmt.Errorf("failed to validate task definition: %w", err)
 	}
 
-    var doConfig DigitalOceanTaskConfig = definition.ProviderSpecificConfig
+	var doConfig DigitalOceanTaskConfig = definition.ProviderSpecificConfig
 
 	if err := doConfig.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("could not cast digitalocean specific config: %w", err)
@@ -112,7 +112,7 @@ func (t *Task) waitForDockerStart(ctx context.Context) error {
 		}
 
 		if t.dockerClient == nil {
-			t.dockerClient, err = clients.NewDockerClient(ip)
+			t.dockerClient, err = clients.NewDockerClient(ip, t.getDialFunc())
 			if err != nil {
 				t.logger.Error("failed to create docker client", zap.Error(err))
 				return false, err

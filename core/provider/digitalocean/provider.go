@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
+	"tailscale.com/tsnet"
 	"time"
 
 	"github.com/digitalocean/godo"
@@ -42,9 +44,12 @@ type Provider struct {
 	state   *ProviderState
 	stateMu sync.Mutex
 
-	logger        *zap.Logger
-	doClient      DoClient
-	dockerClientOverrides map[string]clients.DockerClient // map of droplet ip address to docker clients
+	logger                *zap.Logger
+	doClient              DoClient
+	tailscaleServer       *tsnet.Server
+	tailscaleTags         []string
+	tailscaleNodeAuthkey  string
+	dockerClientOverrides map[string]clients.DockerClient // map of droplet name to docker clients
 }
 
 func NewProvider(ctx context.Context, providerName, token string, opts ...func(*Provider)) (*Provider, error) {
@@ -109,6 +114,8 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 
 	digitalOceanProvider.state.FirewallID = firewall.ID
 
+	fmt.Println(digitalOceanProvider.state.SSHKeyPair.PrivateKey)
+
 	//TODO(Zygimantass): TOCTOU issue
 	if key, err := digitalOceanProvider.doClient.GetKeyByFingerprint(ctx, digitalOceanProvider.state.SSHKeyPair.Fingerprint); err != nil || key == nil {
 		_, err = digitalOceanProvider.createSSHKey(ctx, digitalOceanProvider.state.SSHKeyPair.PublicKey)
@@ -155,6 +162,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Status:           provider.TASK_STOPPED,
 		ProviderName:     state.Name,
 		SSHKeyPair:       state.SSHKeyPair,
+		TailscaleEnabled: p.tailscaleServer != nil,
 	}
 
 	p.stateMu.Lock()
@@ -166,22 +174,30 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		removeTask:      p.removeTask,
 		logger:          p.logger.With(zap.String("task", definition.Name)),
 		doClient:        p.doClient,
+		tailscaleServer: p.tailscaleServer,
 	}
 
 	if err := task.waitForSSHClient(ctx); err != nil {
 		return nil, fmt.Errorf("failed to wait for docker start: %w", err)
 	}
 
+	if p.tailscaleServer != nil {
+		_, err = task.launchTailscale(ctx, p.tailscaleNodeAuthkey, p.tailscaleTags)
+		if err != nil {
+			return nil, fmt.Errorf("failed to launch tailscale server: %w", err)
+		}
+	}
+
 	ip, err := task.GetIP(ctx)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get droplet IP: %w", err)
+		return nil, err
 	}
 
 	task.dockerClient = p.getDockerClientOverride(task.GetState().Name)
 
 	if task.dockerClient == nil {
-		task.dockerClient, err = clients.NewDockerClient(ip)
+		task.dockerClient, err = clients.NewDockerClient(ip, p.getDialFunc())
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to create docker client: %w", err)
@@ -334,7 +350,7 @@ func (p *Provider) initializeDeserializedTask(task *Task) error {
 			return err
 		}
 
-		task.dockerClient, err = clients.NewDockerClient(ip)
+		task.dockerClient, err = clients.NewDockerClient(ip, p.getDialFunc())
 		if err != nil {
 			return err
 		}
@@ -398,6 +414,14 @@ func (p *Provider) GetState() ProviderState {
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
 	return *p.state
+}
+
+func (p *Provider) getDialFunc() func(ctx context.Context, network, address string) (net.Conn, error) {
+	if p.tailscaleServer == nil {
+		return nil
+	}
+
+	return p.tailscaleServer.Dial
 }
 
 func (p *Provider) getDockerClientOverride(task string) clients.DockerClient {
