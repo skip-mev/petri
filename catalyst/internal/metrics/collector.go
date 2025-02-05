@@ -3,222 +3,306 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/skip-mev/catalyst/internal/cosmos/wallet"
 
-	"go.uber.org/zap"
+	"github.com/skip-mev/catalyst/internal/cosmos/client"
 
 	"github.com/skip-mev/catalyst/internal/types"
 )
 
-// MetricsCollector is responsible for collecting and aggregating metrics during a load test
-type MetricsCollector interface {
-	RecordTransactionSuccess(txHash string, gasUsed int64, nodeAddress string)
-	RecordTransactionFailure(txHash string, err error, blockHeight int64)
-	RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int)
-	GetResults() types.LoadTestResult
-	ProcessSentTxs(ctx context.Context, sentTxs []types.SentTx, gasLimit int, client types.ChainI)
+// MetricsCollector collects and processes metrics for load tests
+type MetricsCollector struct {
+	startTime         time.Time
+	endTime           time.Time
+	blocksProcessed   int
+	txsByBlock        map[int64][]types.SentTx
+	txsByNode         map[string][]types.SentTx
+	txsByMsgType      map[types.MsgType][]types.SentTx
+	gasUsageByMsgType map[types.MsgType][]int64
+	logger            *zap.Logger
 }
 
-// DefaultMetricsCollector implements the MetricsCollector interface
-type DefaultMetricsCollector struct {
-	mu sync.RWMutex
-
-	startTime time.Time
-	endTime   time.Time
-
-	totalTxs      int
-	successfulTxs int
-	failedTxs     int
-	logger        *zap.Logger
-
-	totalGasUsed int64
-
-	broadcastErrors []types.BroadcastError
-	blockStats      []types.BlockStat
-
-	nodeStats map[string]*types.NodeStats
-}
-
-var _ MetricsCollector = (*DefaultMetricsCollector)(nil)
-
-func NewMetricsCollector() *DefaultMetricsCollector {
-	return &DefaultMetricsCollector{
-		startTime:  time.Now(),
-		nodeStats:  make(map[string]*types.NodeStats),
-		blockStats: make([]types.BlockStat, 0),
-		logger:     zap.L().Named("metrics-collector"),
+// NewMetricsCollector creates a new metrics collector
+func NewMetricsCollector() MetricsCollector {
+	return MetricsCollector{
+		startTime:         time.Now(),
+		txsByBlock:        make(map[int64][]types.SentTx),
+		txsByNode:         make(map[string][]types.SentTx),
+		txsByMsgType:      make(map[types.MsgType][]types.SentTx),
+		gasUsageByMsgType: make(map[types.MsgType][]int64),
+		logger:            zap.L().Named("metrics_collector"),
 	}
 }
 
-func (c *DefaultMetricsCollector) ProcessSentTxs(ctx context.Context, sentTxs []types.SentTx, gasLimit int, client types.ChainI) {
-	c.logger.Info("querying transaction results and recording metrics")
+// GroupSentTxs groups sent txs by block, node, and message type
+func (m *MetricsCollector) GroupSentTxs(ctx context.Context, sentTxs []types.SentTx, gasLimit int, client *client.Chain) {
+	m.endTime = time.Now()
 
-	type blockStats struct {
-		gasUsed       int64
-		txsSent       int
-		successfulTxs int
-		failedTxs     int
-		timestamp     time.Time
-	}
-	blockStatsMap := make(map[int64]*blockStats)
+	for i := range sentTxs {
+		tx := &sentTxs[i]
 
-	for _, tx := range sentTxs {
-		txResp, err := wallet.GetTxResponse(ctx, client, tx.TxHash)
-		if err != nil {
-			c.logger.Error("failed to get transaction response",
-				zap.String("txHash", tx.TxHash),
-				zap.Error(err))
-			c.RecordTransactionFailure(
-				tx.TxHash,
-				err,
-				0,
-			)
-			continue
+		if tx.Err == nil {
+			txResponse, err := wallet.GetTxResponse(ctx, client, tx.TxHash)
+			if err != nil {
+				m.logger.Error("Error getting tx response. Metrics calculation might be inaccurate as a result", zap.Error(err))
+			}
+			tx.TxResponse = txResponse
+
+			m.txsByBlock[tx.TxResponse.Height] = append(m.txsByBlock[tx.TxResponse.Height], *tx)
+			if tx.TxResponse.GasUsed > 0 {
+				m.gasUsageByMsgType[tx.MsgType] = append(m.gasUsageByMsgType[tx.MsgType], int64(tx.TxResponse.GasUsed))
+			}
+
 		}
-
-		if _, exists := blockStatsMap[txResp.Height]; !exists {
-			blockStatsMap[txResp.Height] = &blockStats{}
-		}
-		stats := blockStatsMap[txResp.Height]
-		stats.txsSent++
-
-		if txResp.Code != 0 {
-			stats.failedTxs++
-			c.RecordTransactionFailure(
-				tx.TxHash,
-				fmt.Errorf("transaction failed: %s", txResp.RawLog),
-				txResp.Height,
-			)
-			continue
-		}
-
-		stats.successfulTxs++
-		stats.gasUsed += txResp.GasUsed
-
-		c.RecordTransactionSuccess(
-			tx.TxHash,
-			txResp.GasUsed,
-			tx.NodeAddress,
-		)
+		m.txsByNode[tx.NodeAddress] = append(m.txsByNode[tx.NodeAddress], *tx)
+		m.txsByMsgType[tx.MsgType] = append(m.txsByMsgType[tx.MsgType], *tx)
 	}
 
-	var heights []int64
-	for height := range blockStatsMap {
-		heights = append(heights, height)
-	}
-	sort.Slice(heights, func(i, j int) bool { return heights[i] < heights[j] })
-
-	for _, height := range heights {
-		stats := blockStatsMap[height]
-
-		c.RecordBlockStats(
-			height,
-			gasLimit,
-			stats.gasUsed,
-			stats.txsSent,
-			stats.successfulTxs,
-			stats.failedTxs,
-		)
-	}
+	m.blocksProcessed = len(m.txsByBlock)
 }
 
-func (c *DefaultMetricsCollector) RecordTransactionSuccess(txHash string, gasUsed int64, nodeAddress string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.logger.Debug("Recording TransactionSuccess", zap.Any("hash", txHash))
-
-	c.totalTxs++
-	c.successfulTxs++
-	c.totalGasUsed += gasUsed
-
-	stats, exists := c.nodeStats[nodeAddress]
-	if !exists {
-		stats = &types.NodeStats{
-			Address:          nodeAddress,
-			TransactionsSent: 0,
-			SuccessfulTxs:    0,
-			FailedTxs:        0,
-		}
-		c.nodeStats[nodeAddress] = stats
+// calculateGasStats calculates gas statistics for a slice of gas values
+func (m *MetricsCollector) calculateGasStats(gasUsage []int64) types.GasStats {
+	if len(gasUsage) == 0 {
+		return types.GasStats{}
 	}
 
-	stats.TransactionsSent++
-	stats.SuccessfulTxs++
-}
-
-func (c *DefaultMetricsCollector) RecordTransactionFailure(txHash string, err error, blockHeight int64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.logger.Debug("Recording TransactionFailure", zap.Any("hash", txHash))
-
-	c.totalTxs++
-	c.failedTxs++
-
-	c.broadcastErrors = append(c.broadcastErrors, types.BroadcastError{
-		TxHash:      txHash,
-		Error:       err.Error(),
-		BlockHeight: blockHeight,
+	// Sort gas usage for min and max calculations
+	sort.Slice(gasUsage, func(i, j int) bool {
+		return gasUsage[i] < gasUsage[j]
 	})
-}
 
-func (c *DefaultMetricsCollector) RecordBlockStats(blockHeight int64, gasLimit int, gasUsed int64, txsSent int, successfulTxs int, failedTxs int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	blockStat := types.BlockStat{
-		BlockHeight:         blockHeight,
-		TransactionsSent:    txsSent,
-		SuccessfulTxs:       successfulTxs,
-		FailedTxs:           failedTxs,
-		GasLimit:            gasLimit,
-		TotalGasUsed:        gasUsed,
-		BlockGasUtilization: float64(gasUsed) / float64(gasLimit),
+	var total int64
+	for _, gas := range gasUsage {
+		total += gas
 	}
 
-	c.blockStats = append(c.blockStats, blockStat)
+	return types.GasStats{
+		Average: total / int64(len(gasUsage)),
+		Min:     gasUsage[0],
+		Max:     gasUsage[len(gasUsage)-1],
+		Total:   total,
+	}
 }
 
-func (c *DefaultMetricsCollector) GetResults() types.LoadTestResult {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	c.endTime = time.Now()
-
-	avgGasPerTx := 0
-	if c.totalTxs > 0 {
-		avgGasPerTx = int(c.totalGasUsed) / c.totalTxs
+// ProcessResults returns the final load test results
+func (m *MetricsCollector) ProcessResults(gasLimit int) types.LoadTestResult {
+	result := types.LoadTestResult{
+		Overall: types.OverallStats{
+			StartTime:       m.startTime,
+			EndTime:         m.endTime,
+			Runtime:         m.endTime.Sub(m.startTime),
+			BlocksProcessed: m.blocksProcessed,
+		},
+		ByMessage: make(map[types.MsgType]types.MessageStats),
+		ByNode:    make(map[string]types.NodeStats),
+		ByBlock:   make([]types.BlockStat, 0),
 	}
 
-	avgBlockGasUtilization := 0.0
-	totalBlocks := len(c.blockStats)
-	if totalBlocks > 0 {
-		for _, stat := range c.blockStats {
-			avgBlockGasUtilization += stat.BlockGasUtilization
+	var totalTxs, successfulTxs, failedTxs int
+	var totalGasUsed int64
+
+	// Process message type stats
+	for msgType, txs := range m.txsByMsgType {
+		stats := types.MessageStats{
+			Transactions: types.TransactionStats{
+				Total: len(txs),
+			},
+			Gas: m.calculateGasStats(m.gasUsageByMsgType[msgType]),
+			Errors: types.ErrorStats{
+				ErrorCounts: make(map[string]int),
+			},
 		}
-		avgBlockGasUtilization /= float64(totalBlocks)
+
+		for _, tx := range txs {
+			if tx.Err != nil {
+				stats.Transactions.Failed++
+				errMsg := tx.Err.Error()
+				stats.Errors.ErrorCounts[errMsg]++
+				stats.Errors.BroadcastErrors = append(stats.Errors.BroadcastErrors, types.BroadcastError{
+					TxHash:      tx.TxHash,
+					Error:       errMsg,
+					MsgType:     msgType,
+					NodeAddress: tx.NodeAddress,
+				})
+			} else {
+				stats.Transactions.Successful++
+			}
+		}
+
+		result.ByMessage[msgType] = stats
+		totalTxs += stats.Transactions.Total
+		successfulTxs += stats.Transactions.Successful
+		failedTxs += stats.Transactions.Failed
+		totalGasUsed += stats.Gas.Total
 	}
 
-	nodeDistribution := make(map[string]types.NodeStats)
-	for addr, stats := range c.nodeStats {
-		nodeDistribution[addr] = *stats
+	// Update overall stats
+	result.Overall.TotalTransactions = totalTxs
+	result.Overall.SuccessfulTransactions = successfulTxs
+	result.Overall.FailedTransactions = failedTxs
+	if successfulTxs > 0 {
+		result.Overall.AvgGasPerTransaction = totalGasUsed / int64(successfulTxs)
 	}
 
-	return types.LoadTestResult{
-		TotalTransactions:      c.totalTxs,
-		SuccessfulTransactions: c.successfulTxs,
-		FailedTransactions:     c.failedTxs,
-		BroadcastErrors:        c.broadcastErrors,
-		AvgGasPerTransaction:   avgGasPerTx,
-		AvgBlockGasUtilization: avgBlockGasUtilization,
-		BlocksProcessed:        totalBlocks,
-		StartTime:              c.startTime,
-		EndTime:                c.endTime,
-		Runtime:                c.endTime.Sub(c.startTime),
-		BlockStats:             c.blockStats,
-		NodeStats:              nodeDistribution,
+	// Process node stats
+	for nodeAddr, txs := range m.txsByNode {
+		msgCounts := make(map[types.MsgType]int)
+		gasUsage := make([]int64, 0)
+		stats := types.NodeStats{
+			Address: nodeAddr,
+			TransactionStats: types.TransactionStats{
+				Total: len(txs),
+			},
+			MessageCounts: msgCounts,
+		}
+
+		for _, tx := range txs {
+			msgCounts[tx.MsgType]++
+
+			if tx.Err != nil {
+				stats.TransactionStats.Failed++
+			} else {
+				stats.TransactionStats.Successful++
+				if tx.TxResponse != nil && tx.TxResponse.GasUsed > 0 {
+					gasUsage = append(gasUsage, tx.TxResponse.GasUsed)
+				}
+			}
+		}
+
+		stats.GasStats = m.calculateGasStats(gasUsage)
+		result.ByNode[nodeAddr] = stats
 	}
+
+	// Process block stats
+	var totalGasUtilization float64
+	for height, txs := range m.txsByBlock {
+		msgStats := make(map[types.MsgType]types.MessageBlockStats)
+		var blockGasUsed int64
+
+		for _, tx := range txs {
+			stats := msgStats[tx.MsgType]
+			stats.TransactionsSent++
+
+			if tx.Err != nil {
+				stats.FailedTxs++
+			} else if tx.TxResponse != nil {
+				stats.SuccessfulTxs++
+				stats.GasUsed += tx.TxResponse.GasUsed
+				blockGasUsed += tx.TxResponse.GasUsed
+			}
+
+			msgStats[tx.MsgType] = stats
+		}
+
+		blockStats := types.BlockStat{
+			BlockHeight:    height,
+			MessageStats:   msgStats,
+			TotalGasUsed:   blockGasUsed,
+			GasLimit:       gasLimit,
+			GasUtilization: float64(blockGasUsed) / float64(gasLimit),
+		}
+
+		// Get block timestamp from any transaction in the block
+		if len(txs) > 0 {
+			timestamp, err := time.Parse(time.RFC3339, txs[0].TxResponse.Timestamp)
+			if err != nil {
+				m.logger.Error("Error parsing tx timestamp", zap.String("tx_hash", txs[0].TxHash),
+					zap.String("timestamp", txs[0].TxResponse.Timestamp), zap.Error(err))
+			}
+			blockStats.Timestamp = timestamp
+		}
+
+		result.ByBlock = append(result.ByBlock, blockStats)
+		totalGasUtilization += blockStats.GasUtilization
+	}
+
+	if len(result.ByBlock) > 0 {
+		result.Overall.AvgBlockGasUtilization = totalGasUtilization / float64(len(result.ByBlock))
+	}
+
+	// Sort blocks by height
+	sort.Slice(result.ByBlock, func(i, j int) bool {
+		return result.ByBlock[i].BlockHeight < result.ByBlock[j].BlockHeight
+	})
+
+	return result
+}
+
+// PrintResults prints the load test results in a clean, formatted way
+func (m *MetricsCollector) PrintResults(result types.LoadTestResult) {
+	fmt.Println("\n=== Load Test Results ===")
+
+	fmt.Println("\n🎯 Overall Statistics:")
+	fmt.Printf("Total Transactions: %d\n", result.Overall.TotalTransactions)
+	fmt.Printf("Successful Transactions: %d\n", result.Overall.SuccessfulTransactions)
+	fmt.Printf("Failed Transactions: %d\n", result.Overall.FailedTransactions)
+	fmt.Printf("Average Gas Per Transaction: %d\n", result.Overall.AvgGasPerTransaction)
+	fmt.Printf("Average Block Gas Utilization: %.2f%%\n", result.Overall.AvgBlockGasUtilization*100)
+	fmt.Printf("Runtime: %s\n", result.Overall.Runtime)
+	fmt.Printf("Blocks Processed: %d\n", result.Overall.BlocksProcessed)
+
+	fmt.Println("\n📊 Message Type Statistics:")
+	for msgType, stats := range result.ByMessage {
+		fmt.Printf("\n%s:\n", msgType)
+		fmt.Printf("  Transactions:\n")
+		fmt.Printf("    Total: %d\n", stats.Transactions.Total)
+		fmt.Printf("    Successful: %d\n", stats.Transactions.Successful)
+		fmt.Printf("    Failed: %d\n", stats.Transactions.Failed)
+		fmt.Printf("  Gas Usage:\n")
+		fmt.Printf("    Average: %d\n", stats.Gas.Average)
+		fmt.Printf("    Min: %d\n", stats.Gas.Min)
+		fmt.Printf("    Max: %d\n", stats.Gas.Max)
+		fmt.Printf("    Total: %d\n", stats.Gas.Total)
+		if len(stats.Errors.BroadcastErrors) > 0 {
+			fmt.Printf("  Errors:\n")
+			for errType, count := range stats.Errors.ErrorCounts {
+				fmt.Printf("    %s: %d occurrences\n", errType, count)
+			}
+		}
+	}
+
+	fmt.Println("\n🖥️  Node Statistics:")
+	for nodeAddr, stats := range result.ByNode {
+		fmt.Printf("\n%s:\n", nodeAddr)
+		fmt.Printf("  Transactions:\n")
+		fmt.Printf("    Total: %d\n", stats.TransactionStats.Total)
+		fmt.Printf("    Successful: %d\n", stats.TransactionStats.Successful)
+		fmt.Printf("    Failed: %d\n", stats.TransactionStats.Failed)
+		fmt.Printf("  Message Distribution:\n")
+		for msgType, count := range stats.MessageCounts {
+			fmt.Printf("    %s: %d\n", msgType, count)
+		}
+		fmt.Printf("  Gas Usage:\n")
+		fmt.Printf("    Average: %d\n", stats.GasStats.Average)
+		fmt.Printf("    Min: %d\n", stats.GasStats.Min)
+		fmt.Printf("    Max: %d\n", stats.GasStats.Max)
+	}
+
+	fmt.Println("\n📦 Block Statistics Summary:")
+	fmt.Printf("Total Blocks: %d\n", len(result.ByBlock))
+	var totalGasUtilization float64
+	var maxGasUtilization float64
+	minGasUtilization := result.ByBlock[0].GasUtilization // set first block as min initially
+	var maxGasBlock int64
+	var minGasBlock int64
+	for _, block := range result.ByBlock {
+		totalGasUtilization += block.GasUtilization
+		if block.GasUtilization > maxGasUtilization {
+			maxGasUtilization = block.GasUtilization
+			maxGasBlock = block.BlockHeight
+		}
+		if block.GasUtilization < minGasUtilization {
+			minGasUtilization = block.GasUtilization
+			minGasBlock = block.BlockHeight
+		}
+	}
+	avgGasUtilization := totalGasUtilization / float64(len(result.ByBlock))
+	fmt.Printf("Average Gas Utilization: %.2f%%\n", avgGasUtilization*100)
+	fmt.Printf("Min Gas Utilization: %.2f%% (Block %d)\n", minGasUtilization*100, minGasBlock)
+	fmt.Printf("Max Gas Utilization: %.2f%% (Block %d)\n", maxGasUtilization*100, maxGasBlock)
 }

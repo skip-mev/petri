@@ -3,9 +3,10 @@ package wallet
 import (
 	"context"
 	"fmt"
-	"github.com/skip-mev/catalyst/internal/cosmos/client"
 	"strings"
 	"time"
+
+	"github.com/skip-mev/catalyst/internal/cosmos/client"
 
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"

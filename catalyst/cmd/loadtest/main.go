@@ -6,8 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -28,13 +26,14 @@ type Config struct {
 	PrivateKeys         []string                    `yaml:"private_keys"` // Base64 encoded private keys
 	GasDenom            string                      `yaml:"gas_denom"`
 	Bech32Prefix        string                      `yaml:"bech32_prefix"`
+	Msgs                []loadtesttypes.LoadTestMsg `yaml:"msgs"`
 }
 
 func main() {
-	logger, _ := zap.NewDevelopment()
+	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
-	configPath := flag.String("config", "", "Path to the YAML configuration file")
+	configPath := flag.String("config", "", "Path to load test configuration file")
 	flag.Parse()
 
 	if *configPath == "" {
@@ -74,76 +73,18 @@ func main() {
 		PrivateKeys:         privKeys,
 		GasDenom:            config.GasDenom,
 		Bech32Prefix:        config.Bech32Prefix,
+		Msgs:                config.Msgs,
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
+	ctx := context.Background()
 	test, err := loadtest.New(ctx, spec)
 	if err != nil {
-		logger.Fatal("Failed to create load test", zap.Error(err))
+		logger.Fatal("Failed to create test", zap.Error(err))
 	}
 
-	result, err := test.Run(ctx)
+	_, err = test.Run(ctx)
 	if err != nil {
 		logger.Fatal("Failed to run load test", zap.Error(err))
-	}
-
-	fmt.Println("Load Test Results:")
-	fmt.Println("=================")
-	fmt.Println()
-
-	fmt.Println("General Statistics:")
-	fmt.Println("-----------------")
-	fmt.Printf("Total Transactions: %d\n", result.TotalTransactions)
-	fmt.Printf("Successful Transactions: %d\n", result.SuccessfulTransactions)
-	fmt.Printf("Failed Transactions: %d\n", result.FailedTransactions)
-	fmt.Printf("Average Gas Per Transaction: %d\n", result.AvgGasPerTransaction)
-	fmt.Printf("Average Block Gas Utilization: %.2f%%\n", result.AvgBlockGasUtilization*100)
-	fmt.Printf("Blocks Processed: %d\n", result.BlocksProcessed)
-	fmt.Println()
-
-	fmt.Println("Timing:")
-	fmt.Println("-------")
-	fmt.Printf("Start Time: %s\n", result.StartTime.Format(time.RFC3339))
-	fmt.Printf("End Time: %s\n", result.EndTime.Format(time.RFC3339))
-	fmt.Printf("Total Runtime: %s\n", result.Runtime)
-
-	if len(result.BroadcastErrors) > 0 {
-		fmt.Println()
-		fmt.Println("Broadcast Errors:")
-		fmt.Println("----------------")
-		for i, err := range result.BroadcastErrors {
-			fmt.Printf("%d. Block Height: %d, Tx Hash: %s\n   Error: %s\n",
-				i+1, err.BlockHeight, err.TxHash, err.Error)
-		}
-	}
-
-	if len(result.BlockStats) > 0 {
-		fmt.Println()
-		fmt.Println("Block Statistics:")
-		fmt.Println("----------------")
-		for _, stat := range result.BlockStats {
-			fmt.Printf("Block %d:\n", stat.BlockHeight)
-			fmt.Printf("  Transactions Sent: %d\n", stat.TransactionsSent)
-			fmt.Printf("  Successful Transactions: %d\n", stat.SuccessfulTxs)
-			fmt.Printf("  Failed Transactions: %d\n", stat.FailedTxs)
-			fmt.Printf("  Gas Limit: %d\n", stat.GasLimit)
-			fmt.Printf("  Total Gas Used: %d\n", stat.TotalGasUsed)
-			fmt.Printf("  Block Gas Utilization: %.2f%%\n", stat.BlockGasUtilization*100)
-		}
-	}
-
-	if len(result.NodeStats) > 0 {
-		fmt.Println()
-		fmt.Println("Node Distribution:")
-		fmt.Println("-----------------")
-		for addr, stats := range result.NodeStats {
-			fmt.Printf("Node %s:\n", addr)
-			fmt.Printf("  Transactions Sent: %d\n", stats.TransactionsSent)
-			fmt.Printf("  Successful Transactions: %d\n", stats.SuccessfulTxs)
-			fmt.Printf("  Failed Transactions: %d\n", stats.FailedTxs)
-		}
 	}
 }
 

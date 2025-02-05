@@ -32,15 +32,14 @@ var _ types.ChainI = (*Chain)(nil)
 type Chain struct {
 	cometClient    *rpchttp.HTTP
 	txClient       txtypes.ServiceClient
-	EncodingConfig types.EncodingConfig
-	GRPCConn       *grpc.ClientConn `json:"grpc_conn"`
-	Logger         *zap.Logger      `json:"logger"`
-	ChainID        string           `json:"chain_id"`
-	Denom          string           `json:"denom"`
-	NodeAddress    types.NodeAddress
+	encodingConfig types.EncodingConfig
+	gRPCConn       *grpc.ClientConn
+	logger         *zap.Logger
+	chainID        string
+	nodeAddress    types.NodeAddress
 }
 
-func NewClient(ctx context.Context, rpcAddress, grpcAddress, chainID, denom string) (*Chain, error) {
+func NewClient(ctx context.Context, rpcAddress, grpcAddress, chainID string) (*Chain, error) {
 	httpClient, err := client.DefaultHTTPClient(rpcAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http client: %w", err)
@@ -66,19 +65,18 @@ func NewClient(ctx context.Context, rpcAddress, grpcAddress, chainID, denom stri
 	c := &Chain{
 		cometClient: rpcClient,
 		txClient:    txtypes.NewServiceClient(grpcConn),
-		GRPCConn:    grpcConn,
-		ChainID:     chainID,
-		Denom:       denom,
-		NodeAddress: types.NodeAddress{
+		gRPCConn:    grpcConn,
+		chainID:     chainID,
+		nodeAddress: types.NodeAddress{
 			RPC:  rpcAddress,
 			GRPC: grpcAddress,
 		},
-		EncodingConfig: types.EncodingConfig{
+		encodingConfig: types.EncodingConfig{
 			InterfaceRegistry: getInterfaceRegistry(),
 			Codec:             getCodec(),
 			TxConfig:          getTxConfig(),
 		},
-		Logger: logging.FromContext(ctx),
+		logger: logging.FromContext(ctx),
 	}
 
 	status, err := c.cometClient.Status(ctx)
@@ -120,15 +118,15 @@ func (c *Chain) SubscribeToBlocks(ctx context.Context, handler types.BlockHandle
 
 			newBlockEvent, ok := event.Data.(tmtypes.EventDataNewBlock)
 			if !ok {
-				c.Logger.Error("Unexpected event type",
+				c.logger.Error("Unexpected event type",
 					zap.Any("Event data received", event.Data))
 				continue
 			}
-			c.Logger.Debug("received new block event", zap.Int64("height", newBlockEvent.Block.Height))
+			c.logger.Debug("received new block event", zap.Int64("height", newBlockEvent.Block.Height))
 
 			params, err := c.cometClient.ConsensusParams(ctx, nil)
 			if err != nil {
-				c.Logger.Error("Failed to get consensus params from the block", zap.Error(err))
+				c.logger.Error("Failed to get consensus params from the block", zap.Error(err))
 				continue
 			}
 
@@ -192,8 +190,10 @@ func (c *Chain) BroadcastTx(ctx context.Context, txBytes []byte) (*sdk.TxRespons
 	}
 
 	if resp.TxResponse.Code != 0 {
-		c.Logger.Error("checktx failed", zap.Any("", resp.TxResponse.String()))
-		return resp.TxResponse, fmt.Errorf("checkTx for the transaction failed with error code: %d", resp.TxResponse.Code)
+		c.logger.Error("Failed to broadcast transaction", zap.String("tx_hash", resp.TxResponse.TxHash),
+			zap.Uint32("code", resp.TxResponse.Code), zap.String("raw_log", resp.TxResponse.RawLog))
+		return resp.TxResponse, fmt.Errorf("transaction %s failed with error code: %d. Raw log: %s",
+			resp.TxResponse.TxHash, resp.TxResponse.Code, resp.TxResponse.RawLog)
 	}
 
 	return resp.TxResponse, nil
@@ -213,7 +213,7 @@ func (c *Chain) GetAccount(ctx context.Context, address string) (sdk.AccountI, e
 	}
 
 	var acc sdk.AccountI
-	err = c.EncodingConfig.InterfaceRegistry.UnpackAny(res.Account, &acc)
+	err = c.encodingConfig.InterfaceRegistry.UnpackAny(res.Account, &acc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unpack account: %w", err)
 	}
@@ -222,23 +222,23 @@ func (c *Chain) GetAccount(ctx context.Context, address string) (sdk.AccountI, e
 }
 
 func (c *Chain) GetNodeAddress() types.NodeAddress {
-	return c.NodeAddress
+	return c.nodeAddress
 }
 
 func (c *Chain) GetEncodingConfig() types.EncodingConfig {
-	return c.EncodingConfig
+	return c.encodingConfig
 }
 
 func (c *Chain) GetChainID() string {
-	return c.ChainID
+	return c.chainID
 }
 
 func (c *Chain) getAuthClient(ctx context.Context) (authtypes.QueryClient, error) {
-	return authtypes.NewQueryClient(c.GRPCConn), nil
+	return authtypes.NewQueryClient(c.gRPCConn), nil
 }
 
 func (c *Chain) getBankClient(ctx context.Context) (banktypes.QueryClient, error) {
-	return banktypes.NewQueryClient(c.GRPCConn), nil
+	return banktypes.NewQueryClient(c.gRPCConn), nil
 }
 
 func (c *Chain) GetTxClient(ctx context.Context) txtypes.ServiceClient {

@@ -26,5 +26,12 @@ func New(ctx context.Context, spec types.LoadTestSpec) (*LoadTest, error) {
 
 // Run executes the load test and returns the results
 func (lt *LoadTest) Run(ctx context.Context) (types.LoadTestResult, error) {
-	return lt.runner.Run(ctx)
+	results, err := lt.runner.Run(ctx)
+	if err != nil {
+		return results, err
+	}
+
+	lt.runner.GetCollector().PrintResults(results)
+
+	return results, nil
 }

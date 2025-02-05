@@ -14,4 +14,9 @@ private_keys:
   - "A1B2C3D4E5F6G7H8I9J0..."  # Replace with actual base64-encoded private key
   - "K1L2M3N4O5P6Q7R8S9T0..."  # Replace with actual base64-encoded private key
 gas_denom: "stake"
-bech32_prefix: "cosmos" 
+bech32_prefix: "cosmos"
+msgs:
+  - type: 0  # MsgSend
+    weight: 0.7  # 70% of transactions
+  - type: 1  # MultiMsgSend
+    weight: 0.3  # 30% of transactions 
