@@ -87,7 +87,7 @@ func TestDOE2E(t *testing.T) {
 	logger.Info("External IP", zap.String("address", externalIP))
 	require.NoError(t, err)
 
-	p, err := digitalocean.NewProvider(ctx, logger, "digitalocean_provider", doToken, []string{externalIP}, nil)
+	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, digitalocean.WithAdditionalIPs([]string{externalIP}), digitalocean.WithLogger(logger))
 	require.NoError(t, err)
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)
@@ -100,7 +100,7 @@ func TestDOE2E(t *testing.T) {
 	// Restore provider before creating second half of chains
 	serializedProvider, err := p.SerializeProvider(ctx)
 	require.NoError(t, err)
-	restoredProvider, err := digitalocean.RestoreProvider(ctx, doToken, serializedProvider, nil, nil)
+	restoredProvider, err := digitalocean.RestoreProvider(ctx, serializedProvider, doToken, digitalocean.WithLogger(logger), digitalocean.WithAdditionalIPs([]string{externalIP}))
 	require.NoError(t, err)
 
 	// Restore the existing chains with the restored provider

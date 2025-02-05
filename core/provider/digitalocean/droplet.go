@@ -67,16 +67,18 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		}
 
 		if d.Status != "active" {
+			p.logger.Debug("droplet is not active", zap.String("status", d.Status), zap.String("task", definition.Name))
 			return false, nil
 		}
 
 		ip, err := d.PublicIPv4()
 		if err != nil {
+			p.logger.Debug("droplet does not have ipv4 address", zap.Error(err), zap.String("task", definition.Name))
 			return false, err
 		}
 
 		if p.dockerClients[ip] == nil {
-			dockerClient, err := clients.NewDockerClient(fmt.Sprintf("tcp://%s:%s", ip, dockerPort))
+			dockerClient, err := clients.NewDockerClient(ip)
 			if err != nil {
 				p.logger.Error("failed to create docker client", zap.Error(err))
 				return false, err
@@ -86,6 +88,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 
 		_, err = p.dockerClients[ip].Ping(ctx)
 		if err != nil {
+			p.logger.Debug("docker client is not ready", zap.Error(err), zap.String("task", definition.Name))
 			return false, nil
 		}
 

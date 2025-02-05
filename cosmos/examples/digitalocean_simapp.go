@@ -40,7 +40,14 @@ func main() {
 	externalIP, err := getExternalIP()
 	logger.Info("External IP", zap.String("address", externalIP))
 
-	doProvider, err := digitalocean.NewProvider(ctx, logger, "cosmos-hub", doToken, []string{externalIP}, sshKeyPair)
+	doProvider, err := digitalocean.NewProvider(
+		ctx,
+		"cosmos-hub",
+		doToken,
+		digitalocean.WithAdditionalIPs([]string{externalIP}),
+		digitalocean.WithSSHKeyPair(*sshKeyPair),
+		digitalocean.WithLogger(logger),
+	)
 	if err != nil {
 		logger.Fatal("failed to create DigitalOcean provider", zap.Error(err))
 	}

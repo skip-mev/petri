@@ -66,7 +66,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.DoC
 		"10.0.0.1": mockDocker,
 	}
 
-	p, err := NewProviderWithClient(ctx, logger, "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithDockerClients(mockDockerClients), WithLogger(logger))
 	require.NoError(t, err)
 
 	droplet := &godo.Droplet{
@@ -152,7 +152,7 @@ func setupValidationTestProvider(t *testing.T, ctx context.Context) *Provider {
 		"10.0.0.1": mockDocker,
 	}
 
-	p, err := NewProviderWithClient(ctx, logger, "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithDockerClients(mockDockerClients), WithLogger(logger))
 	require.NoError(t, err)
 
 	return p
@@ -300,7 +300,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 		Return(nil, nil)
 	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
-	p, err := NewProviderWithClient(ctx, logger, "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithDockerClients(mockDockerClients), WithLogger(logger))
 	require.NoError(t, err)
 
 	numTasks := 10
@@ -465,7 +465,7 @@ func TestProviderSerialization(t *testing.T) {
 		"10.0.0.1": mockDocker,
 	}
 
-	p1, err := NewProviderWithClient(ctx, zap.NewExample(), "test-provider", mockDO, mockDockerClients, []string{}, nil)
+	p1, err := NewProviderWithClient(ctx, "test-provider", mockDO, WithDockerClients(mockDockerClients), WithLogger(zap.NewExample()))
 	require.NoError(t, err)
 
 	droplet := &godo.Droplet{
@@ -529,7 +529,7 @@ func TestProviderSerialization(t *testing.T) {
 		"10.0.0.1": mockDocker2,
 	}
 
-	p2, err := RestoreProvider(ctx, "test-token", serialized, mockDO2, mockDockerClients2)
+	p2, err := RestoreProviderWithClient(ctx, serialized, mockDO2, WithDockerClients(mockDockerClients2))
 	require.NoError(t, err)
 
 	state2 := p2.GetState()
