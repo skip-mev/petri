@@ -10,7 +10,7 @@ require (
 	github.com/cometbft/cometbft v0.38.12
 	github.com/cosmos/cosmos-sdk v0.50.10
 	github.com/digitalocean/godo v1.108.0
-	github.com/docker/docker v27.3.1+incompatible
+	github.com/docker/docker v27.5.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/go-rod/rod v0.114.6
 	github.com/golangci/golangci-lint v1.57.1
