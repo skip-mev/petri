@@ -115,8 +115,6 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 
 	digitalOceanProvider.state.FirewallID = firewall.ID
 
-	fmt.Println(digitalOceanProvider.state.SSHKeyPair.PrivateKey)
-
 	//TODO(Zygimantass): TOCTOU issue
 	if key, err := digitalOceanProvider.doClient.GetKeyByFingerprint(ctx, digitalOceanProvider.state.SSHKeyPair.Fingerprint); err != nil || key == nil {
 		_, err = digitalOceanProvider.createSSHKey(ctx, digitalOceanProvider.state.SSHKeyPair.PublicKey)
