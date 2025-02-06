@@ -272,10 +272,12 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 		return "", err
 	}
 	ipv4, err := droplet.PublicIPv4()
-	ipv6, _ := droplet.PublicIPv6()
-	t.logger.Info("TASK IPV4: " + ipv4)
-	t.logger.Info("TASK IPV4 ERR: ", zap.Error(err))
-	t.logger.Info("TASK IPV6: " + ipv6)
+	t.logger.Info("TASK PUBLIC IPV4: " + ipv4)
+	t.logger.Info("TASK PUBLIC IPV4 ERR: ", zap.Error(err))
+
+	pipv4, err := droplet.PrivateIPv4()
+	t.logger.Info("TASK PRIVATE IPV4: " + pipv4)
+	t.logger.Info("TASK PRIVATE IPV4 ERR: ", zap.Error(err))
 
 	return droplet.PublicIPv4()
 }
