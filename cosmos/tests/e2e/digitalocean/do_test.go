@@ -56,8 +56,11 @@ var (
 					"image_id": os.Getenv("DO_IMAGE_ID"),
 				}
 				def.ProviderSpecificConfig = doConfig
-				def.DataDir = strings.ReplaceAll(def.DataDir, "${name}", def.Name)
-				nodeConfig.ChainConfig.HomeDir = strings.ReplaceAll(nodeConfig.ChainConfig.HomeDir, "${name}", def.Name)
+
+				resolvedPath := strings.ReplaceAll(nodeConfig.ChainConfig.HomeDir, "${name}", def.Name)
+				def.DataDir = resolvedPath
+				def.Entrypoint = []string{nodeConfig.ChainConfig.BinaryName, "--home", resolvedPath, "start"}
+				nodeConfig.ChainConfig.HomeDir = resolvedPath
 				return def
 			},
 		},
