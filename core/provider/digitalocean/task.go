@@ -1,7 +1,6 @@
 package digitalocean
 
 import (
-	"al.essio.dev/pkg/shellescape"
 	"bytes"
 	"context"
 	"fmt"
@@ -10,8 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"tailscale.com/tsnet"
 	"time"
+
+	"al.essio.dev/pkg/shellescape"
+	"tailscale.com/tsnet"
 
 	"golang.org/x/crypto/ssh"
 
@@ -271,6 +272,9 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	t.logger.Info("DROPLET STATE:", zap.Any("droplet", droplet))
+
 	ipv4, err := droplet.PublicIPv4()
 	t.logger.Info("TASK PUBLIC IPV4: " + ipv4)
 	t.logger.Info("TASK PUBLIC IPV4 ERR: ", zap.Error(err))
