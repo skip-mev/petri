@@ -267,24 +267,32 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 		return t.getTailscaleIp(ctx)
 	}
 
-	droplet, err := t.getDroplet(ctx)
+	var ip string
+	err := util.WaitForCondition(ctx, 60*time.Second, 1*time.Second, func() (bool, error) {
+		droplet, err := t.getDroplet(ctx)
+		if err != nil {
+			return false, err
+		}
+
+		t.logger.Info("DROPLET STATE:",
+			zap.Any("droplet.Networks", droplet.Networks), zap.Any("droplet.Networks.V4", droplet.Networks.V4))
+
+		ipv4, err := droplet.PublicIPv4()
+		if err != nil {
+			return false, err
+		}
+		t.logger.Info("TASK PUBLIC IPV4: " + ipv4)
+		t.logger.Info("TASK PUBLIC IPV4 ERR: ", zap.Error(err))
+
+		ip = ipv4
+		return ip != "", nil
+	})
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get valid IP address after retries: %w", err)
 	}
 
-	t.logger.Info("DROPLET STATE:",
-		zap.Any("droplet.Networks", droplet.Networks), zap.Any("droplet.Networks.V4", droplet.Networks.V4))
-
-	ipv4, err := droplet.PublicIPv4()
-	t.logger.Info("TASK PUBLIC IPV4: " + ipv4)
-	t.logger.Info("TASK PUBLIC IPV4 ERR: ", zap.Error(err))
-
-	pipv4, err := droplet.PrivateIPv4()
-	t.logger.Info("TASK PRIVATE IPV4: " + pipv4)
-	t.logger.Info("TASK PRIVATE IPV4 ERR: ", zap.Error(err))
-
-	return droplet.PublicIPv4()
+	return ip, nil
 }
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {

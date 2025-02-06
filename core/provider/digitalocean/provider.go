@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"tailscale.com/tsnet"
 	"time"
+
+	"tailscale.com/tsnet"
 
 	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types/container"
