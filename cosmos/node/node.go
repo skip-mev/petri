@@ -50,15 +50,6 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 	node.logger = logger.Named("node")
 	chainConfig := nodeConfig.ChainConfig
 
-	nodeState := State{
-		Config:      nodeConfig,
-		ChainConfig: chainConfig,
-	}
-
-	node.state = nodeState
-
-	node.logger.Info("creating node", zap.String("name", nodeConfig.Name))
-
 	def := provider.TaskDefinition{
 		Name:          nodeConfig.Name,
 		ContainerName: nodeConfig.Name,
@@ -71,6 +62,15 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 	if opts.NodeDefinitionModifier != nil {
 		def = opts.NodeDefinitionModifier(def, nodeConfig)
 	}
+
+	// Set node state after the modifier runs so it has the updated ChainConfig
+	nodeState := State{
+		Config:      nodeConfig,
+		ChainConfig: nodeConfig.ChainConfig,
+	}
+	node.state = nodeState
+
+	node.logger.Info("creating node", zap.String("name", nodeConfig.Name))
 
 	task, err := infraProvider.CreateTask(ctx, def)
 	if err != nil {
