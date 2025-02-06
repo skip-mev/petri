@@ -274,15 +274,11 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 			return false, err
 		}
 
-		t.logger.Info("DROPLET STATE:",
-			zap.Any("droplet.Networks", droplet.Networks), zap.Any("droplet.Networks.V4", droplet.Networks.V4))
-
 		ipv4, err := droplet.PublicIPv4()
 		if err != nil {
 			return false, err
 		}
-		t.logger.Info("TASK PUBLIC IPV4: " + ipv4)
-		t.logger.Info("TASK PUBLIC IPV4 ERR: ", zap.Error(err))
+		t.logger.Debug("task public ipv4: " + ipv4)
 
 		ip = ipv4
 		return ip != "", nil

@@ -107,6 +107,6 @@ func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
 		return "", errors.New("no IPv4 Tailscale address found")
 	}
 
-	t.logger.Info("tailscale ips", zap.Any("ips", status.TailscaleIPs))
+	t.logger.Debug("tailscale ips", zap.Any("ips", status.TailscaleIPs))
 	return status.TailscaleIPs[0].String(), nil
 }
