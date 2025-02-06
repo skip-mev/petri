@@ -3,8 +3,8 @@ package e2e
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +34,7 @@ var (
 		},
 		GasPrices:    "0.0005stake",
 		Bech32Prefix: "cosmos",
-		HomeDir:      "/gaia",
+		HomeDir:      "/gaia/${name}",
 		CoinType:     "118",
 		ChainId:      "stake-1",
 	}
@@ -56,7 +56,8 @@ var (
 					"image_id": os.Getenv("DO_IMAGE_ID"),
 				}
 				def.ProviderSpecificConfig = doConfig
-				def.DataDir = fmt.Sprintf("/gaia/%s", def.Name)
+				def.DataDir = strings.ReplaceAll(def.DataDir, "${name}", def.Name)
+				nodeConfig.ChainConfig.HomeDir = strings.ReplaceAll(nodeConfig.ChainConfig.HomeDir, "${name}", def.Name)
 				return def
 			},
 		},
