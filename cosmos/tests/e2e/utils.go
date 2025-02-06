@@ -93,5 +93,6 @@ func CreateChainsConcurrently(
 		}(i)
 	}
 	wg.Wait()
+	t.Log(chainErrors)
 	require.Empty(t, chainErrors)
 }
