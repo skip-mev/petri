@@ -106,7 +106,7 @@ func (t *Task) waitForDockerStart(ctx context.Context) error {
 
 		ip, err := t.GetIP(ctx)
 
-		if err != nil {
+		if err != nil || ip == "" {
 			t.logger.Debug("task does not have ipv4 address", zap.Error(err), zap.String("task", t.GetState().Name))
 			return false, err
 		}
