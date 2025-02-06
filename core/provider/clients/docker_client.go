@@ -3,6 +3,9 @@ package clients
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -11,8 +14,6 @@ import (
 	dockerclient "github.com/docker/docker/client"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.uber.org/zap"
-	"io"
-	"net"
 )
 
 // DockerClient is a unified interface for interacting with Docker
@@ -72,6 +73,7 @@ func NewDockerClient(host string, dialFunc func(ctx context.Context, network, ad
 	if host != "" {
 		host = fmt.Sprintf("tcp://%s:2375", host)
 		opts = append(opts, dockerclient.WithHost(host))
+		opts = append(opts, dockerclient.WithAPIVersionNegotiation())
 	}
 
 	client, err := dockerclient.NewClientWithOpts(opts...)
