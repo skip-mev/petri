@@ -73,14 +73,14 @@ func main() {
 	chainOptions := petritypes.ChainOptions{
 		NodeCreator: node.CreateNode,
 		NodeOptions: petritypes.NodeOptions{
-			NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig petritypes.NodeConfig) provider.TaskDefinition {
+			NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig petritypes.NodeConfig) (provider.TaskDefinition, petritypes.NodeConfig) {
 				doConfig := digitalocean.DigitalOceanTaskConfig{
 					"size":     "s-2vcpu-4gb",
 					"region":   "ams3",
 					"image_id": imageID,
 				}
 				def.ProviderSpecificConfig = doConfig
-				return def
+				return def, nodeConfig
 			},
 		},
 		WalletConfig: petritypes.WalletConfig{
