@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - 'release/**'
   pull_request:
     branches:
       - '**'
@@ -11,9 +12,6 @@ on:
       - edited
       - synchronize
   workflow_dispatch:
-
-env:
-  DOCKER_API_VERSION: '1.45'
 
 jobs:
   docker-e2e:

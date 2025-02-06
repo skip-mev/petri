@@ -1,7 +1,6 @@
 package digitalocean
 
 import (
-	"al.essio.dev/pkg/shellescape"
 	"bytes"
 	"context"
 	"fmt"
@@ -10,8 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"tailscale.com/tsnet"
 	"time"
+
+	"al.essio.dev/pkg/shellescape"
+	"tailscale.com/tsnet"
 
 	"golang.org/x/crypto/ssh"
 
@@ -266,13 +267,28 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 		return t.getTailscaleIp(ctx)
 	}
 
-	droplet, err := t.getDroplet(ctx)
+	var ip string
+	err := util.WaitForCondition(ctx, 60*time.Second, 1*time.Second, func() (bool, error) {
+		droplet, err := t.getDroplet(ctx)
+		if err != nil {
+			return false, err
+		}
+
+		ipv4, err := droplet.PublicIPv4()
+		if err != nil {
+			return false, err
+		}
+		t.logger.Debug("task public ipv4: " + ipv4)
+
+		ip = ipv4
+		return ip != "", nil
+	})
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get valid IP address after retries: %w", err)
 	}
 
-	return droplet.PublicIPv4()
+	return ip, nil
 }
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {

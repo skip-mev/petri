@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/skip-mev/petri/core/v3/util"
 	"go.uber.org/zap"
-	"strings"
 	"tailscale.com/ipn/ipnstate"
-	"time"
 )
 
 func (t *Task) launchTailscale(ctx context.Context, authKey string, tags []string) (string, error) {
@@ -106,5 +107,6 @@ func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
 		return "", errors.New("no IPv4 Tailscale address found")
 	}
 
+	t.logger.Debug("tailscale ips", zap.Any("ips", status.TailscaleIPs))
 	return status.TailscaleIPs[0].String(), nil
 }
