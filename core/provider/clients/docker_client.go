@@ -71,10 +71,10 @@ func NewDockerClient(host string, dialFunc func(ctx context.Context, network, ad
 		opts = append(opts, dockerclient.WithDialContext(dialFunc))
 	}
 	logger, _ := zap.NewProduction()
-	logger.Debug("HOST DEBUG", zap.String("host", host))
+	logger.Info("HOST DEBUG", zap.String("host", host))
 
 	if host != "" {
-		logger.Debug("docker client using custom host", zap.String("host", host))
+		logger.Info("docker client using custom host", zap.String("host", host))
 		host = fmt.Sprintf("tcp://%s:2375", host)
 		os.Setenv("DOCKER_HOST", fmt.Sprintf("tcp://%s:2375", host))
 		logger.Info("docker_host: " + os.Getenv("DOCKER_HOST"))
