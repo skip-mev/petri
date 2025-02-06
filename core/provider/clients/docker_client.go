@@ -75,7 +75,7 @@ func NewDockerClient(host string, dialFunc func(ctx context.Context, network, ad
 		host = fmt.Sprintf("tcp://%s:2375", host)
 		os.Setenv("DOCKER_HOST", fmt.Sprintf("tcp://%s:2375", host))
 		opts = append(opts, dockerclient.WithHost(host))
-		opts = append(opts, dockerclient.WithAPIVersionNegotiation())
+		opts = append(opts, dockerclient.WithVersion("1.45"))
 	}
 
 	client, err := dockerclient.NewClientWithOpts(opts...)
