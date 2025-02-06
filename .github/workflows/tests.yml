@@ -11,9 +11,6 @@ on:
       - synchronize
   workflow_dispatch:
 
-env:
-  DOCKER_API_VERSION: '1.45'
-
 jobs:
   docker-e2e:
     runs-on: ubuntu-latest

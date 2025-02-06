@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -72,6 +73,7 @@ func NewDockerClient(host string, dialFunc func(ctx context.Context, network, ad
 
 	if host != "" {
 		host = fmt.Sprintf("tcp://%s:2375", host)
+		os.Setenv("DOCKER_HOST", fmt.Sprintf("tcp://%s:2375", host))
 		opts = append(opts, dockerclient.WithHost(host))
 		opts = append(opts, dockerclient.WithAPIVersionNegotiation())
 	}
