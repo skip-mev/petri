@@ -1,19 +1,12 @@
 name: "Run tests"
 on:
   push:
-    branches:
-      - main
   pull_request:
-    branches:
-      - '**'
     types:
       - opened
       - edited
       - synchronize
   workflow_dispatch:
-
-env:
-  DOCKER_API_VERSION: '1.45'
 
 jobs:
   docker-e2e:
