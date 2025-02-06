@@ -49,7 +49,7 @@ var (
 			GenerationFn:     hd.Secp256k1.Generate(),
 		},
 		NodeOptions: types.NodeOptions{
-			NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig types.NodeConfig) provider.TaskDefinition {
+			NodeDefinitionModifier: func(def provider.TaskDefinition, nodeConfig types.NodeConfig) (provider.TaskDefinition, types.NodeConfig) {
 				doConfig := digitalocean.DigitalOceanTaskConfig{
 					"size":     "s-2vcpu-4gb",
 					"region":   "ams3",
@@ -61,7 +61,7 @@ var (
 				nodeConfig.ChainConfig.HomeDir = resolvedHomeDir
 				def.DataDir = resolvedHomeDir
 				def.Entrypoint = []string{nodeConfig.ChainConfig.BinaryName, "--home", resolvedHomeDir, "start"}
-				return def
+				return def, nodeConfig
 			},
 		},
 	}
