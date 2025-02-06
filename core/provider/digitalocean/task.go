@@ -268,7 +268,7 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 	}
 
 	var ip string
-	err := util.WaitForCondition(ctx, 60*time.Second, 1*time.Second, func() (bool, error) {
+	err := util.WaitForCondition(ctx, 120*time.Second, 1*time.Second, func() (bool, error) {
 		droplet, err := t.getDroplet(ctx)
 		if err != nil {
 			return false, err
@@ -285,6 +285,7 @@ func (t *Task) GetIP(ctx context.Context) (string, error) {
 	})
 
 	if err != nil {
+		t.logger.Error("task public ip check failed", zap.Error(err), zap.String("task_name", t.GetState().Name))
 		return "", fmt.Errorf("failed to get valid IP address after retries: %w", err)
 	}
 
