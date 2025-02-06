@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -55,6 +56,7 @@ var (
 					"image_id": os.Getenv("DO_IMAGE_ID"),
 				}
 				def.ProviderSpecificConfig = doConfig
+				def.DataDir = fmt.Sprintf("/gaia/%s", def.Name)
 				return def
 			},
 		},
