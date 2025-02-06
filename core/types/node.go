@@ -40,10 +40,9 @@ func (c NodeConfig) ValidateBasic() error {
 	return nil
 }
 
-// NodeDefinitionModifier is a type of function that given a NodeConfig modifies the task definition. It usually
-// modifies the entrypoint. This function is typically called in NodeCreator
-// before the task is created
-type NodeDefinitionModifier func(provider.TaskDefinition, NodeConfig) provider.TaskDefinition
+// NodeDefinitionModifier is a type of function that given a NodeConfig modifies the task definition and node config.
+// It returns the modified task definition and node config.
+type NodeDefinitionModifier func(provider.TaskDefinition, NodeConfig) (provider.TaskDefinition, NodeConfig)
 
 // NodeCreator is a type of function that given a NodeConfig creates a new logical node
 type NodeCreator func(context.Context, *zap.Logger, provider.ProviderI, NodeConfig, NodeOptions) (NodeI, error)

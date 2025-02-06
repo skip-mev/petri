@@ -57,10 +57,10 @@ var (
 				}
 				def.ProviderSpecificConfig = doConfig
 
-				nodeConfig.ChainConfig.HomeDir = strings.ReplaceAll(nodeConfig.ChainConfig.HomeDir, "${name}", def.Name)
-
-				def.DataDir = nodeConfig.ChainConfig.HomeDir
-				def.Entrypoint = []string{nodeConfig.ChainConfig.BinaryName, "--home", nodeConfig.ChainConfig.HomeDir, "start"}
+				resolvedHomeDir := strings.ReplaceAll(nodeConfig.ChainConfig.HomeDir, "${name}", def.Name)
+				nodeConfig.ChainConfig.HomeDir = resolvedHomeDir
+				def.DataDir = resolvedHomeDir
+				def.Entrypoint = []string{nodeConfig.ChainConfig.BinaryName, "--home", resolvedHomeDir, "start"}
 				return def
 			},
 		},

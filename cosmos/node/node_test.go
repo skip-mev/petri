@@ -2,6 +2,7 @@ package node_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -102,4 +103,58 @@ func TestNodeSerialization(t *testing.T) {
 	status, err = n2.GetStatus(ctx)
 	require.NoError(t, err)
 	require.Equal(t, provider.TASK_RUNNING, status)
+}
+
+func TestNodeDefinitionModifier(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := zap.NewDevelopment()
+	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+
+	defaultChainConfig.HomeDir = "/gaia/${name}"
+
+	p, err := docker.CreateProvider(ctx, logger, providerName)
+	require.NoError(t, err)
+	defer func(p provider.ProviderI, ctx context.Context) {
+		require.NoError(t, p.Teardown(ctx))
+	}(p, ctx)
+
+	nodeConfig := types.NodeConfig{
+		Name:        "test-node",
+		ChainConfig: defaultChainConfig,
+	}
+
+	logger.Info("Initial configuration",
+		zap.String("node_name", nodeConfig.Name),
+		zap.String("home_dir", nodeConfig.ChainConfig.HomeDir))
+
+	opts := types.NodeOptions{
+		NodeDefinitionModifier: func(def provider.TaskDefinition, nc types.NodeConfig) (provider.TaskDefinition, types.NodeConfig) {
+			resolvedHomeDir := strings.ReplaceAll(nc.ChainConfig.HomeDir, "${name}", def.Name)
+			nc.ChainConfig.HomeDir = resolvedHomeDir
+			def.DataDir = resolvedHomeDir
+			def.Entrypoint = []string{nc.ChainConfig.BinaryName, "--home", resolvedHomeDir, "start"}
+
+			logger.Info("Inside NodeDefinitionModifier",
+				zap.String("task_name", def.Name),
+				zap.String("data_dir", def.DataDir),
+				zap.Strings("entrypoint", def.Entrypoint),
+				zap.String("chain_config_home", nc.ChainConfig.HomeDir))
+			return def, nc
+		},
+	}
+
+	n, err := node.CreateNode(ctx, logger, p, nodeConfig, opts)
+	require.NoError(t, err)
+
+	logger.Info("Node state after creation",
+		zap.String("chain_config_home", n.GetConfig().ChainConfig.HomeDir),
+		zap.String("definition_data_dir", n.GetDefinition().DataDir))
+
+	expectedHomeDir := strings.ReplaceAll(defaultChainConfig.HomeDir, "${name}", nodeConfig.Name)
+	require.Equal(t, expectedHomeDir, n.GetConfig().ChainConfig.HomeDir, "node state should have resolved home dir")
+	require.Equal(t, expectedHomeDir, n.GetDefinition().DataDir, "task definition should have resolved home dir")
+	require.Contains(t, n.GetDefinition().Entrypoint, expectedHomeDir, "entrypoint should use resolved home dir")
+
+	err = n.InitHome(ctx)
+	require.NoError(t, err)
 }
