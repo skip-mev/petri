@@ -1,3 +1,4 @@
+.env
 .idea
 **/*.pkr.hcl
 go.work*

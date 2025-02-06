@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
-
-	"tailscale.com/tsnet"
 
 	"github.com/digitalocean/godo"
 	"github.com/docker/docker/api/types/container"
@@ -36,8 +33,6 @@ type ProviderState struct {
 	TaskStates map[string]*TaskState `json:"task_states"` // map of task ids to the corresponding task state
 	Name       string                `json:"name"`
 	PetriTag   string                `json:"petri_tag"`
-	UserIPs    []string              `json:"user_ips"`
-	SSHKeyPair *SSHKeyPair           `json:"ssh_key_pair"`
 	FirewallID string                `json:"firewall_id"`
 }
 
@@ -47,31 +42,34 @@ type Provider struct {
 
 	logger                *zap.Logger
 	doClient              DoClient
-	tailscaleServer       *tsnet.Server
-	tailscaleTags         []string
-	tailscaleNodeAuthkey  string
+	tailscaleSettings     TailscaleSettings
 	dockerClientOverrides map[string]clients.DockerClient // map of droplet name to docker clients
 }
 
-func NewProvider(ctx context.Context, providerName, token string, opts ...func(*Provider)) (*Provider, error) {
+func NewProvider(ctx context.Context, providerName, token string, tailscaleSettings TailscaleSettings, opts ...func(*Provider)) (*Provider, error) {
 	if token == "" {
 		return nil, errors.New("a non-empty token must be passed when creating a DigitalOcean provider")
 	}
 
 	doClient := NewGodoClient(token)
-	return NewProviderWithClient(ctx, providerName, doClient, opts...)
+	return NewProviderWithClient(ctx, providerName, doClient, tailscaleSettings, opts...)
 }
 
 // NewProviderWithClient creates a DigitalOcean provider given an existing DigitalOcean client
 // with additional options to configure behaviour.
-func NewProviderWithClient(ctx context.Context, providerName string, doClient DoClient, opts ...func(*Provider)) (*Provider, error) {
+func NewProviderWithClient(ctx context.Context, providerName string, doClient DoClient, tailscaleSettings TailscaleSettings, opts ...func(*Provider)) (*Provider, error) {
 	if doClient == nil {
 		return nil, errors.New("a valid digital ocean client must be passed when creating a provider")
 	}
 
+	if err := tailscaleSettings.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("failed to validate tailscale settings: %w", err)
+	}
+
 	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
 	digitalOceanProvider := &Provider{
-		doClient: doClient,
+		doClient:          doClient,
+		tailscaleSettings: tailscaleSettings,
 		state: &ProviderState{
 			TaskStates: make(map[string]*TaskState),
 			Name:       providerName,
@@ -87,43 +85,17 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 		digitalOceanProvider.logger = zap.NewNop()
 	}
 
-	if digitalOceanProvider.state.SSHKeyPair == nil {
-		sshKeyPair, err := MakeSSHKeyPair()
-		if err != nil {
-			return nil, err
-		}
-
-		digitalOceanProvider.state.SSHKeyPair = sshKeyPair
-	}
-
-	userIPs, err := getUserIPs(ctx)
+	_, err := digitalOceanProvider.createTag(ctx, petriTag)
 	if err != nil {
 		return nil, err
 	}
 
-	digitalOceanProvider.state.UserIPs = append(digitalOceanProvider.state.UserIPs, userIPs...)
-
-	_, err = digitalOceanProvider.createTag(ctx, petriTag)
-	if err != nil {
-		return nil, err
-	}
-
-	firewall, err := digitalOceanProvider.createFirewall(ctx, userIPs)
+	firewall, err := digitalOceanProvider.createFirewall(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create firewall: %w", err)
 	}
 
 	digitalOceanProvider.state.FirewallID = firewall.ID
-
-	//TODO(Zygimantass): TOCTOU issue
-	if key, err := digitalOceanProvider.doClient.GetKeyByFingerprint(ctx, digitalOceanProvider.state.SSHKeyPair.Fingerprint); err != nil || key == nil {
-		_, err = digitalOceanProvider.createSSHKey(ctx, digitalOceanProvider.state.SSHKeyPair.PublicKey)
-		if err != nil {
-			if !strings.Contains(err.Error(), "422") {
-				return nil, err
-			}
-		}
-	}
 
 	return digitalOceanProvider, nil
 }
@@ -155,13 +127,12 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	state := p.GetState()
 
 	taskState := &TaskState{
-		ID:               strconv.Itoa(droplet.ID),
-		Name:             definition.Name,
-		Definition:       definition,
-		Status:           provider.TASK_STOPPED,
-		ProviderName:     state.Name,
-		SSHKeyPair:       state.SSHKeyPair,
-		TailscaleEnabled: p.tailscaleServer != nil,
+		ID:                strconv.Itoa(droplet.ID),
+		Name:              definition.Name,
+		Definition:        definition,
+		TailscaleHostname: fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
+		Status:            provider.TASK_STOPPED,
+		ProviderName:      state.Name,
 	}
 
 	p.stateMu.Lock()
@@ -169,23 +140,26 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	p.stateMu.Unlock()
 
 	task := &Task{
-		state:           taskState,
-		removeTask:      p.removeTask,
-		logger:          p.logger.With(zap.String("task", definition.Name)),
-		doClient:        p.doClient,
-		tailscaleServer: p.tailscaleServer,
+		state:             taskState,
+		removeTask:        p.removeTask,
+		logger:            p.logger.With(zap.String("task", definition.Name)),
+		doClient:          p.doClient,
+		tailscaleSettings: p.tailscaleSettings,
 	}
 
-	if p.tailscaleServer != nil {
-		if err := task.waitForSSHClient(ctx); err != nil {
-			return nil, fmt.Errorf("failed to wait for docker start: %w", err)
-		}
+	err = util.WaitForCondition(ctx, 240*time.Second, 1*time.Second, func() (bool, error) {
+		self, err := task.getTailscalePeer(ctx)
 
-		_, err = task.launchTailscale(ctx, p.tailscaleNodeAuthkey, p.tailscaleTags)
 		if err != nil {
-			return nil, fmt.Errorf("failed to launch tailscale server: %w", err)
+			return false, nil
 		}
-	}
+
+		if self == nil {
+			return false, nil
+		}
+
+		return true, nil
+	})
 
 	ip, err := task.GetIP(ctx)
 
@@ -264,16 +238,16 @@ func (p *Provider) SerializeProvider(context.Context) ([]byte, error) {
 	return bz, err
 }
 
-func RestoreProvider(ctx context.Context, state []byte, token string, opts ...func(*Provider)) (*Provider, error) {
+func RestoreProvider(ctx context.Context, state []byte, token string, tailscaleSettings TailscaleSettings, opts ...func(*Provider)) (*Provider, error) {
 	if token == "" {
 		return nil, errors.New("a non-empty token must be passed when restoring a DigitalOcean provider")
 	}
 
 	doClient := NewGodoClient(token)
-	return RestoreProviderWithClient(ctx, state, doClient, opts...)
+	return RestoreProviderWithClient(ctx, state, doClient, tailscaleSettings, opts...)
 }
 
-func RestoreProviderWithClient(_ context.Context, state []byte, doClient DoClient, opts ...func(*Provider)) (*Provider, error) {
+func RestoreProviderWithClient(_ context.Context, state []byte, doClient DoClient, tailscaleSettings TailscaleSettings, opts ...func(*Provider)) (*Provider, error) {
 	if doClient == nil {
 		return nil, errors.New("a valid digital ocean client must be passed when restoring the provider")
 	}
@@ -286,8 +260,9 @@ func RestoreProviderWithClient(_ context.Context, state []byte, doClient DoClien
 	}
 
 	digitalOceanProvider := &Provider{
-		state:    &providerState,
-		doClient: doClient,
+		state:             &providerState,
+		doClient:          doClient,
+		tailscaleSettings: tailscaleSettings,
 	}
 
 	for _, opt := range opts {
@@ -342,6 +317,7 @@ func (p *Provider) initializeDeserializedTask(task *Task) error {
 	task.logger = p.logger.With(zap.String("task", taskState.Name))
 	task.doClient = p.doClient
 	task.dockerClient = p.getDockerClientOverride(task.GetState().Name)
+	task.tailscaleSettings = p.tailscaleSettings
 
 	if task.dockerClient == nil {
 		ip, err := task.GetIP(context.Background())
@@ -364,12 +340,11 @@ func (p *Provider) Teardown(ctx context.Context) error {
 	if err := p.teardownTasks(ctx); err != nil {
 		return err
 	}
+
 	if err := p.teardownFirewall(ctx); err != nil {
 		return err
 	}
-	if err := p.teardownSSHKey(ctx); err != nil {
-		return err
-	}
+
 	if err := p.teardownTag(ctx); err != nil {
 		return err
 	}
@@ -382,10 +357,6 @@ func (p *Provider) teardownTasks(ctx context.Context) error {
 
 func (p *Provider) teardownFirewall(ctx context.Context) error {
 	return p.doClient.DeleteFirewall(ctx, p.GetState().FirewallID)
-}
-
-func (p *Provider) teardownSSHKey(ctx context.Context) error {
-	return p.doClient.DeleteKeyByFingerprint(ctx, p.GetState().SSHKeyPair.Fingerprint)
 }
 
 func (p *Provider) teardownTag(ctx context.Context) error {
@@ -416,11 +387,7 @@ func (p *Provider) GetState() ProviderState {
 }
 
 func (p *Provider) getDialFunc() func(ctx context.Context, network, address string) (net.Conn, error) {
-	if p.tailscaleServer == nil {
-		return nil
-	}
-
-	return p.tailscaleServer.Dial
+	return p.tailscaleSettings.Server.Dial
 }
 
 func (p *Provider) getDockerClientOverride(task string) clients.DockerClient {

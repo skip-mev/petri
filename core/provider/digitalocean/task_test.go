@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	dockerMocks "github.com/skip-mev/petri/core/v3/provider/mocks"
+	clientmocks "github.com/skip-mev/petri/core/v3/provider/clients/mocks"
 
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/skip-mev/petri/core/v3/provider"
@@ -58,8 +58,17 @@ func TestTaskLifecycle(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	droplet := &godo.Droplet{
 		ID:     123,
@@ -68,7 +77,7 @@ func TestTaskLifecycle(t *testing.T) {
 			V4: []godo.NetworkV4{
 				{
 					Type:      "public",
-					IPAddress: "1.2.3.4",
+					IPAddress: "10.0.0.1",
 				},
 			},
 		},
@@ -106,9 +115,10 @@ func TestTaskLifecycle(t *testing.T) {
 			},
 			Status: provider.TASK_STOPPED,
 		},
-		logger:       logger,
-		dockerClient: mockDocker,
-		doClient:     mockDO,
+		logger:            logger,
+		dockerClient:      mockDocker,
+		doClient:          mockDO,
+		tailscaleSettings: mockTailscale,
 	}
 
 	err := task.Start(ctx)
@@ -131,8 +141,17 @@ func TestTaskRunCommand(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, nil)
 
@@ -180,9 +199,10 @@ func TestTaskRunCommand(t *testing.T) {
 				},
 			},
 		},
-		logger:       logger,
-		dockerClient: mockDocker,
-		doClient:     mockDO,
+		logger:            logger,
+		dockerClient:      mockDocker,
+		doClient:          mockDO,
+		tailscaleSettings: mockTailscale,
 	}
 
 	_, stderr, exitCode, err := task.RunCommand(ctx, []string{"echo", "hello"})
@@ -217,8 +237,17 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	createResp := container.CreateResponse{ID: testContainerID}
 	mockDocker.On("ContainerCreate", ctx, &container.Config{
@@ -298,9 +327,10 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 				ContainerName: "test-task-container",
 			},
 		},
-		logger:       logger,
-		dockerClient: mockDocker,
-		doClient:     mockDO,
+		logger:            logger,
+		dockerClient:      mockDocker,
+		doClient:          mockDO,
+		tailscaleSettings: mockTailscale,
 	}
 
 	_, stderr, exitCode, err := task.RunCommand(ctx, []string{"echo", "hello"})
@@ -335,8 +365,19 @@ func TestTaskGetIP(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscaleClient.On("Status", ctx).Return(generateTailscaleStatus(t, "test-task", "1.2.3.4"), nil)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	expectedIP := "1.2.3.4"
 	droplet := &godo.Droplet{
@@ -346,13 +387,11 @@ func TestTaskGetIP(t *testing.T) {
 			V4: []godo.NetworkV4{
 				{
 					Type:      "public",
-					IPAddress: expectedIP,
+					IPAddress: "10.0.0.1",
 				},
 			},
 		},
 	}
-
-	mockDO.On("GetDroplet", ctx, droplet.ID).Return(droplet, nil)
 
 	task := &Task{
 		state: &TaskState{
@@ -360,9 +399,10 @@ func TestTaskGetIP(t *testing.T) {
 			Name:         "test-task",
 			ProviderName: "test-provider",
 		},
-		logger:       logger,
-		dockerClient: mockDocker,
-		doClient:     mockDO,
+		logger:            logger,
+		dockerClient:      mockDocker,
+		doClient:          mockDO,
+		tailscaleSettings: mockTailscale,
 	}
 
 	ip, err := task.GetIP(ctx)
@@ -380,8 +420,17 @@ func TestTaskDestroy(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	mockDO.On("GetDroplet", ctx, testDroplet.ID).Return(testDroplet, nil)
 	mockDO.On("DeleteDropletByID", ctx, testDroplet.ID).Return(nil)
@@ -407,6 +456,7 @@ func TestTaskDestroy(t *testing.T) {
 			delete(provider.state.TaskStates, taskID)
 			return nil
 		},
+		tailscaleSettings: mockTailscale,
 	}
 
 	providerState.TaskStates[task.GetState().ID] = task.state
@@ -423,8 +473,17 @@ func TestRunCommandWhileStoppedContainerCleanup(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, nil)
 
@@ -511,9 +570,10 @@ func TestRunCommandWhileStoppedContainerCleanup(t *testing.T) {
 				ContainerName: "test-task-container",
 			},
 		},
-		logger:       logger,
-		dockerClient: mockDocker,
-		doClient:     mockDO,
+		logger:            logger,
+		dockerClient:      mockDocker,
+		doClient:          mockDO,
+		tailscaleSettings: mockTailscale,
 	}
 
 	_, stderr, exitCode, err := task.RunCommand(ctx, []string{"echo", "hello"})
@@ -530,8 +590,17 @@ func TestRunCommandWhileStoppedContainerAutoRemoved(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	mockDO.On("GetDroplet", ctx, 1).Return(testDroplet, nil)
 
@@ -616,9 +685,10 @@ func TestRunCommandWhileStoppedContainerAutoRemoved(t *testing.T) {
 				ContainerName: "test-task-container",
 			},
 		},
-		logger:       logger,
-		dockerClient: mockDocker,
-		doClient:     mockDO,
+		logger:            logger,
+		dockerClient:      mockDocker,
+		doClient:          mockDO,
+		tailscaleSettings: mockTailscale,
 	}
 
 	_, stderr, exitCode, err := task.RunCommand(ctx, []string{"echo", "hello"})
@@ -634,8 +704,19 @@ func TestTaskExposingPort(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
-	mockDocker := dockerMocks.NewDockerClient(t)
-	mockDO := mocks.NewDoClient(t)
+	mockDocker := clientmocks.NewMockDockerClient(t)
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscaleClient.On("Status", ctx).Return(generateTailscaleStatus(t, "test-task", "1.2.3.4"), nil)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
 
 	droplet := &godo.Droplet{
 		ID:     123,
@@ -644,7 +725,7 @@ func TestTaskExposingPort(t *testing.T) {
 			V4: []godo.NetworkV4{
 				{
 					Type:      "public",
-					IPAddress: "1.2.3.4",
+					IPAddress: "10.0.0.1",
 				},
 			},
 		},
@@ -692,9 +773,10 @@ func TestTaskExposingPort(t *testing.T) {
 			},
 			Status: provider.TASK_STOPPED,
 		},
-		logger:       logger,
-		dockerClient: mockDocker,
-		doClient:     mockDO,
+		logger:            logger,
+		dockerClient:      mockDocker,
+		doClient:          mockDO,
+		tailscaleSettings: mockTailscale,
 	}
 
 	err := task.Start(ctx)
@@ -733,7 +815,7 @@ func TestGetStatus(t *testing.T) {
 		name           string
 		dropletStatus  string
 		containerState string
-		setupMocks     func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient)
+		setupMocks     func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings)
 		expectedStatus provider.TaskStatus
 		expectError    bool
 	}{
@@ -741,7 +823,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "droplet not active",
 			dropletStatus:  "off",
 			containerState: "",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletOff.ID).Return(testDropletOff, nil)
 			},
 			expectedStatus: provider.TASK_STOPPED,
@@ -751,7 +833,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "container running",
 			dropletStatus:  "active",
 			containerState: "running",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -771,7 +853,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "container paused",
 			dropletStatus:  "active",
 			containerState: "paused",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -791,7 +873,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "container stopped state",
 			dropletStatus:  "active",
 			containerState: "exited",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -811,7 +893,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "container removing",
 			dropletStatus:  "active",
 			containerState: "removing",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -831,7 +913,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "container dead",
 			dropletStatus:  "active",
 			containerState: "dead",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -851,7 +933,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "container created",
 			dropletStatus:  "active",
 			containerState: "created",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -871,7 +953,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "unknown container status",
 			dropletStatus:  "active",
 			containerState: "unknown_status",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -891,7 +973,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "no containers found",
 			dropletStatus:  "active",
 			containerState: "",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -904,7 +986,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "container inspect error",
 			dropletStatus:  "active",
 			containerState: "",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -918,7 +1000,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "getDroplet error",
 			dropletStatus:  "",
 			containerState: "",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, 123).Return(nil, fmt.Errorf("failed to get droplet"))
 			},
 			expectedStatus: provider.TASK_STATUS_UNDEFINED,
@@ -928,7 +1010,7 @@ func TestGetStatus(t *testing.T) {
 			name:           "containerList error",
 			dropletStatus:  "active",
 			containerState: "",
-			setupMocks: func(mockDocker *dockerMocks.DockerClient, mockDO *mocks.DoClient) {
+			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
 				mockDO.On("GetDroplet", ctx, testDropletActive.ID).Return(testDropletActive, nil)
 				mockDocker.On("ContainerList", ctx, container.ListOptions{
 					Limit: 1,
@@ -941,10 +1023,19 @@ func TestGetStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockDocker := dockerMocks.NewDockerClient(t)
-			mockDO := mocks.NewDoClient(t)
+			mockDocker := clientmocks.NewMockDockerClient(t)
+			mockDO := mocks.NewMockDoClient(t)
+			mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+			mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
 
-			tt.setupMocks(mockDocker, mockDO)
+			mockTailscale := TailscaleSettings{
+				Server:      mockTailscaleServer,
+				LocalClient: mockTailscaleClient,
+				AuthKey:     "test-auth-key",
+				Tags:        []string{"test-tag"},
+			}
+
+			tt.setupMocks(mockDocker, mockDO, &mockTailscale)
 
 			task := &Task{
 				state: &TaskState{

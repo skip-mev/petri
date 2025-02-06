@@ -39,9 +39,6 @@ func AssertNodeShutdown(t *testing.T, ctx context.Context, node types.NodeI) {
 	status, err := node.GetStatus(ctx)
 	require.Error(t, err)
 	require.Equal(t, provider.TASK_STATUS_UNDEFINED, status, "node status should report as undefined after shutdown")
-
-	_, err = node.GetIP(ctx)
-	require.Error(t, err, "node IP should not be accessible after teardown")
 }
 
 func GetExternalIP() (string, error) {

@@ -2,29 +2,37 @@ package digitalocean
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
+	"golang.org/x/oauth2/clientcredentials"
 	"strings"
-	"time"
-
-	"github.com/skip-mev/petri/core/v3/util"
-	"go.uber.org/zap"
+	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn/ipnstate"
 )
 
-func (t *Task) launchTailscale(ctx context.Context, authKey string, tags []string) (string, error) {
+type TailscaleSettings struct {
+	AuthKey     string
+	Tags        []string
+	Server      clients.TailscaleServer
+	LocalClient clients.TailscaleLocalClient
+}
+
+func (ts *TailscaleSettings) FormatUserData(hostname string) string {
 	prefixedTags := []string{}
 
-	for _, tag := range tags {
+	for _, tag := range ts.Tags {
 		prefixedTags = append(prefixedTags, fmt.Sprintf("tag:%s", tag))
 	}
 
 	command := []string{
 		"tailscale",
 		"up",
+		"--ssh",
 		"--authkey",
-		authKey,
+		fmt.Sprintf("\"%s\"", ts.AuthKey),
+		"--hostname",
+		hostname,
 	}
 
 	if len(prefixedTags) > 0 {
@@ -32,60 +40,58 @@ func (t *Task) launchTailscale(ctx context.Context, authKey string, tags []strin
 		command = append(command, strings.Join(prefixedTags, ","))
 	}
 
-	stdout, stderr, exitCode, err := t.runCommandOnDroplet(ctx, command)
-
-	if err != nil {
-		return "", err
-	}
-
-	if exitCode != 0 {
-		return "", fmt.Errorf("tailscale up failed (exit code=%d): %s", exitCode, stderr)
-	}
-
-	t.logger.Debug("tailscale up", zap.String("stdout", stdout), zap.String("stderr", stderr))
-
-	var status *ipnstate.Status
-
-	err = util.WaitForCondition(ctx, time.Second*30, time.Second*5, func() (bool, error) {
-		status, err = t.getTailscaleStatus(ctx)
-		if err != nil {
-			return false, err
-		}
-
-		return status.BackendState == "Running", nil
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	return t.getTailscaleIp(ctx)
+	return fmt.Sprintf(`#cloud-config
+runcmd:
+- %s`, strings.Join(command, " "))
 }
 
-func (t *Task) getTailscaleStatus(ctx context.Context) (*ipnstate.Status, error) {
-	stdout, stderr, exitCode, err := t.runCommandOnDroplet(ctx, []string{"tailscale", "status", "--json"})
+func (ts *TailscaleSettings) ValidateBasic() error {
+	if ts.AuthKey == "" {
+		return errors.New("auth key cannot be empty")
+	}
+
+	if ts.Server == nil {
+		return errors.New("tailscale server cannot be nil")
+	}
+
+	if ts.LocalClient == nil {
+		return errors.New("tailscale client cannot be nil")
+	}
+
+	if len(ts.Tags) == 0 {
+		return errors.New("tags cannot be empty")
+	}
+
+	return nil
+}
+
+func (t *Task) getTailscalePeer(ctx context.Context) (*ipnstate.PeerStatus, error) {
+	status, err := t.tailscaleSettings.LocalClient.Status(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if exitCode != 0 {
-		return nil, fmt.Errorf("tailscale status failed (exit code=%d): %s", exitCode, stderr)
+	var self *ipnstate.PeerStatus
+
+	for _, peer := range status.Peer {
+		if peer.HostName != t.GetState().TailscaleHostname {
+			continue
+		}
+
+		self = peer
+		break
 	}
 
-	t.logger.Debug("tailscale status", zap.String("stdout", stdout), zap.String("stderr", stderr))
-
-	var status ipnstate.Status
-
-	if err := json.Unmarshal([]byte(strings.Trim(stdout, "\n")), &status); err != nil {
-		return nil, err
+	if self == nil {
+		return nil, errors.New("no Tailscale peer found")
 	}
 
-	return &status, nil
+	return self, nil
 }
 
 func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
-	status, err := t.getTailscaleStatus(ctx)
+	self, err := t.getTailscalePeer(ctx)
 
 	if err != nil {
 		return "", err
@@ -93,7 +99,7 @@ func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
 
 	var ip string
 
-	for _, tailscaleIp := range status.TailscaleIPs {
+	for _, tailscaleIp := range self.TailscaleIPs {
 		if !tailscaleIp.Is4() {
 			continue
 		}
@@ -107,6 +113,36 @@ func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
 		return "", errors.New("no IPv4 Tailscale address found")
 	}
 
-	t.logger.Debug("tailscale ips", zap.Any("ips", status.TailscaleIPs))
-	return status.TailscaleIPs[0].String(), nil
+	return ip, nil
+}
+
+func GenerateTailscaleAuthKey(ctx context.Context, oauthSecret string, tags []string) (string, error) {
+	baseURL := "https://api.tailscale.com"
+
+	credentials := clientcredentials.Config{
+		ClientSecret: oauthSecret,
+		TokenURL:     baseURL + "/api/v2/oauth/token",
+	}
+
+	tsClient := tailscale.NewClient("-", nil)
+	tailscale.I_Acknowledge_This_API_Is_Unstable = true
+	tsClient.UserAgent = "tailscale-cli"
+	tsClient.HTTPClient = credentials.Client(ctx)
+	tsClient.BaseURL = baseURL
+
+	caps := tailscale.KeyCapabilities{
+		Devices: tailscale.KeyDeviceCapabilities{
+			Create: tailscale.KeyDeviceCreateCapabilities{
+				Reusable:      false,
+				Ephemeral:     true,
+				Preauthorized: true,
+				Tags:          tags,
+			},
+		},
+	}
+	authkey, _, err := tsClient.CreateKey(ctx, caps)
+	if err != nil {
+		return "", err
+	}
+	return authkey, nil
 }

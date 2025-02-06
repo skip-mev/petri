@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"al.essio.dev/pkg/shellescape"
-	"tailscale.com/tsnet"
 
 	"golang.org/x/crypto/ssh"
 
@@ -31,25 +30,24 @@ import (
 )
 
 type TaskState struct {
-	ID               string                  `json:"id"`
-	Name             string                  `json:"name"`
-	Definition       provider.TaskDefinition `json:"definition"`
-	Status           provider.TaskStatus     `json:"status"`
-	ProviderName     string                  `json:"provider_name"`
-	SSHKeyPair       *SSHKeyPair             `json:"ssh_key_pair"`
-	TailscaleEnabled bool                    `json:"tailscale_enabled"`
+	ID                string                  `json:"id"`
+	Name              string                  `json:"name"`
+	TailscaleHostname string                  `json:"tailscale_hostname"`
+	Definition        provider.TaskDefinition `json:"definition"`
+	Status            provider.TaskStatus     `json:"status"`
+	ProviderName      string                  `json:"provider_name"`
 }
 
 type Task struct {
 	state   *TaskState
 	stateMu sync.Mutex
 
-	removeTask      provider.RemoveTaskFunc
-	logger          *zap.Logger
-	sshClient       *ssh.Client
-	doClient        DoClient
-	dockerClient    clients.DockerClient
-	tailscaleServer *tsnet.Server
+	removeTask        provider.RemoveTaskFunc
+	logger            *zap.Logger
+	sshClient         *ssh.Client
+	doClient          DoClient
+	dockerClient      clients.DockerClient
+	tailscaleSettings TailscaleSettings
 }
 
 var _ provider.TaskI = (*Task)(nil)
@@ -263,33 +261,7 @@ func (t *Task) DownloadDir(ctx context.Context, s string, s2 string) error {
 }
 
 func (t *Task) GetIP(ctx context.Context) (string, error) {
-	if t.GetState().TailscaleEnabled {
-		return t.getTailscaleIp(ctx)
-	}
-
-	var ip string
-	err := util.WaitForCondition(ctx, 120*time.Second, 1*time.Second, func() (bool, error) {
-		droplet, err := t.getDroplet(ctx)
-		if err != nil {
-			return false, err
-		}
-
-		ipv4, err := droplet.PublicIPv4()
-		if err != nil {
-			return false, err
-		}
-		t.logger.Debug("task public ipv4: " + ipv4)
-
-		ip = ipv4
-		return ip != "", nil
-	})
-
-	if err != nil {
-		t.logger.Error("task public ip check failed", zap.Error(err), zap.String("task_name", t.GetState().Name))
-		return "", fmt.Errorf("failed to get valid IP address after retries: %w", err)
-	}
-
-	return ip, nil
+	return t.getTailscaleIp(ctx)
 }
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
@@ -549,9 +521,5 @@ func startContainerWithBlock(ctx context.Context, dockerClient clients.DockerCli
 }
 
 func (t *Task) getDialFunc() func(ctx context.Context, network, address string) (net.Conn, error) {
-	if t.tailscaleServer == nil {
-		return nil
-	}
-
-	return t.tailscaleServer.Dial
+	return t.tailscaleSettings.Server.Dial
 }

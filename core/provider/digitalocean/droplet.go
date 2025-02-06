@@ -46,12 +46,8 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		Image: godo.DropletCreateImage{
 			ID: int(imageId),
 		},
-		SSHKeys: []godo.DropletCreateSSHKey{
-			{
-				Fingerprint: state.SSHKeyPair.Fingerprint,
-			},
-		},
-		Tags: []string{state.PetriTag},
+		Tags:     []string{state.PetriTag},
+		UserData: p.tailscaleSettings.FormatUserData(fmt.Sprintf("%s-%s", state.PetriTag, definition.Name)),
 	}
 
 	droplet, err := p.doClient.CreateDroplet(ctx, req)
@@ -106,7 +102,7 @@ func (t *Task) waitForDockerStart(ctx context.Context) error {
 
 		ip, err := t.GetIP(ctx)
 
-		if err != nil || ip == "" {
+		if err != nil {
 			t.logger.Debug("task does not have ipv4 address", zap.Error(err), zap.String("task", t.GetState().Name))
 			return false, err
 		}
@@ -156,12 +152,6 @@ func (t *Task) getDroplet(ctx context.Context) (*godo.Droplet, error) {
 }
 
 func (t *Task) getDropletSSHClient(ctx context.Context) (*ssh.Client, error) {
-	taskName := t.GetState().Name
-
-	if _, err := t.getDroplet(ctx); err != nil {
-		return nil, fmt.Errorf("droplet %s does not exist", taskName)
-	}
-
 	if t.sshClient != nil {
 		status, _, err := t.sshClient.SendRequest("ping", true, []byte("ping"))
 
@@ -170,31 +160,18 @@ func (t *Task) getDropletSSHClient(ctx context.Context) (*ssh.Client, error) {
 		}
 	}
 
-	d, err := t.getDroplet(ctx)
-	if err != nil {
-		return nil, err
-	}
+	ip, err := t.GetIP(ctx)
 
-	ip, err := d.PublicIPv4()
-
-	if err != nil {
-		return nil, err
-	}
-
-	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(t.GetState().SSHKeyPair.PrivateKey))
 	if err != nil {
 		return nil, err
 	}
 
 	sshConfig := &ssh.ClientConfig{
-		User: "root",
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(parsedSSHKey),
-		},
+		User:            "root",
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", ip), sshConfig)
+	client, err := SSHDialWithCustomDial(ctx, "tcp", fmt.Sprintf("%s:22", ip), sshConfig, t.getDialFunc())
 	if err != nil {
 		return nil, err
 	}
