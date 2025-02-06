@@ -56,6 +56,10 @@ jobs:
           sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
           sudo apt-get update
           sudo apt-get install docker-ce
+      - name: Create Docker Volumes Directory
+        run: |
+          sudo mkdir -p /docker_volumes
+          sudo chmod 777 /docker_volumes
       - name: Run DigitalOcean E2E tests
         if: steps.filter.outputs.digitalocean == 'true'
         env:
