@@ -52,8 +52,6 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.Moc
 	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
 	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
 
-	mockTailscaleClient.On("Status", ctx).Return(generateTailscaleStatus(t, "test-task", "1.2.3.4"), nil)
-
 	mockTailscale := TailscaleSettings{
 		Server:      mockTailscaleServer,
 		LocalClient: mockTailscaleClient,
@@ -87,8 +85,6 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.Moc
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
-	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
-	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
 	mockDockerClients := map[string]clients.DockerClient{
 		"test-task": mockDocker,
@@ -96,6 +92,8 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.Moc
 
 	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, mockTailscale, WithDockerClients(mockDockerClients), WithLogger(logger))
 	require.NoError(t, err)
+
+	mockTailscaleClient.On("Status", ctx).Return(generateTailscaleStatus(t, fmt.Sprintf("%s-test-task", p.GetState().PetriTag), "1.2.3.4"), nil)
 
 	droplet := &godo.Droplet{
 		ID: 123,
@@ -181,8 +179,6 @@ func setupValidationTestProvider(t *testing.T, ctx context.Context) *Provider {
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
-	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
-	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
 	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, mockTailscale, WithLogger(logger))
 	require.NoError(t, err)
@@ -332,22 +328,21 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 		}, nil).Maybe()
 		mockDocker.On("Close").Return(nil).Once()
 
-		mockStatus := ipnstate.PeerStatus{HostName: fmt.Sprintf("test-task-%d", i), TailscaleIPs: []netip.Addr{netip.MustParseAddr(fmt.Sprintf("1.2.3.%d", i+1))}}
-		mockStatuses[key.NewNode().Public()] = &mockStatus
 	}
-
-	mockTailscaleClient.On("Status", ctx).Return(&ipnstate.Status{Peer: mockStatuses}, nil)
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
 
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 
-	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).
-		Return(nil, nil)
-	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
-
 	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, mockTailscale, WithDockerClients(mockDockerClients), WithLogger(logger))
 	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		mockStatus := ipnstate.PeerStatus{HostName: fmt.Sprintf("%s-test-task-%d", p.GetState().PetriTag, i), TailscaleIPs: []netip.Addr{netip.MustParseAddr(fmt.Sprintf("1.2.3.%d", i+1))}}
+		mockStatuses[key.NewNode().Public()] = &mockStatus
+	}
+
+	mockTailscaleClient.On("Status", ctx).Return(&ipnstate.Status{Peer: mockStatuses}, nil)
 
 	numTasks := 10
 	var wg sync.WaitGroup
@@ -380,7 +375,6 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 
 	mockDO.On("DeleteDropletByTag", ctx, mock.AnythingOfType("string")).Return(nil).Once()
 	mockDO.On("DeleteFirewall", ctx, mock.AnythingOfType("string")).Return(nil).Once()
-	mockDO.On("DeleteKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil).Once()
 	mockDO.On("DeleteTag", ctx, mock.AnythingOfType("string")).Return(nil).Once()
 
 	for i := 0; i < numTasks; i++ {
@@ -504,8 +498,6 @@ func TestProviderSerialization(t *testing.T) {
 	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
 	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
 
-	mockTailscaleClient.On("Status", ctx).Return(generateTailscaleStatus(t, "test-task", "1.2.3.4"), nil)
-
 	mockTailscale := TailscaleSettings{
 		Server:      mockTailscaleServer,
 		LocalClient: mockTailscaleClient,
@@ -515,8 +507,6 @@ func TestProviderSerialization(t *testing.T) {
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "petri-droplet-test"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
-	mockDO.On("GetKeyByFingerprint", ctx, mock.AnythingOfType("string")).Return(nil, nil)
-	mockDO.On("CreateKey", ctx, mock.Anything).Return(&godo.Key{}, nil)
 
 	mockDockerClients := map[string]clients.DockerClient{
 		"test-task": mockDocker,
@@ -524,6 +514,8 @@ func TestProviderSerialization(t *testing.T) {
 
 	p1, err := NewProviderWithClient(ctx, "test-provider", mockDO, mockTailscale, WithDockerClients(mockDockerClients), WithLogger(zap.NewExample()))
 	require.NoError(t, err)
+
+	mockTailscaleClient.On("Status", ctx).Return(generateTailscaleStatus(t, fmt.Sprintf("%s-test-task", p1.GetState().PetriTag), "1.2.3.4"), nil)
 
 	droplet := &godo.Droplet{
 		ID: 123,

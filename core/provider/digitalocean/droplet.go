@@ -3,7 +3,6 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -56,34 +55,6 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 	}
 
 	return droplet, nil
-}
-
-func (t *Task) waitForSSHClient(ctx context.Context) error {
-	start := time.Now()
-
-	err := util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
-		_, err := t.getDropletSSHClient(ctx)
-
-		if err != nil {
-			if strings.Contains(err.Error(), "connection refused") {
-				t.logger.Debug("connection refused", zap.String("task", t.GetState().Name))
-				return false, nil
-			}
-			return false, err
-		}
-
-		return true, nil
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to wait for ssh in droplet to become active")
-	}
-
-	end := time.Now()
-
-	t.logger.Info("droplet's ssh daemon is ready after", zap.String("name", t.GetState().Name), zap.Duration("startup_time", end.Sub(start)))
-
-	return nil
 }
 
 func (t *Task) waitForDockerStart(ctx context.Context) error {

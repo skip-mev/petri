@@ -395,9 +395,10 @@ func TestTaskGetIP(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           strconv.Itoa(droplet.ID),
-			Name:         "test-task",
-			ProviderName: "test-provider",
+			TailscaleHostname: "test-task",
+			ID:                strconv.Itoa(droplet.ID),
+			Name:              "test-task",
+			ProviderName:      "test-provider",
 		},
 		logger:            logger,
 		dockerClient:      mockDocker,
@@ -759,9 +760,10 @@ func TestTaskExposingPort(t *testing.T) {
 
 	task := &Task{
 		state: &TaskState{
-			ID:           strconv.Itoa(droplet.ID),
-			Name:         "test-task",
-			ProviderName: "test-provider",
+			TailscaleHostname: "test-task",
+			ID:                strconv.Itoa(droplet.ID),
+			Name:              "test-task",
+			ProviderName:      "test-provider",
 			Definition: provider.TaskDefinition{
 				Name: "test-task",
 				Image: provider.ImageDefinition{

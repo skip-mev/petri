@@ -163,10 +163,6 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		return nil, fmt.Errorf("failed to wait for tailscale peer: %w", err)
 	}
 
-	if err := task.waitForSSHClient(ctx); err != nil {
-		return nil, fmt.Errorf("failed to wait for SSH client: %w", err)
-	}
-
 	ip, err := task.GetIP(ctx)
 
 	if err != nil {
