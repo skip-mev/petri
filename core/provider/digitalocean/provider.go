@@ -147,7 +147,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		tailscaleSettings: p.tailscaleSettings,
 	}
 
-	err = util.WaitForCondition(ctx, 240*time.Second, 1*time.Second, func() (bool, error) {
+	if err := util.WaitForCondition(ctx, 240*time.Second, 1*time.Second, func() (bool, error) {
 		self, err := task.getTailscalePeer(ctx)
 
 		if err != nil {
@@ -159,7 +159,13 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		}
 
 		return true, nil
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("failed to wait for tailscale peer: %w", err)
+	}
+
+	if err := task.waitForSSHClient(ctx); err != nil {
+		return nil, fmt.Errorf("failed to wait for SSH client: %w", err)
+	}
 
 	ip, err := task.GetIP(ctx)
 

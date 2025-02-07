@@ -6,12 +6,8 @@ import (
 	"fmt"
 	"net"
 	"path"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
-
-	"al.essio.dev/pkg/shellescape"
 
 	"golang.org/x/crypto/ssh"
 
@@ -271,48 +267,6 @@ func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, err
 	}
 
 	return net.JoinHostPort(ip, port), nil
-}
-
-func (t *Task) runCommandOnDroplet(ctx context.Context, cmd []string) (string, string, int, error) {
-	sshClient, err := t.getDropletSSHClient(ctx)
-
-	if err != nil {
-		return "", "", -1, err
-	}
-
-	session, err := sshClient.NewSession()
-
-	if err != nil {
-		return "", "", -1, err
-	}
-
-	defer session.Close()
-
-	var stdout, stderr bytes.Buffer
-	session.Stdout = &stdout
-	session.Stderr = &stderr
-
-	quotedCommand := shellescape.QuoteCommand(cmd)
-	command := fmt.Sprintf("bash -c \"(%s); echo 'petri-exit-code:$?'\"", quotedCommand) // weird hack to get the exit code
-	if err = session.Run(command); err != nil {
-		return "", "", -1, err
-	}
-
-	stdoutString := strings.Split(stdout.String(), "petri-exit-code:")
-
-	if len(stdoutString) != 2 {
-		t.logger.Warn("failed to get exit code", zap.String("stdout", stdout.String()), zap.String("stderr", stderr.String()))
-		return stdout.String(), stderr.String(), -1, nil
-	}
-
-	exitCode, err := strconv.ParseInt(strings.Trim(stdoutString[1], "\n"), 10, 64)
-
-	if err != nil {
-		t.logger.Warn("failed to get exit code", zap.String("stdout", stdout.String()), zap.String("unparsed_code", stdoutString[1]), zap.String("stderr", stderr.String()))
-		return stdout.String(), stderr.String(), -1, nil
-	}
-
-	return stdoutString[0], stderr.String(), int(exitCode), nil
 }
 
 func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, int, error) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	clientmocks "github.com/skip-mev/petri/core/v3/provider/clients/mocks"
-	"math/rand"
 	"net/netip"
 	"sync"
 	"tailscale.com/ipn/ipnstate"
@@ -31,12 +30,6 @@ import (
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/util"
 )
-
-func randomBytes(n int) []byte {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-	return b
-}
 
 func generateTailscaleStatus(t *testing.T, name, ip string) *ipnstate.Status {
 	k := key.NewNode()
@@ -593,7 +586,7 @@ func TestProviderSerialization(t *testing.T) {
 		"10.0.0.1": mockDocker2,
 	}
 
-	p2, err := RestoreProviderWithClient(ctx, serialized, mockDO2, WithDockerClients(mockDockerClients2))
+	p2, err := RestoreProviderWithClient(ctx, serialized, mockDO2, mockTailscale, WithDockerClients(mockDockerClients2))
 	require.NoError(t, err)
 
 	state2 := p2.GetState()

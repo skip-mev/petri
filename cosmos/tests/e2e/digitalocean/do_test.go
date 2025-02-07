@@ -114,7 +114,9 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, tailscaleSettings, digitalocean.WithLogger(logger))
-	defer p.Teardown(ctx)
+	defer func() {
+		require.NoError(t, p.Teardown(ctx))
+	}()
 	require.NoError(t, err)
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)
@@ -181,39 +183,39 @@ func TestDOE2E(t *testing.T) {
 		}
 	}
 
-	//// Test the remaining chains but let the provider teardown handle their cleanup
-	//remainingChains := make([]*cosmoschain.Chain, 0)
-	//for i := *numTestChains / 2; i < *numTestChains; i++ {
-	//	originalChain := restoredChains[i]
-	//	remainingChains = append(remainingChains, originalChain)
-	//	validators := originalChain.GetValidators()
-	//	nodes := originalChain.GetNodes()
-	//	for _, validator := range validators {
-	//		e2e.AssertNodeRunning(t, ctx, validator)
-	//	}
-	//	for _, node := range nodes {
-	//		e2e.AssertNodeRunning(t, ctx, node)
-	//	}
-	//
-	//	err = originalChain.WaitForBlocks(ctx, 2)
-	//	require.NoError(t, err)
-	//}
-	//
-	//require.NoError(t, restoredProvider.Teardown(ctx))
-	//// wait for status to update on DO client side
-	//time.Sleep(15 * time.Second)
-	//
-	//// Verify all remaining chains are properly torn down
-	//for _, chain := range remainingChains {
-	//	validators := chain.GetValidators()
-	//	nodes := chain.GetNodes()
-	//
-	//	for _, validator := range validators {
-	//		e2e.AssertNodeShutdown(t, ctx, validator)
-	//	}
-	//
-	//	for _, node := range nodes {
-	//		e2e.AssertNodeShutdown(t, ctx, node)
-	//	}
-	//}
+	// Test the remaining chains but let the provider teardown handle their cleanup
+	remainingChains := make([]*cosmoschain.Chain, 0)
+	for i := *numTestChains / 2; i < *numTestChains; i++ {
+		originalChain := restoredChains[i]
+		remainingChains = append(remainingChains, originalChain)
+		validators := originalChain.GetValidators()
+		nodes := originalChain.GetNodes()
+		for _, validator := range validators {
+			e2e.AssertNodeRunning(t, ctx, validator)
+		}
+		for _, node := range nodes {
+			e2e.AssertNodeRunning(t, ctx, node)
+		}
+
+		err = originalChain.WaitForBlocks(ctx, 2)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, restoredProvider.Teardown(ctx))
+	// wait for status to update on DO client side
+	time.Sleep(15 * time.Second)
+
+	// Verify all remaining chains are properly torn down
+	for _, chain := range remainingChains {
+		validators := chain.GetValidators()
+		nodes := chain.GetNodes()
+
+		for _, validator := range validators {
+			e2e.AssertNodeShutdown(t, ctx, validator)
+		}
+
+		for _, node := range nodes {
+			e2e.AssertNodeShutdown(t, ctx, node)
+		}
+	}
 }
