@@ -165,7 +165,7 @@ func TestDOE2E(t *testing.T) {
 		}
 
 		// todo: replace this with wait for chain liveness condition
-		time.Sleep(5 * time.Second)
+		time.Sleep(15 * time.Second)
 		err = originalChain.WaitForBlocks(ctx, 2)
 		require.NoError(t, err)
 
@@ -200,7 +200,7 @@ func TestDOE2E(t *testing.T) {
 		}
 
 		// todo: replace this with wait for chain liveness condition
-		time.Sleep(5 * time.Second)
+		time.Sleep(15 * time.Second)
 		err = originalChain.WaitForBlocks(ctx, 2)
 		require.NoError(t, err)
 	}
