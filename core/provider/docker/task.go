@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -403,4 +404,8 @@ func (t *Task) ensureVolume(ctx context.Context) error {
 
 func (t *Task) GetDefinition() provider.TaskDefinition {
 	return t.GetState().Definition
+}
+
+func (t *Task) DialContext() func(context.Context, string, string) (net.Conn, error) {
+	return net.Dialer{}.DialContext
 }

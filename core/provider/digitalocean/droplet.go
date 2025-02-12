@@ -79,7 +79,7 @@ func (t *Task) waitForDockerStart(ctx context.Context) error {
 		}
 
 		if t.dockerClient == nil {
-			t.dockerClient, err = clients.NewDockerClient(ip, t.getDialFunc())
+			t.dockerClient, err = clients.NewDockerClient(ip, t.DialContext())
 			if err != nil {
 				t.logger.Error("failed to create docker client", zap.Error(err))
 				return false, err
@@ -142,7 +142,7 @@ func (t *Task) getDropletSSHClient(ctx context.Context) (*ssh.Client, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	client, err := SSHDialWithCustomDial(ctx, "tcp", fmt.Sprintf("%s:22", ip), sshConfig, t.getDialFunc())
+	client, err := SSHDialWithCustomDial(ctx, "tcp", fmt.Sprintf("%s:22", ip), sshConfig, t.DialContext())
 	if err != nil {
 		return nil, err
 	}

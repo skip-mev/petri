@@ -474,6 +474,6 @@ func startContainerWithBlock(ctx context.Context, dockerClient clients.DockerCli
 	}
 }
 
-func (t *Task) getDialFunc() func(ctx context.Context, network, address string) (net.Conn, error) {
+func (t *Task) DialContext() func(ctx context.Context, network, address string) (net.Conn, error) {
 	return t.tailscaleSettings.Server.Dial
 }
