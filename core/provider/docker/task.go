@@ -407,5 +407,5 @@ func (t *Task) GetDefinition() provider.TaskDefinition {
 }
 
 func (t *Task) DialContext() func(context.Context, string, string) (net.Conn, error) {
-	return net.Dialer{}.DialContext
+	return (&net.Dialer{}).DialContext
 }
