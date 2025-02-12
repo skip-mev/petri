@@ -19,7 +19,7 @@ type TailscaleSettings struct {
 }
 
 func (ts *TailscaleSettings) FormatUserData(hostname string) string {
-	prefixedTags := []string{}
+	prefixedTags := make([]string, len(ts.Tags))
 
 	for _, tag := range ts.Tags {
 		prefixedTags = append(prefixedTags, fmt.Sprintf("tag:%s", tag))
@@ -36,8 +36,7 @@ func (ts *TailscaleSettings) FormatUserData(hostname string) string {
 	}
 
 	if len(prefixedTags) > 0 {
-		command = append(command, "--advertise-tags")
-		command = append(command, strings.Join(prefixedTags, ","))
+		command = append(command, "--advertise-tags", strings.Join(prefixedTags, ","))
 	}
 
 	return fmt.Sprintf(`#cloud-config
@@ -72,22 +71,15 @@ func (t *Task) getTailscalePeer(ctx context.Context) (*ipnstate.PeerStatus, erro
 		return nil, err
 	}
 
-	var self *ipnstate.PeerStatus
+	hostname := t.GetState().TailscaleHostname
 
 	for _, peer := range status.Peer {
-		if peer.HostName != t.GetState().TailscaleHostname {
-			continue
+		if peer.HostName == hostname {
+			return peer, nil
 		}
-
-		self = peer
-		break
 	}
 
-	if self == nil {
-		return nil, errors.New("no Tailscale peer found")
-	}
-
-	return self, nil
+	return nil, fmt.Errorf("no Tailscale peer found for hostname: %s", hostname)
 }
 
 func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
@@ -97,23 +89,13 @@ func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	var ip string
-
 	for _, tailscaleIp := range self.TailscaleIPs {
-		if !tailscaleIp.Is4() {
-			continue
+		if tailscaleIp.Is4() {
+			return tailscaleIp.String(), nil
 		}
-
-		ip = tailscaleIp.String()
-
-		break
 	}
 
-	if ip == "" {
-		return "", errors.New("no IPv4 Tailscale address found")
-	}
-
-	return ip, nil
+	return "", errors.New("no IPv4 Tailscale address found")
 }
 
 func GenerateTailscaleAuthKey(ctx context.Context, oauthSecret string, tags []string) (string, error) {

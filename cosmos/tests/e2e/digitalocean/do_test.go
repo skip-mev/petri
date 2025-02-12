@@ -71,7 +71,7 @@ func TestDOE2E(t *testing.T) {
 		flag.Parse()
 	}
 
-	providerTornDown := false
+	var restoredProvider provider.ProviderI
 
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
@@ -117,9 +117,12 @@ func TestDOE2E(t *testing.T) {
 
 	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, tailscaleSettings, digitalocean.WithLogger(logger))
 	defer func() {
-		if !providerTornDown {
-			require.NoError(t, p.Teardown(ctx))
+		if restoredProvider != nil {
+			require.NoError(t, restoredProvider.Teardown(ctx))
+			return
 		}
+
+		require.NoError(t, p.Teardown(ctx))
 	}()
 	require.NoError(t, err)
 
@@ -133,7 +136,7 @@ func TestDOE2E(t *testing.T) {
 	// Restore provider before creating second half of chains
 	serializedProvider, err := p.SerializeProvider(ctx)
 	require.NoError(t, err)
-	restoredProvider, err := digitalocean.RestoreProvider(ctx, serializedProvider, doToken, tailscaleSettings, digitalocean.WithLogger(logger))
+	restoredProvider, err = digitalocean.RestoreProvider(ctx, serializedProvider, doToken, tailscaleSettings, digitalocean.WithLogger(logger))
 	require.NoError(t, err)
 
 	// Restore the existing chains with the restored provider
@@ -168,8 +171,6 @@ func TestDOE2E(t *testing.T) {
 			e2e.AssertNodeRunning(t, ctx, node)
 		}
 
-		// todo: replace this with wait for chain liveness condition
-		time.Sleep(15 * time.Second)
 		err = originalChain.WaitForBlocks(ctx, 2)
 		require.NoError(t, err)
 
@@ -203,14 +204,11 @@ func TestDOE2E(t *testing.T) {
 			e2e.AssertNodeRunning(t, ctx, node)
 		}
 
-		// todo: replace this with wait for chain liveness condition
-		time.Sleep(15 * time.Second)
 		err = originalChain.WaitForBlocks(ctx, 2)
 		require.NoError(t, err)
 	}
 
 	require.NoError(t, restoredProvider.Teardown(ctx))
-	providerTornDown = true
 	// wait for status to update on DO client side
 	time.Sleep(15 * time.Second)
 
