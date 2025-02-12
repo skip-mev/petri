@@ -114,9 +114,6 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, tailscaleSettings, digitalocean.WithLogger(logger))
-	defer func() {
-		require.NoError(t, p.Teardown(ctx))
-	}()
 	require.NoError(t, err)
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)
