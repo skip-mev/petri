@@ -71,6 +71,8 @@ func TestDOE2E(t *testing.T) {
 		flag.Parse()
 	}
 
+	providerTornDown := false
+
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
@@ -114,6 +116,11 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, tailscaleSettings, digitalocean.WithLogger(logger))
+	defer func() {
+		if !providerTornDown {
+			require.NoError(t, p.Teardown(ctx))
+		}
+	}()
 	require.NoError(t, err)
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)
@@ -203,6 +210,7 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	require.NoError(t, restoredProvider.Teardown(ctx))
+	providerTornDown = true
 	// wait for status to update on DO client side
 	time.Sleep(15 * time.Second)
 
