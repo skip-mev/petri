@@ -21,8 +21,8 @@ type TailscaleSettings struct {
 func (ts *TailscaleSettings) FormatUserData(hostname string) string {
 	prefixedTags := make([]string, len(ts.Tags))
 
-	for _, tag := range ts.Tags {
-		prefixedTags = append(prefixedTags, fmt.Sprintf("tag:%s", tag))
+	for i, tag := range ts.Tags {
+		prefixedTags[i] = fmt.Sprintf("tag:%s", tag)
 	}
 
 	command := []string{
