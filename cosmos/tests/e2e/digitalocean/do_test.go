@@ -118,7 +118,6 @@ func TestDOE2E(t *testing.T) {
 	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, tailscaleSettings, digitalocean.WithLogger(logger))
 	defer func() {
 		if restoredProvider != nil {
-			require.NoError(t, restoredProvider.Teardown(ctx))
 			return
 		}
 
@@ -138,6 +137,9 @@ func TestDOE2E(t *testing.T) {
 	require.NoError(t, err)
 	restoredProvider, err = digitalocean.RestoreProvider(ctx, serializedProvider, doToken, tailscaleSettings, digitalocean.WithLogger(logger))
 	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, restoredProvider.Teardown(ctx))
+	}()
 
 	// Restore the existing chains with the restored provider
 	restoredChains := make([]*cosmoschain.Chain, *numTestChains)
@@ -208,7 +210,6 @@ func TestDOE2E(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	require.NoError(t, restoredProvider.Teardown(ctx))
 	// wait for status to update on DO client side
 	time.Sleep(15 * time.Second)
 
