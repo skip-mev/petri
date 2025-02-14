@@ -11,20 +11,8 @@ func WithLogger(logger *zap.Logger) func(*Provider) {
 	}
 }
 
-func WithSSHKeyPair(pair SSHKeyPair) func(*Provider) {
-	return func(p *Provider) {
-		p.state.SSHKeyPair = &pair
-	}
-}
-
 func WithDockerClients(clients map[string]clients.DockerClient) func(*Provider) {
 	return func(p *Provider) {
-		p.dockerClients = clients
-	}
-}
-
-func WithAdditionalIPs(ips []string) func(*Provider) {
-	return func(p *Provider) {
-		p.state.UserIPs = append(p.state.UserIPs, ips...)
+		p.dockerClientOverrides = clients
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"tailscale.com/tsnet"
 	"testing"
 	"time"
 
@@ -70,6 +71,9 @@ func TestDOE2E(t *testing.T) {
 		flag.Parse()
 	}
 
+	var restoredProvider provider.ProviderI
+	providerTornDown := false
+
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 
@@ -83,11 +87,44 @@ func TestDOE2E(t *testing.T) {
 		logger.Fatal("DO_IMAGE_ID environment variable not set")
 	}
 
-	externalIP, err := e2e.GetExternalIP()
-	logger.Info("External IP", zap.String("address", externalIP))
+	clientAuthKey := os.Getenv("TS_CLIENT_AUTH_KEY")
+	if clientAuthKey == "" {
+		logger.Fatal("TS_CLIENT_AUTH_KEY environment variable not set")
+	}
+
+	serverOauthSecret := os.Getenv("TS_SERVER_OAUTH_SECRET")
+	if serverOauthSecret == "" {
+		logger.Fatal("TS_SERVER_AUTH_KEY environment variable not set")
+	}
+
+	serverAuthKey, err := digitalocean.GenerateTailscaleAuthKey(ctx, serverOauthSecret, []string{"tag:petri-e2e"})
 	require.NoError(t, err)
 
-	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, digitalocean.WithAdditionalIPs([]string{externalIP}), digitalocean.WithLogger(logger))
+	tsServer := tsnet.Server{
+		AuthKey:   serverAuthKey,
+		Ephemeral: true,
+		Hostname:  "petri-e2e",
+	}
+
+	localClient, err := tsServer.LocalClient()
+	require.NoError(t, err)
+
+	tailscaleSettings := digitalocean.TailscaleSettings{
+		AuthKey:     clientAuthKey,
+		Server:      &tsServer,
+		Tags:        []string{"petri-e2e"},
+		LocalClient: localClient,
+	}
+
+	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, tailscaleSettings, digitalocean.WithLogger(logger))
+	defer func() {
+		if restoredProvider != nil {
+			return
+		}
+
+		require.NoError(t, p.Teardown(ctx))
+		providerTornDown = true
+	}()
 	require.NoError(t, err)
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)
@@ -100,8 +137,15 @@ func TestDOE2E(t *testing.T) {
 	// Restore provider before creating second half of chains
 	serializedProvider, err := p.SerializeProvider(ctx)
 	require.NoError(t, err)
-	restoredProvider, err := digitalocean.RestoreProvider(ctx, serializedProvider, doToken, digitalocean.WithLogger(logger), digitalocean.WithAdditionalIPs([]string{externalIP}))
+	restoredProvider, err = digitalocean.RestoreProvider(ctx, serializedProvider, doToken, tailscaleSettings, digitalocean.WithLogger(logger))
 	require.NoError(t, err)
+	defer func() {
+		if providerTornDown {
+			return
+		}
+
+		require.NoError(t, restoredProvider.Teardown(ctx))
+	}()
 
 	// Restore the existing chains with the restored provider
 	restoredChains := make([]*cosmoschain.Chain, *numTestChains)
@@ -173,6 +217,7 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	require.NoError(t, restoredProvider.Teardown(ctx))
+	providerTornDown = true
 	// wait for status to update on DO client side
 	time.Sleep(15 * time.Second)
 

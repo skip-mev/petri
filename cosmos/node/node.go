@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"time"
 
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/p2p"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	libclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -113,9 +114,13 @@ func (n *Node) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 
 	httpAddr := fmt.Sprintf("http://%s", addr)
 
-	httpClient, err := libclient.DefaultHTTPClient(httpAddr)
-	if err != nil {
-		return nil, err
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			// Set to true to prevent GZIP-bomb DoS attacks
+			DisableCompression: true,
+			DialContext:        n.DialContext(),
+			Proxy:              http.ProxyFromEnvironment,
+		},
 	}
 
 	httpClient.Timeout = 10 * time.Second
@@ -135,7 +140,14 @@ func (n *Node) GetGRPCClient(ctx context.Context) (*grpc.ClientConn, error) {
 	}
 
 	// create the client
-	cc, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cc, err := grpc.NewClient(
+		grpcAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return n.DialContext()(ctx, "tcp", addr)
+		}),
+	)
+
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/digitalocean/godo"
 )
 
-func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*godo.Firewall, error) {
+func (p *Provider) createFirewall(ctx context.Context) (*godo.Firewall, error) {
 	state := p.GetState()
 	req := &godo.FirewallRequest{
 		Name: fmt.Sprintf("%s-firewall", state.PetriTag),
@@ -32,24 +32,6 @@ func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*go
 				PortRange: "0",
 				Destinations: &godo.Destinations{
 					Addresses: []string{"0.0.0.0/0"},
-				},
-			},
-		},
-		InboundRules: []godo.InboundRule{
-			{
-				Protocol:  "tcp",
-				PortRange: "0",
-				Sources: &godo.Sources{
-					Tags:      []string{state.PetriTag},
-					Addresses: allowedIPs,
-				},
-			},
-			{
-				Protocol:  "udp",
-				PortRange: "0",
-				Sources: &godo.Sources{
-					Tags:      []string{state.PetriTag},
-					Addresses: allowedIPs,
 				},
 			},
 		},

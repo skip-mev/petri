@@ -233,7 +233,7 @@ func TestConcurrentTaskCreation(t *testing.T) {
 
 	for task := range tasks {
 		taskState := task.GetState()
-		dockerClient, _ := clients.NewDockerClient("")
+		dockerClient, _ := clients.NewDockerClient("", nil)
 		containerJSON, err := dockerClient.ContainerInspect(ctx, taskState.Id)
 		require.NoError(t, err)
 

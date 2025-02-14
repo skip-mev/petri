@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"net"
 	"sync"
 
 	"go.uber.org/zap"
@@ -51,6 +52,7 @@ type TaskI interface {
 
 	GetIP(context.Context) (string, error)
 	GetExternalAddress(context.Context, string) (string, error)
+	DialContext() func(context.Context, string, string) (net.Conn, error)
 
 	RunCommand(context.Context, []string) (string, string, int, error)
 }

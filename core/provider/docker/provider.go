@@ -45,7 +45,7 @@ type Provider struct {
 var _ provider.ProviderI = (*Provider)(nil)
 
 func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string) (*Provider, error) {
-	dockerClient, err := clients.NewDockerClient("")
+	dockerClient, err := clients.NewDockerClient("", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func RestoreProvider(ctx context.Context, logger *zap.Logger, state []byte) (*Pr
 		logger: logger,
 	}
 
-	dockerClient, err := clients.NewDockerClient("")
+	dockerClient, err := clients.NewDockerClient("", nil)
 	if err != nil {
 		return nil, err
 	}

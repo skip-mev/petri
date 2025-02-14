@@ -26,23 +26,24 @@ import (
 )
 
 type TaskState struct {
-	ID           string                  `json:"id"`
-	Name         string                  `json:"name"`
-	Definition   provider.TaskDefinition `json:"definition"`
-	Status       provider.TaskStatus     `json:"status"`
-	ProviderName string                  `json:"provider_name"`
-	SSHKeyPair   *SSHKeyPair             `json:"ssh_key_pair"`
+	ID                string                  `json:"id"`
+	Name              string                  `json:"name"`
+	TailscaleHostname string                  `json:"tailscale_hostname"`
+	Definition        provider.TaskDefinition `json:"definition"`
+	Status            provider.TaskStatus     `json:"status"`
+	ProviderName      string                  `json:"provider_name"`
 }
 
 type Task struct {
 	state   *TaskState
 	stateMu sync.Mutex
 
-	removeTask   provider.RemoveTaskFunc
-	logger       *zap.Logger
-	sshClient    *ssh.Client
-	doClient     DoClient
-	dockerClient clients.DockerClient
+	removeTask        provider.RemoveTaskFunc
+	logger            *zap.Logger
+	sshClient         *ssh.Client
+	doClient          DoClient
+	dockerClient      clients.DockerClient
+	tailscaleSettings TailscaleSettings
 }
 
 var _ provider.TaskI = (*Task)(nil)
@@ -192,7 +193,7 @@ func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
 func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) error {
 	absPath := path.Join("/docker_volumes", relPath)
 
-	sshClient, err := t.getDropletSSHClient(ctx, t.GetState().Name)
+	sshClient, err := t.getDropletSSHClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -227,7 +228,7 @@ func (t *Task) WriteFile(ctx context.Context, relPath string, content []byte) er
 func (t *Task) ReadFile(ctx context.Context, relPath string) ([]byte, error) {
 	absPath := path.Join("/docker_volumes", relPath)
 
-	sshClient, err := t.getDropletSSHClient(ctx, t.GetState().Name)
+	sshClient, err := t.getDropletSSHClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -256,13 +257,7 @@ func (t *Task) DownloadDir(ctx context.Context, s string, s2 string) error {
 }
 
 func (t *Task) GetIP(ctx context.Context) (string, error) {
-	droplet, err := t.getDroplet(ctx)
-
-	if err != nil {
-		return "", err
-	}
-
-	return droplet.PublicIPv4()
+	return t.getTailscaleIp(ctx)
 }
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
@@ -477,4 +472,8 @@ func startContainerWithBlock(ctx context.Context, dockerClient clients.DockerCli
 			}
 		}
 	}
+}
+
+func (t *Task) DialContext() func(ctx context.Context, network, address string) (net.Conn, error) {
+	return t.tailscaleSettings.Server.Dial
 }

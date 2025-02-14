@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - 'release/**'
   pull_request:
     branches:
       - '**'
@@ -11,9 +12,6 @@ on:
       - edited
       - synchronize
   workflow_dispatch:
-
-env:
-  DOCKER_API_VERSION: '1.45'
 
 jobs:
   docker-e2e:
@@ -62,6 +60,8 @@ jobs:
         env:
           DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
           DO_IMAGE_ID: ${{ vars.DO_IMAGE_ID }}
+          TS_CLIENT_AUTH_KEY: ${{ secrets.TS_CLIENT_AUTH_KEY }}
+          TS_SERVER_OAUTH_SECRET: ${{ secrets.TS_SERVER_OAUTH_SECRET }}
         run: |
           make tidy
           make digitalocean-e2e

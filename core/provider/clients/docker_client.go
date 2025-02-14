@@ -3,9 +3,6 @@ package clients
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
-	"io"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -13,6 +10,9 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	dockerclient "github.com/docker/docker/client"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.uber.org/zap"
+	"io"
+	"net"
 )
 
 // DockerClient is a unified interface for interacting with Docker
@@ -62,19 +62,19 @@ type defaultDockerClient struct {
 	client *dockerclient.Client
 }
 
-func NewDockerClient(host string) (DockerClient, error) {
-	// If host is empty, use default Docker socket
-	if host == "" {
-		client, err := dockerclient.NewClientWithOpts()
-		if err != nil {
-			return nil, err
-		}
-		return &defaultDockerClient{client: client}, nil
+func NewDockerClient(host string, dialFunc func(ctx context.Context, network, address string) (net.Conn, error)) (DockerClient, error) {
+	var opts []dockerclient.Opt
+
+	if host != "" {
+		host = fmt.Sprintf("tcp://%s:2375", host)
+		opts = append(opts, dockerclient.WithHost(host))
 	}
 
-	host = fmt.Sprintf("tcp://%s:2375", host)
+	if dialFunc != nil {
+		opts = append(opts, dockerclient.WithDialContext(dialFunc))
+	}
 
-	client, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(host))
+	client, err := dockerclient.NewClientWithOpts(opts...)
 	if err != nil {
 		return nil, err
 	}
