@@ -72,6 +72,7 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	var restoredProvider provider.ProviderI
+	providerTornDown := false
 
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
@@ -122,6 +123,7 @@ func TestDOE2E(t *testing.T) {
 		}
 
 		require.NoError(t, p.Teardown(ctx))
+		providerTornDown = true
 	}()
 	require.NoError(t, err)
 
@@ -138,6 +140,10 @@ func TestDOE2E(t *testing.T) {
 	restoredProvider, err = digitalocean.RestoreProvider(ctx, serializedProvider, doToken, tailscaleSettings, digitalocean.WithLogger(logger))
 	require.NoError(t, err)
 	defer func() {
+		if providerTornDown {
+			return
+		}
+
 		require.NoError(t, restoredProvider.Teardown(ctx))
 	}()
 
@@ -210,6 +216,8 @@ func TestDOE2E(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	require.NoError(t, restoredProvider.Teardown(ctx))
+	providerTornDown = true
 	// wait for status to update on DO client side
 	time.Sleep(15 * time.Second)
 
