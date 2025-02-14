@@ -65,13 +65,13 @@ type defaultDockerClient struct {
 func NewDockerClient(host string, dialFunc func(ctx context.Context, network, address string) (net.Conn, error)) (DockerClient, error) {
 	var opts []dockerclient.Opt
 
-	if dialFunc != nil {
-		opts = append(opts, dockerclient.WithDialContext(dialFunc))
-	}
-
 	if host != "" {
 		host = fmt.Sprintf("tcp://%s:2375", host)
 		opts = append(opts, dockerclient.WithHost(host))
+	}
+
+	if dialFunc != nil {
+		opts = append(opts, dockerclient.WithDialContext(dialFunc))
 	}
 
 	client, err := dockerclient.NewClientWithOpts(opts...)

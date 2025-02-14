@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"tailscale.com/tsnet"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 
@@ -32,22 +33,47 @@ func main() {
 		logger.Fatal("DO_IMAGE_ID environment variable not set")
 	}
 
-	sshKeyPair, err := digitalocean.MakeSSHKeyPair()
-	if err != nil {
-		logger.Fatal("failed to create SSH key pair", zap.Error(err))
+	clientAuthKey := os.Getenv("TS_CLIENT_AUTH_KEY")
+	if clientAuthKey == "" {
+		logger.Fatal("TS_CLIENT_AUTH_KEY environment variable not set")
 	}
 
-	externalIP, err := getExternalIP()
-	logger.Info("External IP", zap.String("address", externalIP))
+	serverOauthSecret := os.Getenv("TS_SERVER_OAUTH_SECRET")
+	if serverOauthSecret == "" {
+		logger.Fatal("TS_SERVER_AUTH_KEY environment variable not set")
+	}
+
+	serverAuthKey, err := digitalocean.GenerateTailscaleAuthKey(ctx, serverOauthSecret, []string{"tag:petri-e2e"})
+	if err != nil {
+		logger.Fatal("failed to generate Tailscale auth key", zap.Error(err))
+	}
+
+	tsServer := tsnet.Server{
+		AuthKey:   serverAuthKey,
+		Ephemeral: true,
+		Hostname:  "petri-e2e",
+	}
+
+	localClient, err := tsServer.LocalClient()
+	if err != nil {
+		logger.Fatal("failed to create local client", zap.Error(err))
+	}
+
+	tailscaleSettings := digitalocean.TailscaleSettings{
+		AuthKey:     clientAuthKey,
+		Server:      &tsServer,
+		Tags:        []string{"petri-e2e"},
+		LocalClient: localClient,
+	}
 
 	doProvider, err := digitalocean.NewProvider(
 		ctx,
 		"cosmos-hub",
 		doToken,
-		digitalocean.WithAdditionalIPs([]string{externalIP}),
-		digitalocean.WithSSHKeyPair(*sshKeyPair),
+		tailscaleSettings,
 		digitalocean.WithLogger(logger),
 	)
+
 	if err != nil {
 		logger.Fatal("failed to create DigitalOcean provider", zap.Error(err))
 	}
