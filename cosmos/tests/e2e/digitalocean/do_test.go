@@ -97,7 +97,7 @@ func TestDOE2E(t *testing.T) {
 		logger.Fatal("TS_SERVER_AUTH_KEY environment variable not set")
 	}
 
-	serverAuthKey, err := digitalocean.GenerateTailscaleAuthKey(ctx, serverOauthSecret, []string{"tag:petri-e2e"})
+	serverAuthKey, err := digitalocean.GenerateTailscaleAuthKey(ctx, serverOauthSecret, []string{"petri-e2e"})
 	require.NoError(t, err)
 
 	tsServer := tsnet.Server{

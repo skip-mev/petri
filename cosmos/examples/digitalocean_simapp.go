@@ -43,7 +43,7 @@ func main() {
 		logger.Fatal("TS_SERVER_AUTH_KEY environment variable not set")
 	}
 
-	serverAuthKey, err := digitalocean.GenerateTailscaleAuthKey(ctx, serverOauthSecret, []string{"tag:petri-e2e"})
+	serverAuthKey, err := digitalocean.GenerateTailscaleAuthKey(ctx, serverOauthSecret, []string{"petri-e2e"})
 	if err != nil {
 		logger.Fatal("failed to generate Tailscale auth key", zap.Error(err))
 	}
