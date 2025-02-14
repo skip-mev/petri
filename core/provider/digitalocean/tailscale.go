@@ -124,7 +124,7 @@ func GenerateTailscaleAuthKey(ctx context.Context, oauthSecret string, tags []st
 				Reusable:      false,
 				Ephemeral:     true,
 				Preauthorized: true,
-				Tags:          tags,
+				Tags:          prefixedTags,
 			},
 		},
 	}
