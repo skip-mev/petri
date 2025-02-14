@@ -99,6 +99,12 @@ func (t *Task) getTailscaleIp(ctx context.Context) (string, error) {
 }
 
 func GenerateTailscaleAuthKey(ctx context.Context, oauthSecret string, tags []string) (string, error) {
+	prefixedTags := make([]string, len(tags))
+
+	for i, tag := range tags {
+		prefixedTags[i] = fmt.Sprintf("tag:%s", tag)
+	}
+
 	baseURL := "https://api.tailscale.com"
 
 	credentials := clientcredentials.Config{
