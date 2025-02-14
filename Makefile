@@ -6,8 +6,8 @@ tidy:
 unit-test:
 	@docker pull nginx:latest
 	@docker pull interchainio/simapp:latest
-	@cd ./core && go test -count 1 ./... -race
-	@cd ./cosmos && go test -count 1 `go list ./... | grep -v e2e` -race
+	@cd ./core && go test -p 1 -count 1 ./... -race
+	@cd ./cosmos && go test -p 1 -count 1 `go list ./... | grep -v e2e` -race
 
 docker-e2e:
 	@docker pull nginx:latest
