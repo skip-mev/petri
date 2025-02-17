@@ -2,6 +2,7 @@ package digitalocean
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/digitalocean/godo"
@@ -17,6 +18,7 @@ type DoClient interface {
 
 	// Firewall operations
 	CreateFirewall(ctx context.Context, req *godo.FirewallRequest) (*godo.Firewall, error)
+	GetFirewall(ctx context.Context, firewallID string) (*godo.Firewall, error)
 	DeleteFirewall(ctx context.Context, firewallID string) error
 
 	// SSH Key operations
@@ -34,6 +36,11 @@ type godoClient struct {
 	*godo.Client
 }
 
+var (
+	ErrorResourceNotFound = errors.New("resource not found")
+	ErrorEmptyResponse    = errors.New("unexpected empty response")
+)
+
 func NewGodoClient(token string) DoClient {
 	return &godoClient{Client: godo.NewFromToken(token)}
 }
@@ -41,6 +48,14 @@ func NewGodoClient(token string) DoClient {
 func checkResponse(res *godo.Response, err error) error {
 	if err != nil {
 		return err
+	}
+
+	if res == nil {
+		return ErrorEmptyResponse
+	}
+
+	if res.StatusCode == 404 {
+		return ErrorResourceNotFound
 	}
 
 	if res.StatusCode > 299 || res.StatusCode < 200 {
@@ -89,6 +104,17 @@ func (c *godoClient) CreateFirewall(ctx context.Context, req *godo.FirewallReque
 func (c *godoClient) DeleteFirewall(ctx context.Context, firewallID string) error {
 	res, err := c.Firewalls.Delete(ctx, firewallID)
 	return checkResponse(res, err)
+}
+
+// Returns nil in case the firewall does not exist anymore
+func (c *godoClient) GetFirewall(ctx context.Context, firewallID string) (*godo.Firewall, error) {
+	firewall, res, err := c.Firewalls.Get(ctx, firewallID)
+
+	if err := checkResponse(res, err); err != nil {
+		return nil, err
+	}
+
+	return firewall, nil
 }
 
 // SSH Key operations

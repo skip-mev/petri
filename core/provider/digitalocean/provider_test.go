@@ -375,6 +375,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 
 	mockDO.On("DeleteDropletByTag", ctx, mock.AnythingOfType("string")).Return(nil).Once()
 	mockDO.On("DeleteFirewall", ctx, mock.AnythingOfType("string")).Return(nil).Once()
+	mockDO.On("GetFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 	mockDO.On("DeleteTag", ctx, mock.AnythingOfType("string")).Return(nil).Once()
 
 	for i := 0; i < numTasks; i++ {

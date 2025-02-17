@@ -553,6 +553,65 @@ func (_c *MockDoClient_GetDroplet_Call) RunAndReturn(run func(context.Context, i
 	return _c
 }
 
+// GetFirewall provides a mock function with given fields: ctx, firewallID
+func (_m *MockDoClient) GetFirewall(ctx context.Context, firewallID string) (*godo.Firewall, error) {
+	ret := _m.Called(ctx, firewallID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFirewall")
+	}
+
+	var r0 *godo.Firewall
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*godo.Firewall, error)); ok {
+		return rf(ctx, firewallID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *godo.Firewall); ok {
+		r0 = rf(ctx, firewallID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*godo.Firewall)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, firewallID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDoClient_GetFirewall_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFirewall'
+type MockDoClient_GetFirewall_Call struct {
+	*mock.Call
+}
+
+// GetFirewall is a helper method to define mock.On call
+//   - ctx context.Context
+//   - firewallID string
+func (_e *MockDoClient_Expecter) GetFirewall(ctx interface{}, firewallID interface{}) *MockDoClient_GetFirewall_Call {
+	return &MockDoClient_GetFirewall_Call{Call: _e.mock.On("GetFirewall", ctx, firewallID)}
+}
+
+func (_c *MockDoClient_GetFirewall_Call) Run(run func(ctx context.Context, firewallID string)) *MockDoClient_GetFirewall_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDoClient_GetFirewall_Call) Return(_a0 *godo.Firewall, _a1 error) *MockDoClient_GetFirewall_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDoClient_GetFirewall_Call) RunAndReturn(run func(context.Context, string) (*godo.Firewall, error)) *MockDoClient_GetFirewall_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetKeyByFingerprint provides a mock function with given fields: ctx, fingerprint
 func (_m *MockDoClient) GetKeyByFingerprint(ctx context.Context, fingerprint string) (*godo.Key, error) {
 	ret := _m.Called(ctx, fingerprint)

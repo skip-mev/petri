@@ -358,6 +358,13 @@ func (p *Provider) teardownTasks(ctx context.Context) error {
 }
 
 func (p *Provider) teardownFirewall(ctx context.Context) error {
+	_, err := p.doClient.GetFirewall(ctx, p.GetState().FirewallID)
+
+	// firewall is already deleted at this point or we have bad state (nothing we can do in this case)
+	if errors.Is(err, ErrorResourceNotFound) {
+		return nil
+	}
+
 	return p.doClient.DeleteFirewall(ctx, p.GetState().FirewallID)
 }
 
