@@ -5,13 +5,13 @@ tidy:
 
 unit-test:
 	@docker pull nginx:latest
-	@docker pull interchainio/simapp:latest
+	@docker pull ghcr.io/skip-mev/simapp:latest
 	@cd ./core && go test -p 1 -count 1 ./... -race
 	@cd ./cosmos && go test -p 1 -count 1 `go list ./... | grep -v e2e` -race
 
 docker-e2e:
 	@docker pull nginx:latest
-	@docker pull interchainio/simapp:latest
+	@docker pull ghcr.io/skip-mev/simapp:latest
 	@cd ./cosmos && go test ./tests/e2e/docker/... -race -v
 
 digitalocean-e2e:
