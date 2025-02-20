@@ -280,6 +280,33 @@ func TestSerializeAndRestoreTask(t *testing.T) {
 	mockDocker.AssertExpectations(t)
 }
 
+func TestIdempotentTeardown(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewExample()
+	mockDO := mocks.NewMockDoClient(t)
+	mockTailscaleServer := clientmocks.NewMockTailscaleServer(t)
+	mockTailscaleClient := clientmocks.NewMockTailscaleLocalClient(t)
+
+	mockTailscale := TailscaleSettings{
+		Server:      mockTailscaleServer,
+		LocalClient: mockTailscaleClient,
+		AuthKey:     "test-auth-key",
+		Tags:        []string{"test-tag"},
+	}
+
+	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
+	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
+	mockDO.On("GetFirewall", ctx, mock.Anything).Return(nil, ErrorResourceNotFound)
+	mockDO.On("DeleteDropletByTag", ctx, mock.Anything).Return(nil)
+	mockDO.On("DeleteTag", ctx, mock.Anything).Return(nil)
+	// DeleteFirewall is explicitly not defined, because we don't expect it to be called
+
+	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, mockTailscale, WithLogger(logger))
+
+	require.NoError(t, err)
+	require.NoError(t, p.Teardown(ctx))
+}
+
 func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
@@ -375,6 +402,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 
 	mockDO.On("DeleteDropletByTag", ctx, mock.AnythingOfType("string")).Return(nil).Once()
 	mockDO.On("DeleteFirewall", ctx, mock.AnythingOfType("string")).Return(nil).Once()
+	mockDO.On("GetFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 	mockDO.On("DeleteTag", ctx, mock.AnythingOfType("string")).Return(nil).Once()
 
 	for i := 0; i < numTasks; i++ {
