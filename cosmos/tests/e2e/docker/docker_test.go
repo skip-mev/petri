@@ -27,7 +27,7 @@ var (
 		NumNodes:      1,
 		BinaryName:    "/usr/bin/simd",
 		Image: provider.ImageDefinition{
-			Image: "ghcr.io/skip-mev/simapp:latest",
+			Image: "ghcr.io/cosmos/simapp:v0.47",
 			UID:   "1000",
 			GID:   "1000",
 		},
@@ -36,7 +36,7 @@ var (
 		HomeDir:              "/gaia",
 		CoinType:             "118",
 		ChainId:              "stake-1",
-		UseGenesisSubCommand: false,
+		UseGenesisSubCommand: true,
 	}
 
 	defaultChainOptions = types.ChainOptions{
