@@ -4,13 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 )
+
+// NodeOptions is a struct that contains the options for creating a node
+type NodeOptions struct {
+	NodeDefinitionModifier NodeDefinitionModifier // NodeDefinitionModifier is a function that modifies a node's definition
+}
 
 // NodeConfig is the configuration structure for a logical node.
 type NodeConfig struct {
@@ -19,8 +25,7 @@ type NodeConfig struct {
 
 	IsValidator bool // IsValidator denotes whether this node is a validator
 
-	Chain    ChainI            // Chain is the chain this node is running on
-	Provider provider.Provider // Provider is the provider this node is running on
+	ChainConfig ChainConfig // ChainConfig is the config of the chain this node is running on
 }
 
 func (c NodeConfig) ValidateBasic() error {
@@ -28,27 +33,28 @@ func (c NodeConfig) ValidateBasic() error {
 		return fmt.Errorf("name cannot be empty")
 	}
 
-	if c.Chain == nil {
-		return fmt.Errorf("chain cannot be nil")
-	}
-
-	if c.Provider == nil {
-		return fmt.Errorf("provider cannot be nil")
+	if err := c.ChainConfig.ValidateBasic(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // NodeDefinitionModifier is a type of function that given a NodeConfig modifies the task definition. It usually
-// adds additional sidecars or modifies the entrypoint. This function is typically called in NodeCreator
+// modifies the entrypoint. This function is typically called in NodeCreator
 // before the task is created
 type NodeDefinitionModifier func(provider.TaskDefinition, NodeConfig) provider.TaskDefinition
 
 // NodeCreator is a type of function that given a NodeConfig creates a new logical node
-type NodeCreator func(context.Context, *zap.Logger, NodeConfig) (NodeI, error)
+type NodeCreator func(context.Context, *zap.Logger, provider.ProviderI, NodeConfig, NodeOptions) (NodeI, error)
+
+// NodeRestorer is a type of function that given a NodeState restores a logical node
+type NodeRestorer func(context.Context, *zap.Logger, []byte, provider.ProviderI) (NodeI, error)
 
 // NodeI represents an interface for a  logical node that is running on a chain
 type NodeI interface {
+	provider.TaskI
+
 	// GetConfig returns the configuration of the node
 	GetConfig() NodeConfig
 
@@ -93,8 +99,12 @@ type NodeI interface {
 	// NodeId returns the p2p peer ID of the node
 	NodeId(context.Context) (string, error)
 
-	// GetTask returns the underlying node's Task
-	GetTask() *provider.Task
+	// GetDefinition returns the task definition of the node
+	GetDefinition() provider.TaskDefinition
+
 	// GetIP returns the IP address of the node
 	GetIP(context.Context) (string, error)
+
+	// Serialize serializes the node
+	Serialize(context.Context, provider.ProviderI) ([]byte, error)
 }

@@ -2,15 +2,14 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"sync"
 
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
-// CreateTask creates a task structure and sets up its underlying workload on a provider, including sidecars if there are any in the definition
+// CreateTask creates a task structure and sets up its underlying workload on a provider
 func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, definition TaskDefinition) (*Task, error) {
 	if err := definition.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate task definition: %w", err)
@@ -26,33 +25,7 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 	task.mu.Lock()
 	defer task.mu.Unlock()
 
-	sidecarTasks := make([]*Task, 0)
-
 	var eg errgroup.Group
-
-	for i := range definition.Sidecars {
-		sidecar := definition.Sidecars[i]
-		eg.Go(func() error {
-			if len(sidecar.Sidecars) > 0 {
-				return errors.New("sidecar cannot have sidecar")
-			}
-
-			id, err := provider.CreateTask(ctx, task.logger, sidecar)
-			if err != nil {
-				return err
-			}
-
-			sidecarTasks = append(sidecarTasks, &Task{
-				Provider:   provider,
-				Definition: sidecar,
-				ID:         id,
-				Sidecars:   make([]*Task, 0),
-				logger:     task.logger,
-			})
-
-			return nil
-		})
-	}
 
 	eg.Go(func() error {
 		id, err := provider.CreateTask(ctx, logger, definition)
@@ -69,23 +42,13 @@ func CreateTask(ctx context.Context, logger *zap.Logger, provider Provider, defi
 		return nil, err
 	}
 
-	task.Sidecars = sidecarTasks
 	return task, nil
 }
 
-// Start starts the underlying task's workload including its sidecars if startSidecars is set to true.
+// Start starts the underlying task's workload
 // This method does not take a lock on the provider, hence 2 threads may simultaneously call Start on the same task,
 // this is not thread-safe: PLEASE DON'T DO THAT.
 func (t *Task) Start(ctx context.Context, startSidecars bool) error {
-	if startSidecars {
-		for _, sidecar := range t.Sidecars {
-			err := sidecar.Start(ctx, startSidecars)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	if t.PreStart != nil {
 		err := t.PreStart(ctx, t)
 		if err != nil {
@@ -101,19 +64,10 @@ func (t *Task) Start(ctx context.Context, startSidecars bool) error {
 	return nil
 }
 
-// Stop stops the underlying task's workload including its sidecars if stopSidecars is set to true
+// Stop stops the underlying task's workload
 func (t *Task) Stop(ctx context.Context, stopSidecars bool) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
-	if stopSidecars {
-		for _, sidecar := range t.Sidecars {
-			err := sidecar.Stop(ctx, stopSidecars)
-			if err != nil {
-				return err
-			}
-		}
-	}
 
 	err := t.Provider.StopTask(ctx, t.ID)
 
@@ -202,19 +156,10 @@ func (t *Task) GetStatus(ctx context.Context) (TaskStatus, error) {
 	return t.Provider.GetTaskStatus(ctx, t.ID)
 }
 
-// Destroy destroys the task's underlying workload, including it's sidecars if destroySidecars is set to true
+// Destroy destroys the task's underlying workload
 func (t *Task) Destroy(ctx context.Context, destroySidecars bool) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
-	if destroySidecars {
-		for _, sidecar := range t.Sidecars {
-			err := sidecar.Destroy(ctx, destroySidecars)
-			if err != nil {
-				return err
-			}
-		}
-	}
 
 	err := t.Provider.DestroyTask(ctx, t.ID)
 	if err != nil {

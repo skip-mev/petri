@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 
 	"github.com/docker/docker/api/types/network"
@@ -11,11 +12,16 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-type Listeners []net.Listener
+const providerLabelName = "petri-provider"
 
-func (p *Provider) createNetwork(ctx context.Context, networkName string) (network.Inspect, error) {
-	p.logger.Info("creating network", zap.String("name", networkName))
-	networkResponse, err := p.dockerClient.NetworkCreate(ctx, networkName, network.CreateOptions{
+func (p *Provider) initNetwork(ctx context.Context) (network.Inspect, error) {
+	state := p.GetState()
+
+	p.logger.Info("creating network", zap.String("name", state.NetworkName))
+	subnet1 := rand.Intn(255)
+	subnet2 := rand.Intn(255)
+
+	networkResponse, err := p.dockerClient.NetworkCreate(ctx, state.NetworkName, network.CreateOptions{
 		Scope:  "local",
 		Driver: "bridge",
 		Options: map[string]string{ // https://docs.docker.com/engine/reference/commandline/network_create/#bridge-driver-options
@@ -28,18 +34,19 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (netwo
 		Attachable: false,
 		Ingress:    false,
 		Labels: map[string]string{
-			providerLabelName: p.name,
+			providerLabelName: state.Name,
 		},
 		IPAM: &network.IPAM{
 			Driver: "default",
 			Config: []network.IPAMConfig{
 				{
-					Subnet:  "192.192.192.0/24",
-					Gateway: "192.192.192.1",
+					Subnet:  fmt.Sprintf("192.%d.%d.0/24", subnet1, subnet2),
+					Gateway: fmt.Sprintf("192.%d.%d.1", subnet1, subnet2),
 				},
 			},
 		},
 	})
+
 	if err != nil {
 		return network.Inspect{}, err
 	}
@@ -52,19 +59,36 @@ func (p *Provider) createNetwork(ctx context.Context, networkName string) (netwo
 	return networkInfo, nil
 }
 
-func (p *Provider) destroyNetwork(ctx context.Context, networkID string) error {
-	p.logger.Info("destroying network", zap.String("id", networkID))
-	if err := p.dockerClient.NetworkRemove(ctx, networkID); err != nil {
+// ensureNetwork checks if the network exists and has the expected configuration.
+func (p *Provider) ensureNetwork(ctx context.Context) error {
+	state := p.GetState()
+	network, err := p.dockerClient.NetworkInspect(ctx, state.NetworkID, network.InspectOptions{})
+
+	if err != nil {
 		return err
+	}
+
+	if network.ID != state.NetworkID {
+		return fmt.Errorf("network ID mismatch: %s != %s", network.ID, state.NetworkID)
+	}
+
+	if network.Name != state.NetworkName {
+		return fmt.Errorf("network name mismatch: %s != %s", network.Name, state.NetworkName)
+	}
+
+	if len(network.IPAM.Config) != 1 {
+		return fmt.Errorf("unexpected number of IPAM configs: %d", len(network.IPAM.Config))
+	}
+
+	if network.IPAM.Config[0].Subnet != state.NetworkCIDR {
+		return fmt.Errorf("network CIDR mismatch: %s != %s", network.IPAM.Config[0].Subnet, state.NetworkCIDR)
 	}
 
 	return nil
 }
 
-func (l Listeners) CloseAll() {
-	for _, listener := range l {
-		listener.Close()
-	}
+func (p *Provider) destroyNetwork(ctx context.Context) error {
+	return p.dockerClient.NetworkRemove(ctx, p.GetState().NetworkID)
 }
 
 // openListenerOnFreePort opens the next free port
@@ -74,8 +98,6 @@ func (p *Provider) openListenerOnFreePort() (*net.TCPListener, error) {
 		return nil, err
 	}
 
-	p.networkMu.Lock()
-	defer p.networkMu.Unlock()
 	l, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -89,9 +111,18 @@ func (p *Provider) openListenerOnFreePort() (*net.TCPListener, error) {
 // This allows multiple nextAvailablePort calls to find multiple available ports
 // before closing them so they are available for the PortBinding.
 func (p *Provider) nextAvailablePort() (nat.PortBinding, *net.TCPListener, error) {
+	// TODO: add listeners to state
+	p.networkMu.Lock()
+	defer p.networkMu.Unlock()
+
 	l, err := p.openListenerOnFreePort()
 	if err != nil {
-		l.Close()
+		if l != nil {
+			if err := l.Close(); err != nil {
+				return nat.PortBinding{}, nil, err
+			}
+		}
+
 		return nat.PortBinding{}, nil, err
 	}
 
@@ -101,21 +132,41 @@ func (p *Provider) nextAvailablePort() (nat.PortBinding, *net.TCPListener, error
 	}, l, nil
 }
 
+func (p *Provider) nextAvailableIP() (string, error) {
+	p.networkMu.Lock()
+	p.stateMu.Lock()
+	defer p.networkMu.Unlock()
+	defer p.stateMu.Unlock()
+
+	ip, err := p.dockerNetworkAllocator.AllocateNext()
+
+	if err != nil {
+		return "", err
+	}
+
+	return ip.String(), nil
+}
+
 // GeneratePortBindings will find open ports on the local
 // machine and create a PortBinding for every port in the portSet.
-func (p *Provider) GeneratePortBindings(portSet nat.PortSet) (nat.PortMap, Listeners, error) {
+func (p *Provider) GeneratePortBindings(portSet nat.PortSet) (nat.PortMap, error) {
 	m := make(nat.PortMap)
-	listeners := make(Listeners, 0, len(portSet))
 
 	for port := range portSet {
 		pb, l, err := p.nextAvailablePort()
+
 		if err != nil {
-			listeners.CloseAll()
-			return nat.PortMap{}, nil, err
+			return nat.PortMap{}, err
 		}
-		listeners = append(listeners, l)
+
+		err = l.Close()
+
+		if err != nil {
+			return nat.PortMap{}, err
+		}
+
 		m[port] = []nat.PortBinding{pb}
 	}
 
-	return m, listeners, nil
+	return m, nil
 }

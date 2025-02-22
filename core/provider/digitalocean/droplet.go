@@ -3,198 +3,149 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/digitalocean/godo"
-	dockerclient "github.com/docker/docker/client"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/skip-mev/petri/core/v2/provider"
-	"github.com/skip-mev/petri/core/v2/util"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
+	"github.com/skip-mev/petri/core/v3/util"
+
+	"strconv"
 
 	_ "embed"
 )
-
-// nolint
-//
-//go:embed files/docker-cloud-init.yaml
-var dockerCloudInit string
 
 func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDefinition) (*godo.Droplet, error) {
 	if err := definition.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate task definition: %w", err)
 	}
 
-	doConfig, ok := definition.ProviderSpecificConfig.(DigitalOceanTaskConfig)
+	var doConfig DigitalOceanTaskConfig = definition.ProviderSpecificConfig
 
-	if !ok {
-		return nil, fmt.Errorf("could not cast provider specific config to DigitalOceanConfig")
+	if err := doConfig.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("could not cast digitalocean specific config: %w", err)
 	}
+
+	imageId, err := strconv.ParseInt(doConfig["image_id"], 10, 64)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse image ID: %w", err)
+	}
+
+	state := p.GetState()
 	req := &godo.DropletCreateRequest{
-		Name:   fmt.Sprintf("%s-%s", p.petriTag, definition.Name),
-		Region: doConfig.Region,
-		Size:   doConfig.Size,
+		Name:   fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
+		Region: doConfig["region"],
+		Size:   doConfig["size"],
 		Image: godo.DropletCreateImage{
-			ID: doConfig.ImageID,
+			ID: int(imageId),
 		},
-		SSHKeys: []godo.DropletCreateSSHKey{
-			{
-				Fingerprint: p.sshFingerprint,
-			},
-		},
-		Tags: []string{p.petriTag},
+		Tags:     []string{state.PetriTag},
+		UserData: p.tailscaleSettings.FormatUserData(fmt.Sprintf("%s-%s", state.PetriTag, definition.Name)),
 	}
 
-	droplet, res, err := p.doClient.Droplets.Create(ctx, req)
+	droplet, err := p.doClient.CreateDroplet(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
+	return droplet, nil
+}
 
+func (t *Task) waitForDockerStart(ctx context.Context) error {
 	start := time.Now()
 
-	err = util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
-		d, _, err := p.doClient.Droplets.Get(ctx, droplet.ID)
+	err := util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
+		d, err := t.getDroplet(ctx)
 		if err != nil {
 			return false, err
 		}
 
 		if d.Status != "active" {
+			t.logger.Debug("droplet is not active", zap.String("status", d.Status), zap.String("task", t.GetState().Name))
 			return false, nil
 		}
 
-		ip, err := d.PublicIPv4()
-		if err != nil {
-			return false, nil
-		}
+		ip, err := t.GetIP(ctx)
 
-		dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
 		if err != nil {
-			p.logger.Error("failed to create docker client", zap.Error(err))
+			t.logger.Debug("task does not have ipv4 address", zap.Error(err), zap.String("task", t.GetState().Name))
 			return false, err
 		}
 
-		_, err = dockerClient.Ping(ctx)
-		if err != nil {
-			return false, nil
+		if t.dockerClient == nil {
+			t.dockerClient, err = clients.NewDockerClient(ip, t.DialContext())
+			if err != nil {
+				t.logger.Error("failed to create docker client", zap.Error(err))
+				return false, err
+			}
 		}
 
-		p.logger.Info("droplet is active", zap.Duration("after", time.Since(start)), zap.String("task", definition.Name))
-		droplet = d
+		_, err = t.dockerClient.Ping(ctx)
+		if err != nil {
+			t.logger.Debug("docker client is not ready", zap.Error(err), zap.String("task", t.GetState().Name))
+			return false, nil
+		}
 		return true, nil
 	})
+
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to wait for droplet to become active")
+		return errors.Wrap(err, "failed to wait for docker in droplet to become active")
 	}
 
 	end := time.Now()
 
-	p.logger.Info("droplet %s is ready after %s", zap.String("name", droplet.Name), zap.Duration("took", end.Sub(start)))
-
-	return droplet, nil
-}
-
-func (p *Provider) deleteDroplet(ctx context.Context, name string) error {
-	cachedDroplet, ok := p.droplets.Load(name)
-
-	if !ok {
-		return fmt.Errorf("could not find droplet %s", name)
-	}
-
-	res, err := p.doClient.Droplets.Delete(ctx, cachedDroplet.ID)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode > 299 || res.StatusCode < 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
+	t.logger.Info("droplet's docker daemon is ready after", zap.String("name", t.GetState().Name), zap.Duration("startup_time", end.Sub(start)))
 
 	return nil
 }
 
-func (p *Provider) getDroplet(ctx context.Context, name string, returnOnCacheHit bool) (*godo.Droplet, error) {
-	cachedDroplet, ok := p.droplets.Load(name)
-	if !ok {
-		return nil, fmt.Errorf("could not find droplet %s", name)
-	}
-
-	if ok && returnOnCacheHit {
-		return cachedDroplet, nil
-	}
-
-	droplet, res, err := p.doClient.Droplets.Get(ctx, cachedDroplet.ID)
+func (t *Task) deleteDroplet(ctx context.Context) error {
+	droplet, err := t.getDroplet(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
-	return droplet, nil
+	return t.doClient.DeleteDropletByID(ctx, droplet.ID)
 }
 
-func (p *Provider) getDropletDockerClient(ctx context.Context, taskName string) (*dockerclient.Client, error) {
-	ip, err := p.GetIP(ctx, taskName)
+func (t *Task) getDroplet(ctx context.Context) (*godo.Droplet, error) {
+	dropletId, err := strconv.Atoi(t.GetState().ID)
 	if err != nil {
 		return nil, err
 	}
-
-	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.WithHost(fmt.Sprintf("tcp://%s:2375", ip)))
-	if err != nil {
-		return nil, err
-	}
-
-	return dockerClient, nil
+	return t.doClient.GetDroplet(ctx, dropletId)
 }
 
-func (p *Provider) getDropletSSHClient(ctx context.Context, taskName string) (*ssh.Client, error) {
-	if _, ok := p.droplets.Load(taskName); !ok {
-		return nil, fmt.Errorf("droplet %s does not exist", taskName)
-	}
-
-	if client, ok := p.sshClients.Load(taskName); ok {
-		status, _, err := client.SendRequest("ping", true, []byte("ping"))
+func (t *Task) getDropletSSHClient(ctx context.Context) (*ssh.Client, error) {
+	if t.sshClient != nil {
+		status, _, err := t.sshClient.SendRequest("ping", true, []byte("ping"))
 
 		if err == nil && status {
-			return client, nil
+			return t.sshClient, nil
 		}
 	}
 
-	ip, err := p.GetIP(ctx, taskName)
-	if err != nil {
-		return nil, err
-	}
+	ip, err := t.GetIP(ctx)
 
-	parsedSSHKey, err := ssh.ParsePrivateKey([]byte(p.sshPrivKey))
 	if err != nil {
 		return nil, err
 	}
 
 	sshConfig := &ssh.ClientConfig{
-		User: "root",
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(parsedSSHKey),
-		},
+		User:            "root",
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
+	client, err := SSHDialWithCustomDial(ctx, "tcp", fmt.Sprintf("%s:22", ip), sshConfig, t.DialContext())
 	if err != nil {
 		return nil, err
 	}
-
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", ip), sshConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	p.sshClients.Store(taskName, client)
 
 	return client, nil
 }

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
+	"github.com/pelletier/go-toml/v2"
+
 	"reflect"
 	"time"
 
-	toml "github.com/pelletier/go-toml/v2"
-
-	petritypes "github.com/skip-mev/petri/core/v2/types"
+	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
 type Toml map[string]any
@@ -82,9 +83,9 @@ func GenerateDefaultConsensusConfig() Toml {
 }
 
 // GenerateDefaultAppConfig returns a default / sensible config for the Cosmos SDK
-func GenerateDefaultAppConfig(c petritypes.ChainI) Toml {
+func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
 	sdkConfig := make(Toml)
-	sdkConfig["minimum-gas-prices"] = c.GetConfig().GasPrices
+	sdkConfig["minimum-gas-prices"] = c.GasPrices
 
 	grpc := make(Toml)
 
@@ -140,7 +141,7 @@ func (n *Node) ModifyTomlConfigFile(
 
 // SetDefaultConfigs will generate the default configs for CometBFT and the app, and write them to disk
 func (n *Node) SetDefaultConfigs(ctx context.Context) error {
-	appConfig := GenerateDefaultAppConfig(n.chain)
+	appConfig := GenerateDefaultAppConfig(n.GetChainConfig())
 	consensusConfig := GenerateDefaultConsensusConfig()
 
 	if err := n.ModifyTomlConfigFile(

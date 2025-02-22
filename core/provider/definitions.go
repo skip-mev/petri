@@ -40,9 +40,39 @@ type TaskDefinition struct {
 	Entrypoint    []string
 	Command       []string
 	Args          []string
-	Sidecars      []TaskDefinition
 
-	ProviderSpecificConfig interface{}
+	ProviderSpecificConfig map[string]string
+}
+
+func (t *TaskDefinition) ValidateBasic() error {
+	if t.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	if t.ContainerName == "" {
+		return fmt.Errorf("container name cannot be empty")
+	}
+
+	if err := t.Image.ValidateBasic(); err != nil {
+		return fmt.Errorf("image definition is invalid: %w", err)
+	}
+
+	for _, port := range t.Ports {
+		if port == "" {
+			return fmt.Errorf("port cannot be empty")
+		}
+
+		portInt, err := strconv.ParseUint(port, 10, 64)
+		if err != nil {
+			return fmt.Errorf("port must be a valid unsigned integer")
+		}
+
+		if portInt > 65535 {
+			return fmt.Errorf("port must be less than 65535")
+		}
+	}
+
+	return nil
 }
 
 func (t *TaskDefinition) ValidateBasic() error {

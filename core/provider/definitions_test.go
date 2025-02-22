@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
 )
 
 var validImageDefinition = provider.ImageDefinition{
@@ -173,20 +173,6 @@ func TestTaskDefinitionValidation(t *testing.T) {
 				ContainerName: "test",
 				Image:         validImageDefinition,
 				Ports:         []string{"", "100000"},
-			},
-			expectPass: false,
-		},
-		{
-			name: "invalid sidecar",
-			def: provider.TaskDefinition{
-				Name:          "test",
-				ContainerName: "test",
-				Image:         validImageDefinition,
-				Sidecars: []provider.TaskDefinition{
-					{
-						Name: "test",
-					},
-				},
 			},
 			expectPass: false,
 		},

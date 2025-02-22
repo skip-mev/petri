@@ -1,0 +1,13 @@
+with-expecter: true
+dir: "{{.InterfaceDir}}/mocks"
+filename: "mock_{{ .InterfaceName | snakecase }}.go"
+outpkg: "mocks"
+packages:
+  github.com/skip-mev/petri/core/v3/provider/digitalocean:
+    interfaces:
+      DoClient:
+  github.com/skip-mev/petri/core/v3/provider/clients:
+    interfaces:
+      DockerClient:
+      TailscaleServer:
+      TailscaleLocalClient:

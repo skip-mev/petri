@@ -7,9 +7,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"go.uber.org/zap"
 
-	"github.com/skip-mev/petri/core/v2/types"
-	"github.com/skip-mev/petri/core/v2/util"
-	"github.com/skip-mev/petri/cosmos/v2/wallet"
+	"github.com/skip-mev/petri/core/v3/types"
+	"github.com/skip-mev/petri/core/v3/util"
+	"github.com/skip-mev/petri/cosmos/v3/wallet"
 )
 
 // CreateWallet creates a new wallet on the node using a randomly generated mnemonic
@@ -32,12 +32,11 @@ func (n *Node) CreateWallet(ctx context.Context, name string, walletConfig types
 // RecoverWallet recovers a wallet on the node using a mnemonic
 func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 	n.logger.Info("recovering wallet", zap.String("name", name), zap.String("mnemonic", mnemonic))
-	chainConfig := n.chain.GetConfig()
 
 	command := []string{
 		"sh",
 		"-c",
-		fmt.Sprintf(`echo %q | %s keys add %s --recover --keyring-backend %s --coin-type %s --home %s --output json`, mnemonic, chainConfig.BinaryName, name, keyring.BackendTest, chainConfig.CoinType, chainConfig.HomeDir),
+		fmt.Sprintf(`echo %q | %s keys add %s --recover --keyring-backend %s --coin-type %s --home %s --output json`, mnemonic, n.GetChainConfig().BinaryName, name, keyring.BackendTest, n.GetChainConfig().CoinType, n.GetChainConfig().HomeDir),
 	}
 
 	_, _, _, err := n.RunCommand(ctx, command)
@@ -47,18 +46,16 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 
 // KeyBech32 returns the bech32 address of a key on the node using the app's binary
 func (n *Node) KeyBech32(ctx context.Context, name, bech string) (string, error) {
-	chainConfig := n.chain.GetConfig()
-
 	command := []string{
-		chainConfig.BinaryName,
-		"keys", "show", name, "-a", "--keyring-backend", keyring.BackendTest, "--home", chainConfig.HomeDir,
+		n.GetChainConfig().BinaryName,
+		"keys", "show", name, "-a", "--keyring-backend", keyring.BackendTest, "--home", n.GetChainConfig().HomeDir,
 	}
 
 	if bech != "" {
 		command = append(command, "--bech", bech)
 	}
 
-	stdout, stderr, exitCode, err := n.Task.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
 	n.logger.Debug("show key", zap.String("name", name), zap.String("stdout", stdout), zap.String("stderr", stderr))
 
 	if err != nil {

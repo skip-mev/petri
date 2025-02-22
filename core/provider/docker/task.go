@@ -4,199 +4,164 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net"
+	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/pkg/stdcopy"
-	"go.uber.org/zap"
-
-	"github.com/skip-mev/petri/core/v2/util"
-
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
-
-	"github.com/skip-mev/petri/core/v2/provider"
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
+	"github.com/skip-mev/petri/core/v3/util"
+	"go.uber.org/zap"
 )
 
-func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
-	if err := definition.ValidateBasic(); err != nil {
-		return "", fmt.Errorf("failed to validate task definition: %w", err)
-	}
-
-	logger = logger.Named("docker_provider")
-
-	if err := p.pullImage(ctx, definition.Image.Image); err != nil {
-		return "", err
-	}
-
-	portSet := convertTaskDefinitionPortsToPortSet(definition)
-	portBindings, listeners, err := p.GeneratePortBindings(portSet)
-	if err != nil {
-		return "", fmt.Errorf("failed to allocate task ports: %v", err)
-	}
-
-	var mounts []mount.Mount
-
-	logger.Debug("creating task", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
-
-	if definition.DataDir != "" {
-		volumeName := fmt.Sprintf("%s-data", definition.Name)
-
-		logger.Debug("creating volume", zap.String("name", volumeName))
-
-		_, err = p.CreateVolume(ctx, provider.VolumeDefinition{
-			Name:      volumeName,
-			Size:      "10GB",
-			MountPath: definition.DataDir,
-		})
-		if err != nil {
-			return "", fmt.Errorf("failed to create dataDir: %v", err)
-		}
-
-		volumeMount := mount.Mount{
-			Type:   mount.TypeVolume,
-			Source: volumeName,
-			Target: definition.DataDir,
-		}
-
-		logger.Debug("setting volume owner", zap.String("name", volumeName), zap.String("uid", definition.Image.UID), zap.String("gid", definition.Image.GID))
-
-		if err = p.SetVolumeOwner(ctx, volumeName, definition.Image.UID, definition.Image.GID); err != nil {
-			return "", fmt.Errorf("failed to set volume owner: %v", err)
-		}
-
-		mounts = []mount.Mount{volumeMount}
-	}
-
-	logger.Debug("creating container", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
-
-	// network map is volatile, so we need to mutex update it
-	p.networkMu.Lock()
-	ip, err := p.dockerNetworkAllocator.AllocateNext()
-	p.networkMu.Unlock()
-
-	if err != nil {
-		return "", err
-	}
-
-	createdContainer, err := p.dockerClient.ContainerCreate(ctx, &container.Config{
-		Image:      definition.Image.Image,
-		Entrypoint: definition.Entrypoint,
-		Cmd:        definition.Command,
-		Tty:        false,
-		Hostname:   definition.Name,
-		Labels: map[string]string{
-			providerLabelName: p.name,
-		},
-		Env: convertEnvMapToList(definition.Environment),
-	}, &container.HostConfig{
-		Mounts:          mounts,
-		PortBindings:    portBindings,
-		PublishAllPorts: true,
-		NetworkMode:     container.NetworkMode(p.dockerNetworkName),
-	}, &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			p.dockerNetworkName: {
-				IPAMConfig: &network.EndpointIPAMConfig{
-					IPv4Address: ip.String(),
-				},
-			},
-		},
-	}, nil, definition.ContainerName)
-	if err != nil {
-		listeners.CloseAll()
-		return "", err
-	}
-
-	// network map is volatile, so we need to mutex update it
-	p.networkMu.Lock()
-	p.listeners[createdContainer.ID] = listeners
-	p.networkMu.Unlock()
-
-	return createdContainer.ID, nil
+type TaskState struct {
+	Id               string                  `json:"id"`
+	Name             string                  `json:"name"`
+	Volume           *VolumeState            `json:"volumes"`
+	Definition       provider.TaskDefinition `json:"definition"`
+	Status           provider.TaskStatus     `json:"status"`
+	IpAddress        string                  `json:"ip_address"`
+	BuilderImageName string                  `json:"builder_image_name"`
+	NetworkName      string                  `json:"network_name"`
 }
 
-func (p *Provider) pullImage(ctx context.Context, imageName string) error {
-	_, _, err := p.dockerClient.ImageInspectWithRaw(ctx, imageName)
-	if err != nil {
-		p.logger.Info("image not found, pulling", zap.String("image", imageName))
-		resp, err := p.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
-		if err != nil {
-			return err
-		}
-		defer resp.Close()
-
-		// throw away the image pull stdout response
-		_, err = io.Copy(io.Discard, resp)
-		return err
-	}
-	return nil
+type VolumeState struct {
+	Name string `json:"name"`
+	Size string `json:"size"`
 }
 
-func (p *Provider) StartTask(ctx context.Context, id string) error {
-	p.logger.Info("starting task", zap.String("id", id))
-	p.networkMu.Lock()
-	defer p.networkMu.Unlock()
+type Task struct {
+	state        *TaskState
+	stateMu      sync.Mutex
+	logger       *zap.Logger
+	dockerClient clients.DockerClient
+	removeTask   provider.RemoveTaskFunc
+}
 
-	if _, ok := p.listeners[id]; !ok {
-		return fmt.Errorf("task port listeners %s not found", id)
-	}
+var _ provider.TaskI = (*Task)(nil)
 
-	p.listeners[id].CloseAll()
+func (t *Task) Start(ctx context.Context) error {
+	state := t.GetState()
+	t.logger.Info("starting task", zap.String("id", state.Id))
 
-	err := p.dockerClient.ContainerStart(ctx, id, container.StartOptions{})
+	err := t.dockerClient.ContainerStart(ctx, state.Id, container.StartOptions{})
 	if err != nil {
 		return err
 	}
 
-	for {
-		status, err := p.GetTaskStatus(ctx, id)
-		if err != nil {
-			return err
-		}
-
-		if status == provider.TASK_RUNNING {
-			return nil
-		}
-		time.Sleep(time.Millisecond * 100)
-	}
-}
-
-func (p *Provider) StopTask(ctx context.Context, id string) error {
-	p.logger.Info("stopping task", zap.String("id", id))
-	err := p.dockerClient.ContainerStop(ctx, id, container.StopOptions{})
-	if err != nil {
+	if err := t.WaitForStatus(ctx, 1*time.Second, provider.TASK_RUNNING); err != nil {
 		return err
 	}
+
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
+	t.state.Status = provider.TASK_RUNNING
 
 	return nil
 }
 
-func (p *Provider) DestroyTask(ctx context.Context, id string) error {
-	p.logger.Info("destroying task", zap.String("id", id))
-	err := p.dockerClient.ContainerRemove(ctx, id, container.RemoveOptions{
+func (t *Task) Stop(ctx context.Context) error {
+	state := t.GetState()
+	t.logger.Info("stopping task", zap.String("id", state.Id))
+
+	err := t.dockerClient.ContainerStop(ctx, state.Id, container.StopOptions{})
+	if err != nil {
+		return err
+	}
+
+	if err := t.WaitForStatus(ctx, 1*time.Second, provider.TASK_STOPPED); err != nil {
+		return err
+	}
+
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
+	t.state.Status = provider.TASK_STOPPED
+
+	return nil
+}
+
+func (t *Task) Destroy(ctx context.Context) error {
+	state := t.GetState()
+	t.logger.Info("destroying task", zap.String("id", state.Id))
+
+	err := t.dockerClient.ContainerRemove(ctx, state.Id, container.RemoveOptions{
 		Force:         true,
 		RemoveVolumes: true,
 	})
+
 	if err != nil {
+		return err
+	}
+
+	if err := t.removeTask(ctx, state.Id); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (p *Provider) GetTaskStatus(ctx context.Context, id string) (provider.TaskStatus, error) {
-	container, err := p.dockerClient.ContainerInspect(ctx, id)
+func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
+	state := t.GetState()
+	t.logger.Debug("getting external address", zap.String("id", state.Id))
+
+	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	portBindings, ok := dockerContainer.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
+	if !ok || len(portBindings) == 0 {
+		return "", fmt.Errorf("port %s not found", port)
+	}
+
+	return fmt.Sprintf("0.0.0.0:%s", portBindings[0].HostPort), nil
+}
+
+func (t *Task) GetIP(ctx context.Context) (string, error) {
+	state := t.GetState()
+	t.logger.Debug("getting IP", zap.String("id", state.Id))
+
+	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
+	if err != nil {
+		return "", err
+	}
+
+	ip := dockerContainer.NetworkSettings.Networks[state.NetworkName].IPAMConfig.IPv4Address
+	return ip, nil
+}
+
+func (t *Task) WaitForStatus(ctx context.Context, interval time.Duration, desiredStatus provider.TaskStatus) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			status, err := t.GetStatus(ctx)
+			if err != nil {
+				return err
+			}
+
+			if status == desiredStatus {
+				return nil
+			}
+			time.Sleep(interval)
+		}
+	}
+}
+
+func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
+	containerJSON, err := t.dockerClient.ContainerInspect(ctx, t.GetState().Id)
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}
 
-	switch state := container.State.Status; state {
+	switch state := containerJSON.State.Status; state {
 	case "created":
 		return provider.TASK_STOPPED, nil
 	case "running":
@@ -204,7 +169,7 @@ func (p *Provider) GetTaskStatus(ctx context.Context, id string) (provider.TaskS
 	case "paused":
 		return provider.TASK_PAUSED, nil
 	case "restarting":
-		return provider.TASK_RUNNING, nil // todo(zygimantass): is this sane?
+		return provider.TASK_RESTARTING, nil
 	case "removing":
 		return provider.TASK_STOPPED, nil
 	case "exited":
@@ -216,19 +181,47 @@ func (p *Provider) GetTaskStatus(ctx context.Context, id string) (provider.TaskS
 	return provider.TASK_STATUS_UNDEFINED, nil
 }
 
-func (p *Provider) RunCommand(ctx context.Context, id string, command []string) (string, string, int, error) {
-	p.logger.Debug("running command", zap.String("id", id), zap.Strings("command", command))
+func (t *Task) Modify(ctx context.Context, td provider.TaskDefinition) error {
+	panic("unimplemented")
+}
 
-	exec, err := p.dockerClient.ContainerExecCreate(ctx, id, container.ExecOptions{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          command,
-	})
+func (t *Task) RunCommand(ctx context.Context, cmd []string) (string, string, int, error) {
+	status, err := t.GetStatus(ctx)
 	if err != nil {
 		return "", "", 0, err
 	}
 
-	resp, err := p.dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
+	if status != provider.TASK_RUNNING {
+		return t.runCommandWhileStopped(ctx, cmd)
+	}
+
+	return t.runCommand(ctx, cmd)
+}
+
+func (t *Task) runCommand(ctx context.Context, cmd []string) (string, string, int, error) {
+	state := t.GetState()
+	t.logger.Debug("running command", zap.String("id", state.Id), zap.Strings("command", cmd))
+
+	exec, err := t.dockerClient.ContainerExecCreate(ctx, state.Id, container.ExecOptions{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          cmd,
+	})
+	if err != nil {
+		if buf, err := t.dockerClient.ContainerLogs(ctx, state.Id, container.LogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+		}); err == nil {
+			defer buf.Close()
+			var out bytes.Buffer
+			_, _ = out.ReadFrom(buf)
+			fmt.Println(out.String())
+		}
+
+		return "", "", 0, err
+	}
+
+	resp, err := t.dockerClient.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -237,23 +230,32 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 
 	lastExitCode := 0
 
-	err = util.WaitForCondition(ctx, 10*time.Second, 100*time.Millisecond, func() (bool, error) {
-		execInspect, err := p.dockerClient.ContainerExecInspect(ctx, exec.ID)
-		if err != nil {
-			return false, err
+	//TODO(Zygimantass): talk with Eric about best practices here
+	ticker := time.NewTicker(1 * time.Second)
+
+	//TODO(Zygimantass): i hate this
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			return "", "", lastExitCode, ctx.Err()
+		case <-ticker.C:
+			execInspect, err := t.dockerClient.ContainerExecInspect(ctx, exec.ID)
+			if err != nil {
+				return "", "", lastExitCode, err
+			}
+
+			if execInspect.Running {
+				continue
+			}
+
+			lastExitCode = execInspect.ExitCode
+			break loop
 		}
-
-		if execInspect.Running {
-			return false, nil
-		}
-
-		lastExitCode = execInspect.ExitCode
-
-		return true, nil
-	})
+	}
 
 	if err != nil {
-		p.logger.Error("failed to wait for exec", zap.Error(err), zap.String("id", id))
+		t.logger.Error("failed to wait for exec", zap.Error(err), zap.String("id", t.GetState().Id))
 		return "", "", lastExitCode, err
 	}
 
@@ -266,96 +268,144 @@ func (p *Provider) RunCommand(ctx context.Context, id string, command []string) 
 	return stdout.String(), stderr.String(), lastExitCode, nil
 }
 
-func (p *Provider) RunCommandWhileStopped(ctx context.Context, id string, definition provider.TaskDefinition, command []string) (string, string, int, error) {
+func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string, string, int, error) {
+	state := t.GetState()
+	definition := t.GetState().Definition
 	if err := definition.ValidateBasic(); err != nil {
 		return "", "", 0, fmt.Errorf("failed to validate task definition: %w", err)
 	}
 
-	p.logger.Debug("running command while stopped", zap.String("id", id), zap.Strings("command", command))
+	t.logger.Debug("running command while stopped", zap.String("id", state.Id), zap.Strings("command", cmd))
 
-	status, err := p.GetTaskStatus(ctx, id)
+	status, err := t.GetStatus(ctx)
 	if err != nil {
 		return "", "", 0, err
 	}
 
 	if status == provider.TASK_RUNNING {
-		return p.RunCommand(ctx, id, command)
+		return t.RunCommand(ctx, cmd)
 	}
 
-	definition.Entrypoint = []string{"sh", "-c"}
+	definition.Entrypoint = []string{"/bin/sh", "-c"}
 	definition.Command = []string{"sleep 36000"}
 	definition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", definition.Name, util.RandomString(5), time.Now().Unix())
 	definition.Ports = []string{}
 
-	task, err := p.CreateTask(ctx, p.logger, definition)
-	if err != nil {
-		return "", "", 0, err
+	containerConfig := &container.Config{
+		Image:      definition.Image.Image,
+		Entrypoint: definition.Entrypoint,
+		Cmd:        definition.Command,
+		Tty:        false,
+		Hostname:   definition.Name,
+		Env:        convertEnvMapToList(definition.Environment),
 	}
 
-	err = p.StartTask(ctx, task)
-	defer p.DestroyTask(ctx, task) // nolint:errcheck
-
-	if err != nil {
-		return "", "", 0, err
-	}
-
-	stdout, stderr, exitCode, err := p.RunCommand(ctx, task, command)
-	if err != nil {
-		return "", "", 0, err
-	}
-
-	return stdout, stderr, exitCode, nil
-}
-
-func (p *Provider) GetIP(ctx context.Context, id string) (string, error) {
-	p.logger.Debug("getting IP", zap.String("id", id))
-
-	container, err := p.dockerClient.ContainerInspect(ctx, id)
-	if err != nil {
-		return "", err
-	}
-
-	ip := container.NetworkSettings.Networks[p.dockerNetworkName].IPAMConfig.IPv4Address
-
-	return ip, nil
-}
-
-func (p *Provider) GetExternalAddress(ctx context.Context, id string, port string) (string, error) {
-	p.logger.Debug("getting external address", zap.String("id", id), zap.String("port", port))
-
-	container, err := p.dockerClient.ContainerInspect(ctx, id)
-	if err != nil {
-		return "", err
-	}
-
-	portBindings, ok := container.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
-
-	if !ok || len(portBindings) == 0 {
-		return "", fmt.Errorf("could not find port %s", port)
-	}
-
-	ip := portBindings[0].HostIP
-
-	return net.JoinHostPort(ip, portBindings[0].HostPort), nil
-}
-
-func (p *Provider) teardownTasks(ctx context.Context) error {
-	p.logger.Info("tearing down tasks")
-
-	containers, err := p.dockerClient.ContainerList(ctx, container.ListOptions{
-		All:     true,
-		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.name))),
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, filteredContainer := range containers {
-		err := p.DestroyTask(ctx, filteredContainer.ID)
-		if err != nil {
-			return err
+	var mounts []mount.Mount
+	if state.Volume != nil {
+		mounts = []mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: state.Volume.Name,
+				Target: definition.DataDir,
+			},
 		}
 	}
 
+	hostConfig := &container.HostConfig{
+		NetworkMode: container.NetworkMode(state.NetworkName),
+		Mounts:      mounts,
+	}
+
+	resp, err := t.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, definition.ContainerName)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	tempTask := &Task{
+		state: &TaskState{
+			Id:          resp.ID,
+			Name:        definition.Name,
+			Definition:  definition,
+			Status:      provider.TASK_STOPPED,
+			NetworkName: state.NetworkName,
+		},
+		logger:       t.logger.With(zap.String("temp_task", definition.Name)),
+		dockerClient: t.dockerClient,
+		removeTask:   t.removeTask,
+	}
+
+	err = tempTask.Start(ctx)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	defer func() {
+		if err := tempTask.Destroy(ctx); err != nil {
+			t.logger.Error("failed to destroy temporary task", zap.Error(err))
+		}
+	}()
+
+	return tempTask.RunCommand(ctx, cmd)
+}
+
+func (t *Task) GetState() TaskState {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+	return *t.state
+}
+
+func (t *Task) ensureTask(ctx context.Context) error {
+	state := t.GetState()
+
+	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
+	if err != nil {
+		return fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	actualStatus, err := t.GetStatus(ctx)
+
+	if err != nil {
+		return fmt.Errorf("failed to get task status: %w", err)
+	}
+
+	if actualStatus != state.Status {
+		return fmt.Errorf("task status mismatch, expected: %d, got: %d", state.Status, actualStatus)
+	}
+
+	// ref: https://github.com/moby/moby/issues/6705
+	if dockerContainer.Name != fmt.Sprintf("/%s", state.Name) {
+		return fmt.Errorf("task name mismatch, expected: %s, got: %s", state.Name, dockerContainer.Name)
+	}
+
+	if err := t.ensureVolume(ctx); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (t *Task) ensureVolume(ctx context.Context) error {
+	state := t.GetState()
+	if state.Volume == nil {
+		return nil
+	}
+
+	volume, err := t.dockerClient.VolumeInspect(ctx, state.Volume.Name)
+	if err != nil {
+		return fmt.Errorf("failed to inspect volume: %w", err)
+	}
+
+	if volume.Name != state.Volume.Name {
+		return fmt.Errorf("volume name mismatch, expected: %s, got: %s", state.Volume.Name, volume.Name)
+	}
+
+	return nil
+}
+
+func (t *Task) GetDefinition() provider.TaskDefinition {
+	return t.GetState().Definition
+}
+
+func (t *Task) DialContext() func(context.Context, string, string) (net.Conn, error) {
+	return (&net.Dialer{}).DialContext
 }
