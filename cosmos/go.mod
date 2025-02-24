@@ -7,7 +7,6 @@ toolchain go1.23.5
 replace (
 	github.com/cosmos/cosmos-sdk/api => cosmossdk.io/api v0.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/skip-mev/petri/core/v3 => ../core
 )
 
 require (
