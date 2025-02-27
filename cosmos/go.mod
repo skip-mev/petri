@@ -24,12 +24,12 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.9.0
 	google.golang.org/grpc v1.68.0
+	tailscale.com v1.78.3
 )
 
 require (
 	4d63.com/gocheckcompilerdirectives v1.2.1 // indirect
 	4d63.com/gochecknoglobals v0.2.1 // indirect
-	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	cosmossdk.io/api v0.7.5 // indirect
 	cosmossdk.io/collections v0.4.0 // indirect
 	cosmossdk.io/core v0.11.1 // indirect
@@ -371,5 +371,4 @@ require (
 	mvdan.cc/unparam v0.0.0-20240104100049-c549a3470d14 // indirect
 	pgregory.net/rapid v1.1.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
-	tailscale.com v1.78.3 // indirect
 )

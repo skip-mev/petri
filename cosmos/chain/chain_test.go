@@ -109,11 +109,13 @@ func TestChainSerialization(t *testing.T) {
 
 	require.NotEmpty(t, state)
 
-	c2, err := chain.RestoreChain(ctx, logger, p2, state, node.RestoreNode)
+	c2, err := chain.RestoreChain(ctx, logger, p2, state, node.RestoreNode, defaultChainOptions)
 	require.NoError(t, err)
 
 	require.Equal(t, c.GetConfig(), c2.GetConfig())
 	require.Equal(t, len(c.GetValidators()), len(c2.GetValidators()))
+	require.Equal(t, len(c.GetValidatorWallets()), len(c2.GetValidatorWallets()))
+	require.Equal(t, c.GetFaucetWallet(), c2.GetFaucetWallet())
 
 	if !t.Failed() {
 		require.NoError(t, c.Teardown(ctx))

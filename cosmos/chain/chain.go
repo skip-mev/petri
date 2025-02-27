@@ -23,8 +23,10 @@ import (
 
 type PackagedState struct {
 	State
-	ValidatorStates [][]byte
-	NodeStates      [][]byte
+	ValidatorStates  [][]byte
+	NodeStates       [][]byte
+	ValidatorWallets []string
+	FaucetWallet     string
 }
 
 type State struct {
@@ -142,7 +144,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 }
 
 // RestoreChain restores a Chain object from a serialized state
-func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, state []byte, nodeRestore petritypes.NodeRestorer) (*Chain, error) {
+func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, state []byte, nodeRestore petritypes.NodeRestorer, opts petritypes.ChainOptions) (*Chain, error) {
 	var packagedState PackagedState
 
 	if err := json.Unmarshal(state, &packagedState); err != nil {
@@ -170,6 +172,23 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 		}
 
 		chain.Nodes = append(chain.Nodes, n)
+	}
+
+	chain.ValidatorWallets = make([]petritypes.WalletI, len(packagedState.ValidatorWallets))
+	for i, mnemonic := range packagedState.ValidatorWallets {
+		wallet, err := chain.BuildWallet(ctx, petritypes.ValidatorKeyName, mnemonic, opts.WalletConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to restore validator wallet: %w", err)
+		}
+		chain.ValidatorWallets[i] = wallet
+	}
+
+	if packagedState.FaucetWallet != "" {
+		wallet, err := chain.BuildWallet(ctx, petritypes.FaucetAccountKeyName, packagedState.FaucetWallet, opts.WalletConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to restore faucet wallet: %w", err)
+		}
+		chain.FaucetWallet = wallet
 	}
 
 	return &chain, nil
@@ -562,6 +581,14 @@ func (c *Chain) Serialize(ctx context.Context, p provider.ProviderI) ([]byte, er
 		}
 
 		state.NodeStates = append(state.NodeStates, ns)
+	}
+
+	for _, w := range c.ValidatorWallets {
+		state.ValidatorWallets = append(state.ValidatorWallets, w.Mnemonic())
+	}
+
+	if c.FaucetWallet != nil {
+		state.FaucetWallet = c.FaucetWallet.Mnemonic()
 	}
 
 	return json.Marshal(state)
