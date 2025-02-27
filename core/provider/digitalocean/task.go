@@ -158,8 +158,17 @@ func (p *Provider) StopTask(ctx context.Context, taskName string) error {
 	return err
 }
 
+<<<<<<< HEAD
 func (p *Provider) DestroyTask(ctx context.Context, taskName string) error {
 	logger := p.logger.With(zap.String("task", taskName))
+=======
+func (t *Task) Modify(ctx context.Context, definition provider.TaskDefinition) error {
+	panic("implement me")
+}
+
+func (t *Task) Destroy(ctx context.Context) error {
+	logger := t.logger.With(zap.String("task", t.GetState().Name))
+>>>>>>> a6b45ec (chore: cleanup unused files)
 	logger.Info("deleting task")
 
 	err := p.deleteDroplet(ctx, taskName)
