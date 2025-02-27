@@ -97,7 +97,7 @@ func TestDockerE2E(t *testing.T) {
 		chainState, err := chains[i].Serialize(ctx, restoredProvider)
 		require.NoError(t, err)
 
-		restoredChain, err := cosmoschain.RestoreChain(ctx, logger, restoredProvider, chainState, node.RestoreNode, defaultChainOptions)
+		restoredChain, err := cosmoschain.RestoreChain(ctx, logger, restoredProvider, chainState, node.RestoreNode, defaultChainOptions.WalletConfig)
 		require.NoError(t, err)
 
 		require.Equal(t, chains[i].GetConfig(), restoredChain.GetConfig())

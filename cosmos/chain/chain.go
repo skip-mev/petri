@@ -144,7 +144,8 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 }
 
 // RestoreChain restores a Chain object from a serialized state
-func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, state []byte, nodeRestore petritypes.NodeRestorer, opts petritypes.ChainOptions) (*Chain, error) {
+func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, state []byte,
+	nodeRestore petritypes.NodeRestorer, walletConfig petritypes.WalletConfig) (*Chain, error) {
 	var packagedState PackagedState
 
 	if err := json.Unmarshal(state, &packagedState); err != nil {
@@ -176,7 +177,7 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 
 	chain.ValidatorWallets = make([]petritypes.WalletI, len(packagedState.ValidatorWallets))
 	for i, mnemonic := range packagedState.ValidatorWallets {
-		wallet, err := chain.BuildWallet(ctx, petritypes.ValidatorKeyName, mnemonic, opts.WalletConfig)
+		wallet, err := chain.BuildWallet(ctx, petritypes.ValidatorKeyName, mnemonic, walletConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore validator wallet: %w", err)
 		}
@@ -184,7 +185,7 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 	}
 
 	if packagedState.FaucetWallet != "" {
-		wallet, err := chain.BuildWallet(ctx, petritypes.FaucetAccountKeyName, packagedState.FaucetWallet, opts.WalletConfig)
+		wallet, err := chain.BuildWallet(ctx, petritypes.FaucetAccountKeyName, packagedState.FaucetWallet, walletConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore faucet wallet: %w", err)
 		}

@@ -109,7 +109,7 @@ func TestChainSerialization(t *testing.T) {
 
 	require.NotEmpty(t, state)
 
-	c2, err := chain.RestoreChain(ctx, logger, p2, state, node.RestoreNode, defaultChainOptions)
+	c2, err := chain.RestoreChain(ctx, logger, p2, state, node.RestoreNode, defaultChainOptions.WalletConfig)
 	require.NoError(t, err)
 
 	require.Equal(t, c.GetConfig(), c2.GetConfig())
