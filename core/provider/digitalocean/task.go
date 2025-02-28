@@ -109,10 +109,6 @@ func (t *Task) Stop(ctx context.Context) error {
 	return t.dockerClient.ContainerStop(ctx, containers[0].ID, container.StopOptions{})
 }
 
-func (t *Task) Initialize(ctx context.Context) error {
-	panic("implement me")
-}
-
 func (t *Task) Modify(ctx context.Context, definition provider.TaskDefinition) error {
 	panic("implement me")
 }
