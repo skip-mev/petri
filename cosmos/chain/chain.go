@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skip-mev/petri/cosmos/v3/wallet"
 	"math"
 	"strings"
 	"sync"
@@ -153,43 +154,57 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 	}
 
 	chain := Chain{
-		State:  packagedState.State,
-		logger: logger,
+		State:      packagedState.State,
+		logger:     logger,
+		Validators: make([]petritypes.NodeI, len(packagedState.ValidatorStates)),
+		Nodes:      make([]petritypes.NodeI, len(packagedState.NodeStates)),
 	}
 
-	for _, vs := range packagedState.ValidatorStates {
-		v, err := nodeRestore(ctx, logger, vs, infraProvider)
-		if err != nil {
-			return nil, err
-		}
+	eg := new(errgroup.Group)
 
-		chain.Validators = append(chain.Validators, v)
+	for i, vs := range packagedState.ValidatorStates {
+		eg.Go(func() error {
+			i := i
+			v, err := nodeRestore(ctx, logger, vs, infraProvider)
+
+			if err != nil {
+				return err
+			}
+
+			chain.Validators[i] = v
+			return nil
+		})
 	}
 
-	for _, ns := range packagedState.NodeStates {
-		n, err := nodeRestore(ctx, logger, ns, infraProvider)
-		if err != nil {
-			return nil, err
-		}
+	for i, ns := range packagedState.NodeStates {
+		eg.Go(func() error {
+			i := i
+			v, err := nodeRestore(ctx, logger, ns, infraProvider)
 
-		chain.Nodes = append(chain.Nodes, n)
+			if err != nil {
+				return err
+			}
+
+			chain.Nodes[i] = v
+			return nil
+		})
 	}
 
 	chain.ValidatorWallets = make([]petritypes.WalletI, len(packagedState.ValidatorWallets))
 	for i, mnemonic := range packagedState.ValidatorWallets {
-		wallet, err := chain.BuildWallet(ctx, petritypes.ValidatorKeyName, mnemonic, walletConfig)
+		w, err := wallet.NewWallet(petritypes.ValidatorKeyName, mnemonic, walletConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore validator wallet: %w", err)
 		}
-		chain.ValidatorWallets[i] = wallet
+		chain.ValidatorWallets[i] = w
 	}
 
 	if packagedState.FaucetWallet != "" {
-		wallet, err := chain.BuildWallet(ctx, petritypes.FaucetAccountKeyName, packagedState.FaucetWallet, walletConfig)
+		w, err := wallet.NewWallet(petritypes.ValidatorKeyName, packagedState.FaucetWallet, walletConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore faucet wallet: %w", err)
 		}
-		chain.FaucetWallet = wallet
+		chain.FaucetWallet = w
 	}
 
 	return &chain, nil
