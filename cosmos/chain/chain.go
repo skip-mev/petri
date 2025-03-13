@@ -83,7 +83,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	for i := 0; i < config.NumValidators; i++ {
 		i := i
 		eg.Go(func() error {
-			validatorName := fmt.Sprintf("%s-validator-%d", config.ChainId, i)
+			validatorName := fmt.Sprintf("validator-%d", i)
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
@@ -111,7 +111,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		i := i
 
 		eg.Go(func() error {
-			nodeName := fmt.Sprintf("%s-node-%d", config.ChainId, i)
+			nodeName := fmt.Sprintf("node-%d", i)
 
 			logger.Info("creating node", zap.String("name", nodeName))
 
@@ -188,6 +188,10 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 			chain.Nodes[i] = v
 			return nil
 		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 
 	chain.ValidatorWallets = make([]petritypes.WalletI, len(packagedState.ValidatorWallets))
