@@ -204,7 +204,7 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 	}
 
 	if packagedState.FaucetWallet != "" {
-		w, err := wallet.NewWallet(petritypes.ValidatorKeyName, packagedState.FaucetWallet, walletConfig)
+		w, err := wallet.NewWallet(petritypes.FaucetAccountKeyName, packagedState.FaucetWallet, walletConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore faucet wallet: %w", err)
 		}
