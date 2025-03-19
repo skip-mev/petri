@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/skip-mev/petri/cosmos/v3/wallet"
+
 	sdkmath "cosmossdk.io/math"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
@@ -19,12 +21,15 @@ import (
 
 	"github.com/skip-mev/petri/core/v3/provider"
 	petritypes "github.com/skip-mev/petri/core/v3/types"
+	"github.com/skip-mev/petri/core/v3/util"
 )
 
 type PackagedState struct {
 	State
-	ValidatorStates [][]byte
-	NodeStates      [][]byte
+	ValidatorStates  [][]byte
+	NodeStates       [][]byte
+	ValidatorWallets []string
+	FaucetWallet     string
 }
 
 type State struct {
@@ -80,7 +85,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	for i := 0; i < config.NumValidators; i++ {
 		i := i
 		eg.Go(func() error {
-			validatorName := fmt.Sprintf("%s-validator-%d", config.ChainId, i)
+			validatorName := fmt.Sprintf("validator-%d-%s", i, util.RandomString(8))
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
@@ -108,7 +113,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		i := i
 
 		eg.Go(func() error {
-			nodeName := fmt.Sprintf("%s-node-%d", config.ChainId, i)
+			nodeName := fmt.Sprintf("node-%d-%s", i, util.RandomString(8))
 
 			logger.Info("creating node", zap.String("name", nodeName))
 
@@ -142,7 +147,8 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 }
 
 // RestoreChain restores a Chain object from a serialized state
-func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, state []byte, nodeRestore petritypes.NodeRestorer) (*Chain, error) {
+func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, state []byte,
+	nodeRestore petritypes.NodeRestorer, walletConfig petritypes.WalletConfig) (*Chain, error) {
 	var packagedState PackagedState
 
 	if err := json.Unmarshal(state, &packagedState); err != nil {
@@ -150,26 +156,61 @@ func RestoreChain(ctx context.Context, logger *zap.Logger, infraProvider provide
 	}
 
 	chain := Chain{
-		State:  packagedState.State,
-		logger: logger,
+		State:      packagedState.State,
+		logger:     logger,
+		Validators: make([]petritypes.NodeI, len(packagedState.ValidatorStates)),
+		Nodes:      make([]petritypes.NodeI, len(packagedState.NodeStates)),
 	}
 
-	for _, vs := range packagedState.ValidatorStates {
-		v, err := nodeRestore(ctx, logger, vs, infraProvider)
-		if err != nil {
-			return nil, err
-		}
+	eg := new(errgroup.Group)
 
-		chain.Validators = append(chain.Validators, v)
+	for i, vs := range packagedState.ValidatorStates {
+		eg.Go(func() error {
+			i := i
+			v, err := nodeRestore(ctx, logger, vs, infraProvider)
+
+			if err != nil {
+				return err
+			}
+
+			chain.Validators[i] = v
+			return nil
+		})
 	}
 
-	for _, ns := range packagedState.NodeStates {
-		n, err := nodeRestore(ctx, logger, ns, infraProvider)
-		if err != nil {
-			return nil, err
-		}
+	for i, ns := range packagedState.NodeStates {
+		eg.Go(func() error {
+			i := i
+			v, err := nodeRestore(ctx, logger, ns, infraProvider)
 
-		chain.Nodes = append(chain.Nodes, n)
+			if err != nil {
+				return err
+			}
+
+			chain.Nodes[i] = v
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	chain.ValidatorWallets = make([]petritypes.WalletI, len(packagedState.ValidatorWallets))
+	for i, mnemonic := range packagedState.ValidatorWallets {
+		w, err := wallet.NewWallet(petritypes.ValidatorKeyName, mnemonic, walletConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to restore validator wallet: %w", err)
+		}
+		chain.ValidatorWallets[i] = w
+	}
+
+	if packagedState.FaucetWallet != "" {
+		w, err := wallet.NewWallet(petritypes.FaucetAccountKeyName, packagedState.FaucetWallet, walletConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to restore faucet wallet: %w", err)
+		}
+		chain.FaucetWallet = w
 	}
 
 	return &chain, nil
@@ -562,6 +603,14 @@ func (c *Chain) Serialize(ctx context.Context, p provider.ProviderI) ([]byte, er
 		}
 
 		state.NodeStates = append(state.NodeStates, ns)
+	}
+
+	for _, w := range c.ValidatorWallets {
+		state.ValidatorWallets = append(state.ValidatorWallets, w.Mnemonic())
+	}
+
+	if c.FaucetWallet != nil {
+		state.FaucetWallet = c.FaucetWallet.Mnemonic()
 	}
 
 	return json.Marshal(state)

@@ -4,9 +4,10 @@ import (
 	"context"
 	"flag"
 	"os"
-	"tailscale.com/tsnet"
 	"testing"
 	"time"
+
+	"tailscale.com/tsnet"
 
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
@@ -154,7 +155,7 @@ func TestDOE2E(t *testing.T) {
 		chainState, err := chains[i].Serialize(ctx, restoredProvider)
 		require.NoError(t, err)
 
-		restoredChain, err := cosmoschain.RestoreChain(ctx, logger, restoredProvider, chainState, node.RestoreNode)
+		restoredChain, err := cosmoschain.RestoreChain(ctx, logger, restoredProvider, chainState, node.RestoreNode, defaultChainOptions.WalletConfig)
 		require.NoError(t, err)
 
 		require.Equal(t, chains[i].GetConfig(), restoredChain.GetConfig())
