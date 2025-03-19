@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/skip-mev/petri/cosmos/v3/wallet"
 	"math"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/skip-mev/petri/cosmos/v3/wallet"
 
 	sdkmath "cosmossdk.io/math"
 
@@ -20,6 +21,7 @@ import (
 
 	"github.com/skip-mev/petri/core/v3/provider"
 	petritypes "github.com/skip-mev/petri/core/v3/types"
+	"github.com/skip-mev/petri/core/v3/util"
 )
 
 type PackagedState struct {
@@ -83,7 +85,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	for i := 0; i < config.NumValidators; i++ {
 		i := i
 		eg.Go(func() error {
-			validatorName := fmt.Sprintf("validator-%d", i)
+			validatorName := fmt.Sprintf("validator-%d-%s", i, util.RandomString(8))
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
@@ -111,7 +113,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		i := i
 
 		eg.Go(func() error {
-			nodeName := fmt.Sprintf("node-%d", i)
+			nodeName := fmt.Sprintf("node-%d-%s", i, util.RandomString(8))
 
 			logger.Info("creating node", zap.String("name", nodeName))
 
