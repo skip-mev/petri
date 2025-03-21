@@ -177,6 +177,14 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		return nil, err
 	}
 
+	_, _, err := p.dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
+	if err != nil {
+		p.logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
+		if err = p.dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{}); err != nil {
+			return nil, err
+		}
+	}
+
 	portSet := convertTaskDefinitionPortsToPortSet(definition)
 	portBindings, err := p.GeneratePortBindings(portSet)
 	if err != nil {
