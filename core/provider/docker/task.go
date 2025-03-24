@@ -259,7 +259,8 @@ loop:
 		return "", "", lastExitCode, err
 	}
 
-	t.logger.Debug("", zap.Any("stdout", stdout.String()), zap.Any("stderr", stderr.String()))
+	t.logger.Debug("runcommand logs", zap.Strings("cmd", cmd), zap.String("stdout", stdout.String()),
+		zap.String("stderr", stderr.String()))
 
 	return stdout.String(), stderr.String(), lastExitCode, nil
 }
