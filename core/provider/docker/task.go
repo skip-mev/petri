@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/go-connections/nat"
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/clients"
 	"github.com/skip-mev/petri/core/v3/util"
@@ -108,19 +107,14 @@ func (t *Task) Destroy(ctx context.Context) error {
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
 	state := t.GetState()
-	t.logger.Debug("getting external address", zap.String("id", state.Id))
 
 	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect container: %w", err)
 	}
 
-	portBindings, ok := dockerContainer.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
-	if !ok || len(portBindings) == 0 {
-		return "", fmt.Errorf("port %s not found", port)
-	}
-
-	return fmt.Sprintf("0.0.0.0:%s", portBindings[0].HostPort), nil
+	ip := dockerContainer.NetworkSettings.Networks[state.NetworkName].IPAddress
+	return fmt.Sprintf("%s:%s", ip, port), nil
 }
 
 func (t *Task) GetIP(ctx context.Context) (string, error) {
@@ -264,6 +258,8 @@ loop:
 	if err != nil {
 		return "", "", lastExitCode, err
 	}
+
+	t.logger.Debug("", zap.Any("stdout", stdout.String()), zap.Any("stderr", stderr.String()))
 
 	return stdout.String(), stderr.String(), lastExitCode, nil
 }
