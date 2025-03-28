@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -61,6 +63,13 @@ func (t *Task) Start(ctx context.Context) error {
 	defer t.stateMu.Unlock()
 
 	t.state.Status = provider.TASK_RUNNING
+
+	// Start collecting logs in a goroutine
+	go func() {
+		if err := t.CollectLogs(ctx); err != nil {
+			t.logger.Error("failed to collect logs", zap.Error(err))
+		}
+	}()
 
 	return nil
 }
@@ -408,4 +417,38 @@ func (t *Task) GetDefinition() provider.TaskDefinition {
 
 func (t *Task) DialContext() func(context.Context, string, string) (net.Conn, error) {
 	return (&net.Dialer{}).DialContext
+}
+
+func (t *Task) CollectLogs(ctx context.Context) error {
+	state := t.GetState()
+	logDir := "/tmp/petri"
+
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	timestamp := time.Now().Format("2006-01-02-15-04-05")
+	logPath := filepath.Join(logDir, fmt.Sprintf("task-%s-%s.log", state.Name, timestamp))
+
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer logFile.Close()
+
+	options := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: true,
+	}
+
+	logs, err := t.dockerClient.ContainerLogs(ctx, state.Id, options)
+	if err != nil {
+		return fmt.Errorf("failed to get container logs: %w", err)
+	}
+	defer logs.Close()
+
+	_, err = stdcopy.StdCopy(logFile, logFile, logs)
+	return err
 }

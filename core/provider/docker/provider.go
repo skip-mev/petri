@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skip-mev/petri/core/v3/util"
 	"net"
 	"sync"
 
@@ -66,10 +67,11 @@ func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string
 		TaskStates:       make(map[string]*TaskState),
 	}
 
+	dLogger, _ := util.DefaultLogger()
 	dockerProvider := &Provider{
 		dockerClient: dockerClient,
 		state:        &state,
-		logger:       logger,
+		logger:       dLogger,
 	}
 
 	network, err := dockerProvider.initNetwork(ctx)
@@ -113,9 +115,10 @@ func RestoreProvider(ctx context.Context, logger *zap.Logger, state []byte) (*Pr
 		return nil, err
 	}
 
+	dLogger, _ := util.DefaultLogger()
 	dockerProvider := &Provider{
 		state:  &providerState,
-		logger: logger,
+		logger: dLogger,
 	}
 
 	dockerClient, err := clients.NewDockerClient("", nil)
@@ -252,6 +255,13 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Mounts:       mounts,
 		PortBindings: portBindings,
 		NetworkMode:  container.NetworkMode(state.NetworkName),
+		LogConfig: container.LogConfig{
+			Type: "json-file",
+			Config: map[string]string{
+				"max-size": "10m",
+				"max-file": "3",
+			},
+		},
 	}, &network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{
 			state.NetworkName: {

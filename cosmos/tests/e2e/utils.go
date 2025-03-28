@@ -3,9 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
 	"sync"
 	"testing"
 
@@ -39,20 +36,6 @@ func AssertNodeShutdown(t *testing.T, ctx context.Context, node types.NodeI) {
 	status, err := node.GetStatus(ctx)
 	require.Error(t, err)
 	require.Equal(t, provider.TASK_STATUS_UNDEFINED, status, "node status should report as undefined after shutdown")
-}
-
-func GetExternalIP() (string, error) {
-	resp, err := http.Get("https://ifconfig.me")
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	ip, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(ip)), nil
 }
 
 // CreateChainsConcurrently creates multiple chains concurrently using the provided configuration

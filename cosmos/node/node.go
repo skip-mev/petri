@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skip-mev/petri/core/v3/util"
 	"net"
 	"net/http"
 	"time"
@@ -42,6 +43,7 @@ var _ petritypes.NodeRestorer = RestoreNode
 
 // CreateNode creates a new logical node and creates the underlying workload for it
 func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, nodeConfig petritypes.NodeConfig, opts petritypes.NodeOptions) (petritypes.NodeI, error) {
+	logger, _ = util.DefaultLogger()
 	if err := nodeConfig.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("failed to validate node config: %w", err)
 	}
@@ -84,6 +86,7 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 }
 
 func RestoreNode(ctx context.Context, logger *zap.Logger, state []byte, p provider.ProviderI) (petritypes.NodeI, error) {
+	logger, _ = util.DefaultLogger()
 	var packagedState PackagedState
 	if err := json.Unmarshal(state, &packagedState); err != nil {
 		return nil, fmt.Errorf("unmarshaling state: %w", err)

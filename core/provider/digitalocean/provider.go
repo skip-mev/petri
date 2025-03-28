@@ -81,9 +81,8 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 		opt(digitalOceanProvider)
 	}
 
-	if digitalOceanProvider.logger == nil {
-		digitalOceanProvider.logger = zap.NewNop()
-	}
+	logger, _ := util.DefaultLogger()
+	digitalOceanProvider.logger = logger
 
 	_, err := digitalOceanProvider.createTag(ctx, petriTag)
 	if err != nil {
