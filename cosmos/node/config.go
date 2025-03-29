@@ -26,7 +26,7 @@ func recursiveModifyToml(c map[string]any, modifications Toml) error {
 			cVM, ok := cV.(map[string]any)
 
 			if !ok {
-				return fmt.Errorf("failed to convert section to (map[string]any), found (%T)", cV)
+				cVM = make(Toml)
 			}
 			if err := recursiveModifyToml(cVM, value.(Toml)); err != nil {
 				return err
