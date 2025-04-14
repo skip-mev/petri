@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -488,11 +489,11 @@ func (c *Chain) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 // GetFullNode returns the first available full node in the chain
 func (c *Chain) GetFullNode() petritypes.NodeI {
 	if len(c.Nodes) > 0 {
-		// use first full node
-		return c.Nodes[0]
+		// use random full node
+		return c.Nodes[rand.Intn(len(c.Nodes)-1)]
 	}
-	// use first validator
-	return c.Validators[0]
+	// use random validator
+	return c.Validators[rand.Intn(len(c.Validators)-1)]
 }
 
 func (c *Chain) WaitForStartup(ctx context.Context) error {
