@@ -17,6 +17,22 @@ import (
 	"strings"
 	"sync"
 	"time"
+<<<<<<< HEAD
+=======
+
+	"github.com/skip-mev/petri/cosmos/v3/wallet"
+
+	sdkmath "cosmossdk.io/math"
+
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cosmos/cosmos-sdk/types"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+
+	"github.com/skip-mev/petri/core/v3/provider"
+	petritypes "github.com/skip-mev/petri/core/v3/types"
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 )
 
 // Chain is a logical representation of a Cosmos-based blockchain
@@ -61,7 +77,11 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	for i := 0; i < config.NumValidators; i++ {
 		i := i
 		eg.Go(func() error {
+<<<<<<< HEAD
 			validatorName := fmt.Sprintf("%s-validator-%d", config.ChainId, i)
+=======
+			validatorName := fmt.Sprintf("%s-validator-%d", config.Name, i)
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
@@ -91,7 +111,11 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		i := i
 
 		eg.Go(func() error {
+<<<<<<< HEAD
 			nodeName := fmt.Sprintf("%s-node-%d", config.ChainId, i)
+=======
+			nodeName := fmt.Sprintf("%s-node-%d", config.Name, i)
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 
 			logger.Info("creating node", zap.String("name", nodeName))
 

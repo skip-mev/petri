@@ -28,8 +28,13 @@ var grafanaDashboardProvisioningConfig string
 
 // SetupGrafanaTask sets up and configures (but does not start) a Grafana task.
 // Additionally, it creates a Prometheus datasource and a dashboard (given the DashboardJSON in GrafanaOptions).
+<<<<<<< HEAD
 func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.Provider, opts GrafanaOptions) (*provider.Task, error) {
 	task, err := provider.CreateTask(ctx, logger, p, provider.TaskDefinition{
+=======
+func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.ProviderI, opts GrafanaOptions) (provider.TaskI, error) {
+	task, err := p.CreateTask(ctx, provider.TaskDefinition{
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 		Name: "grafana",
 		Image: provider.ImageDefinition{
 			Image: "grafana/grafana:main",

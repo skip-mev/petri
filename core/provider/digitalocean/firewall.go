@@ -2,14 +2,22 @@ package digitalocean
 
 import (
 	"context"
+<<<<<<< HEAD
 	"fmt"
+=======
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 	"github.com/digitalocean/godo"
 )
 
 func (p *Provider) createFirewall(ctx context.Context, allowedIPs []string) (*godo.Firewall, error) {
 	req := &godo.FirewallRequest{
+<<<<<<< HEAD
 		Name: fmt.Sprintf("%s-firewall", p.petriTag),
 		Tags: []string{p.petriTag},
+=======
+		Name: state.PetriTag,
+		Tags: []string{state.PetriTag},
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 		OutboundRules: []godo.OutboundRule{
 			{
 				Protocol:  "tcp",

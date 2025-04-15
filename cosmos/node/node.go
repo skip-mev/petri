@@ -56,6 +56,7 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 	}
 
 	def := provider.TaskDefinition{
+<<<<<<< HEAD
 		Name:          nodeConfig.Name,
 		ContainerName: nodeConfig.Name,
 		Image:         chainConfig.Image,
@@ -63,6 +64,13 @@ func CreateNode(ctx context.Context, logger *zap.Logger, nodeConfig petritypes.N
 		Sidecars:      sidecars,
 		Entrypoint:    []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
 		DataDir:       chainConfig.HomeDir,
+=======
+		Name:       nodeConfig.Name,
+		Image:      chainConfig.Image,
+		Ports:      []string{"9090", "26656", "26657", "26660", "1317"},
+		Entrypoint: []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
+		DataDir:    chainConfig.HomeDir,
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 	}
 
 	if nodeConfig.Chain.GetConfig().NodeDefinitionModifier != nil {
