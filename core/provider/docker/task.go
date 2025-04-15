@@ -16,8 +16,14 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/nat"
+<<<<<<< HEAD
 
 	"github.com/skip-mev/petri/core/provider"
+=======
+	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/clients"
+	"go.uber.org/zap"
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 )
 
 func (p *Provider) CreateTask(ctx context.Context, logger *zap.Logger, definition provider.TaskDefinition) (string, error) {
@@ -246,10 +252,39 @@ func (p *Provider) RunCommandWhileStopped(ctx context.Context, id string, defini
 
 	definition.Entrypoint = []string{"sh", "-c"}
 	definition.Command = []string{"sleep 36000"}
-	definition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", definition.Name, util.RandomString(5), time.Now().Unix())
+	definition.Name = fmt.Sprintf("%s-exec-%d", state.Name, time.Now().Unix()%3000)
 	definition.Ports = []string{}
 
+<<<<<<< HEAD
 	task, err := p.CreateTask(ctx, p.logger, definition)
+=======
+	containerConfig := &container.Config{
+		Image:      definition.Image.Image,
+		Entrypoint: definition.Entrypoint,
+		Cmd:        definition.Command,
+		Tty:        false,
+		Hostname:   definition.Name,
+		Env:        convertEnvMapToList(definition.Environment),
+	}
+
+	var mounts []mount.Mount
+	if state.Volume != nil {
+		mounts = []mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: state.Volume.Name,
+				Target: definition.DataDir,
+			},
+		}
+	}
+
+	hostConfig := &container.HostConfig{
+		NetworkMode: container.NetworkMode(state.NetworkName),
+		Mounts:      mounts,
+	}
+
+	resp, err := t.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, definition.Name)
+>>>>>>> 8efa963 (feat: enable multiple providers at the same time)
 	if err != nil {
 		return "", "", 0, err
 	}
