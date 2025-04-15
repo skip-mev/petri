@@ -59,6 +59,7 @@ func (o ChainOptions) ValidateBasic() error {
 // ChainConfig is the configuration structure for a logical chain.
 // It contains all the relevant details needed to create a Cosmos chain
 type ChainConfig struct {
+	Name          string
 	Denom         string // Denom is the denomination of the native staking token
 	Decimals      uint64 // Decimals is the number of decimals of the native staking token
 	NumValidators int    // NumValidators is the number of validators to create
@@ -101,6 +102,10 @@ func (c ChainConfig) GetGenesisDelegation() *big.Int {
 }
 
 func (c ChainConfig) ValidateBasic() error {
+	if c.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
 	if c.Denom == "" {
 		return fmt.Errorf("denom cannot be empty")
 	}

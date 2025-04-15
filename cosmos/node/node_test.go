@@ -38,6 +38,7 @@ func TestNodeLifecycle(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
@@ -45,10 +46,13 @@ func TestNodeLifecycle(t *testing.T) {
 		require.NoError(t, p.Teardown(ctx))
 	}(p, ctx)
 
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+
 	n, err := node.CreateNode(ctx, logger, p, types.NodeConfig{
 		Name:        "test",
 		Index:       0,
-		ChainConfig: defaultChainConfig,
+		ChainConfig: chainConfig,
 	}, types.NodeOptions{})
 	require.NoError(t, err)
 
@@ -68,6 +72,7 @@ func TestNodeSerialization(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
@@ -75,10 +80,13 @@ func TestNodeSerialization(t *testing.T) {
 		require.NoError(t, p.Teardown(ctx))
 	}(p, ctx)
 
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+
 	n, err := node.CreateNode(ctx, logger, p, types.NodeConfig{
 		Name:        "test",
 		Index:       0,
-		ChainConfig: defaultChainConfig,
+		ChainConfig: chainConfig,
 	}, types.NodeOptions{})
 	require.NoError(t, err)
 	defer func(n types.NodeI, ctx context.Context) {

@@ -38,8 +38,7 @@ var DefaultDashboardUID = "b8ff6e6f-5b4b-4d5e-bc50-91bbbf10f436"
 // Additionally, it creates a Prometheus datasource and a dashboard (given the DashboardJSON in GrafanaOptions).
 func SetupGrafanaTask(ctx context.Context, logger *zap.Logger, p provider.ProviderI, opts GrafanaOptions) (provider.TaskI, error) {
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "grafana",
-		ContainerName: "grafana",
+		Name: "grafana",
 		Image: provider.ImageDefinition{
 			Image: "ghcr.io/skip-mev/grafana:renderer-v11.4.0",
 			UID:   "472",

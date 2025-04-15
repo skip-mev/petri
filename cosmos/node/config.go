@@ -42,6 +42,17 @@ func recursiveModifyToml(c map[string]any, modifications Toml) error {
 	}
 	return nil
 }
+func GenerateDefaultClientConfig() Toml {
+	clientConfig := make(Toml)
+
+	clientConfig["chain-id"] = ""
+	clientConfig["keyring-backend"] = "os"
+	clientConfig["output"] = "text"
+	clientConfig["node"] = "http://localhost:26657"
+	clientConfig["broadcast-mode"] = "sync"
+
+	return clientConfig
+}
 
 // GenerateDefaultConsensusConfig returns a default / sensible config for CometBFT
 func GenerateDefaultConsensusConfig() Toml {

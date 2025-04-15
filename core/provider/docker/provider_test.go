@@ -123,17 +123,15 @@ func TestCreateTask(t *testing.T) {
 		{
 			name: "success",
 			definition: provider.TaskDefinition{
-				Name:          fmt.Sprintf("%s-test-task-success", providerName),
-				ContainerName: fmt.Sprintf("%s-test-task-success", providerName),
-				Image:         provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
+				Name:  fmt.Sprintf("%s-test-task-success", providerName),
+				Image: provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "missing image",
 			definition: provider.TaskDefinition{
-				Name:          fmt.Sprintf("%s-test-task-no-image", providerName),
-				ContainerName: fmt.Sprintf("%s-test-task-no-image", providerName),
+				Name: fmt.Sprintf("%s-test-task-no-image", providerName),
 			},
 			wantErr:  true,
 			errorMsg: "image cannot be empty",
@@ -141,9 +139,8 @@ func TestCreateTask(t *testing.T) {
 		{
 			name: "invalid image",
 			definition: provider.TaskDefinition{
-				Name:          fmt.Sprintf("%s-test-task-bad-image", providerName),
-				ContainerName: fmt.Sprintf("%s-test-task-bad-image", providerName),
-				Image:         provider.ImageDefinition{Image: "busybox:latest"},
+				Name:  fmt.Sprintf("%s-test-task-bad-image", providerName),
+				Image: provider.ImageDefinition{Image: "busybox:latest"},
 			},
 			wantErr:  true,
 			errorMsg: "image definition is invalid",
@@ -200,11 +197,10 @@ func TestConcurrentTaskCreation(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			task, err := p.CreateTask(ctx, provider.TaskDefinition{
-				Name:          fmt.Sprintf("task-%s-%d", providerName, index),
-				ContainerName: fmt.Sprintf("task-%s-%d", providerName, index),
-				Image:         provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
-				Entrypoint:    []string{"sh", "-c"},
-				Command:       []string{"sleep 1000"},
+				Name:       fmt.Sprintf("task-%s-%d", providerName, index),
+				Image:      provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
+				Entrypoint: []string{"sh", "-c"},
+				Command:    []string{"sleep 1000"},
 			})
 			if err != nil {
 				errors <- err
@@ -257,9 +253,8 @@ func TestProviderSerialization(t *testing.T) {
 	}(ctx, p1)
 
 	_, err = p1.CreateTask(ctx, provider.TaskDefinition{
-		Name:          fmt.Sprintf("%s-test-task", providerName),
-		ContainerName: fmt.Sprintf("%s-test-task", providerName),
-		Image:         provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
+		Name:  fmt.Sprintf("%s-test-task", providerName),
+		Image: provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
 	})
 	require.NoError(t, err)
 
@@ -282,10 +277,9 @@ func TestTeardown(t *testing.T) {
 	require.NoError(t, err)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          fmt.Sprintf("%s-test-task-teardown", providerName),
-		ContainerName: fmt.Sprintf("%s-test-task-teardown", providerName),
-		Image:         provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
-		DataDir:       "/data",
+		Name:    fmt.Sprintf("%s-test-task-teardown", providerName),
+		Image:   provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
+		DataDir: "/data",
 	})
 	require.NoError(t, err)
 
@@ -311,10 +305,9 @@ func TestRestoreTask(t *testing.T) {
 	require.NoError(t, err)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          fmt.Sprintf("%s-test-task-restore", providerName),
-		ContainerName: fmt.Sprintf("%s-test-task-restore", providerName),
-		Image:         provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
-		DataDir:       "/data",
+		Name:    fmt.Sprintf("%s-test-task-restore", providerName),
+		Image:   provider.ImageDefinition{Image: "busybox:latest", GID: "1000", UID: "1000"},
+		DataDir: "/data",
 	})
 	require.NoError(t, err)
 

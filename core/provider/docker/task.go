@@ -14,7 +14,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/clients"
-	"github.com/skip-mev/petri/core/v3/util"
 	"go.uber.org/zap"
 )
 
@@ -288,7 +287,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 
 	definition.Entrypoint = []string{"/bin/sh", "-c"}
 	definition.Command = []string{"sleep 36000"}
-	definition.ContainerName = fmt.Sprintf("%s-executor-%s-%d", definition.Name, util.RandomString(5), time.Now().Unix())
+	definition.Name = fmt.Sprintf("%s-exec-%d", state.Name, time.Now().Unix()%3000)
 	definition.Ports = []string{}
 
 	containerConfig := &container.Config{
@@ -316,7 +315,7 @@ func (t *Task) runCommandWhileStopped(ctx context.Context, cmd []string) (string
 		Mounts:      mounts,
 	}
 
-	resp, err := t.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, definition.ContainerName)
+	resp, err := t.dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, definition.Name)
 	if err != nil {
 		return "", "", 0, err
 	}

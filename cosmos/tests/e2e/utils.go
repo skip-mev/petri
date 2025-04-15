@@ -75,6 +75,8 @@ func CreateChainsConcurrently(
 			defer wg.Done()
 			config := chainConfig
 			config.ChainId = fmt.Sprintf("chain-%d", index)
+			config.Name = fmt.Sprintf("chain-%d", index)
+
 			c, err := cosmoschain.CreateChain(ctx, logger, p, config, chainOptions)
 			if err != nil {
 				t.Logf("Chain creation error: %v", err)

@@ -66,7 +66,7 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 		return nil, fmt.Errorf("failed to validate tailscale settings: %w", err)
 	}
 
-	petriTag := fmt.Sprintf("petri-droplet-%s", util.RandomString(5))
+	petriTag := fmt.Sprintf("petri-droplet-%s", providerName)
 	digitalOceanProvider := &Provider{
 		doClient:          doClient,
 		tailscaleSettings: tailscaleSettings,
@@ -128,7 +128,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	taskState := &TaskState{
 		ID:                strconv.Itoa(droplet.ID),
-		Name:              definition.Name,
+		Name:              fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
 		Definition:        definition,
 		TailscaleHostname: fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
 		Status:            provider.TASK_STOPPED,
@@ -197,7 +197,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 			Entrypoint: definition.Entrypoint,
 			Cmd:        definition.Command,
 			Tty:        false,
-			Hostname:   definition.Name,
+			Hostname:   taskState.Name,
 			Labels: map[string]string{
 				providerLabelName: state.Name,
 			},
@@ -211,7 +211,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 				},
 			},
 			NetworkMode: "host",
-		}, nil, nil, definition.ContainerName)
+		}, nil, nil, taskState.Name)
 
 		if err != nil {
 			if client.IsErrConnectionFailed(err) {

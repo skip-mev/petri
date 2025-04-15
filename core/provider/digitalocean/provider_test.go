@@ -141,13 +141,12 @@ func TestCreateTask_ValidTask(t *testing.T) {
 	p, _, _ := setupTestProvider(t, ctx)
 
 	taskDef := provider.TaskDefinition{
-		Name:          "test-task",
-		Image:         provider.ImageDefinition{Image: "ubuntu:latest", UID: "1000", GID: "1000"},
-		Entrypoint:    []string{"/bin/bash"},
-		Command:       []string{"-c", "echo hello"},
-		Environment:   map[string]string{"TEST": "value"},
-		DataDir:       "/data",
-		ContainerName: "test-container",
+		Name:        "test-task",
+		Image:       provider.ImageDefinition{Image: "ubuntu:latest", UID: "1000", GID: "1000"},
+		Entrypoint:  []string{"/bin/bash"},
+		Command:     []string{"-c", "echo hello"},
+		Environment: map[string]string{"TEST": "value"},
+		DataDir:     "/data",
 		ProviderSpecificConfig: DigitalOceanTaskConfig{
 			"size":     "s-1vcpu-1gb",
 			"region":   "nyc1",
@@ -224,13 +223,12 @@ func TestSerializeAndRestoreTask(t *testing.T) {
 	p, mockDO, mockDocker := setupTestProvider(t, ctx)
 
 	taskDef := provider.TaskDefinition{
-		Name:          "test-task",
-		Image:         provider.ImageDefinition{Image: "ubuntu:latest", UID: "1000", GID: "1000"},
-		Entrypoint:    []string{"/bin/bash"},
-		Command:       []string{"-c", "echo hello"},
-		Environment:   map[string]string{"TEST": "value"},
-		DataDir:       "/data",
-		ContainerName: "test-container",
+		Name:        "test-task",
+		Image:       provider.ImageDefinition{Image: "ubuntu:latest", UID: "1000", GID: "1000"},
+		Entrypoint:  []string{"/bin/bash"},
+		Command:     []string{"-c", "echo hello"},
+		Environment: map[string]string{"TEST": "value"},
+		DataDir:     "/data",
 		ProviderSpecificConfig: DigitalOceanTaskConfig{
 			"size":     "s-1vcpu-1gb",
 			"region":   "nyc1",
@@ -411,8 +409,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 			defer wg.Done()
 
 			task, err := p.CreateTask(ctx, provider.TaskDefinition{
-				Name:          fmt.Sprintf("test-task-%d", index),
-				ContainerName: fmt.Sprintf("test-container-%d", index),
+				Name: fmt.Sprintf("test-task-%d", index),
 				Image: provider.ImageDefinition{
 					Image: "nginx:latest",
 					UID:   "1000",
@@ -477,7 +474,6 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 		state := task.GetState()
 		require.NotEmpty(t, state.ID, "Task should have a droplet ID")
 		require.NotEmpty(t, state.Name, "Task should have a name")
-		require.NotEmpty(t, state.Definition.ContainerName, "Task should have a container name")
 		tasksToCleanup = append(tasksToCleanup, task)
 	}
 
@@ -576,8 +572,7 @@ func TestProviderSerialization(t *testing.T) {
 	}), mock.Anything, mock.Anything, mock.Anything).Return(container.CreateResponse{ID: "test-container"}, nil)
 
 	_, err = p1.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "test-task",
-		ContainerName: "test-container",
+		Name: "test-task",
 		Image: provider.ImageDefinition{
 			Image: "ubuntu:latest",
 			UID:   "1000",
