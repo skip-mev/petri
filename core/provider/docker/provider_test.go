@@ -167,7 +167,7 @@ func TestCreateTask(t *testing.T) {
 
 			state := dockerTask.GetState()
 			assert.NotEmpty(t, state.Id)
-			assert.Equal(t, tt.definition.Name, state.Name)
+			assert.Equal(t, fmt.Sprintf("%s-%s", providerName, tt.definition.Name), state.Name)
 		})
 	}
 }
