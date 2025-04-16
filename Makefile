@@ -1,8 +1,26 @@
 tidy:
 	@go mod tidy
 
+<<<<<<< HEAD
 test:
 	@go test ./... -race
+=======
+unit-test:
+	@docker pull nginx:latest
+	@docker pull ghcr.io/cosmos/simapp:v0.47
+	@cd ./core && go test -v -p 1 -count 1 ./... -race
+	@cd ./cosmos && go test -v -p 1 -count 1 `go list ./... | grep -v e2e` -race
+
+docker-e2e:
+	@docker pull nginx:latest
+	@docker pull ghcr.io/cosmos/simapp:v0.47
+	@cd ./cosmos && go test ./tests/e2e/docker/... -race -v
+
+digitalocean-e2e:
+	@cd ./cosmos && go test ./tests/e2e/digitalocean/... -race -v
+
+e2e-test: docker-e2e digitalocean-e2e
+>>>>>>> 54795a0 (fix: naming)
 
 govulncheck:
 	@echo "--> Running govulncheck"

@@ -67,7 +67,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.Moc
 		Entrypoint: []string{"/bin/bash"},
 		Cmd:        []string{"-c", "echo hello"},
 		Env:        []string{"TEST=value"},
-		Hostname:   "test-task",
+		Hostname:   "petri-droplet-test-provider-test-task",
 		Labels: map[string]string{
 			providerLabelName: "test-provider",
 		},
@@ -80,14 +80,14 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.Moc
 			},
 		},
 		NetworkMode: container.NetworkMode("host"),
-	}, (*network.NetworkingConfig)(nil), (*specs.Platform)(nil), "test-container").Return(container.CreateResponse{ID: "test-container"}, nil)
+	}, (*network.NetworkingConfig)(nil), (*specs.Platform)(nil), "petri-droplet-test-provider-test-task").Return(container.CreateResponse{ID: "petri-droplet-test-provider-test-task"}, nil)
 	mockDocker.On("Close").Return(nil)
 
 	mockDO.On("CreateTag", ctx, mock.Anything).Return(&godo.Tag{Name: "test-tag"}, nil)
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 
 	mockDockerClients := map[string]clients.DockerClient{
-		"test-task": mockDocker,
+		"petri-droplet-test-provider-test-task": mockDocker,
 	}
 
 	p, err := NewProviderWithClient(ctx, "test-provider", mockDO, mockTailscale, WithDockerClients(mockDockerClients), WithLogger(logger))
@@ -327,7 +327,7 @@ func TestConcurrentTaskCreationAndCleanup(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		mockDocker := clientmocks.NewMockDockerClient(t)
-		mockDockerClients[fmt.Sprintf("test-task-%d", i)] = mockDocker
+		mockDockerClients[fmt.Sprintf("petri-droplet-test-provider-test-task-%d", i)] = mockDocker
 
 		mockDocker.On("Ping", ctx).Return(types.Ping{}, nil).Once()
 		mockDocker.On("ImageInspectWithRaw", ctx, "nginx:latest").Return(types.ImageInspect{}, []byte{}, fmt.Errorf("image not found")).Once()
@@ -533,7 +533,7 @@ func TestProviderSerialization(t *testing.T) {
 	mockDO.On("CreateFirewall", ctx, mock.Anything).Return(&godo.Firewall{ID: "test-firewall"}, nil)
 
 	mockDockerClients := map[string]clients.DockerClient{
-		"test-task": mockDocker,
+		"petri-droplet-test-provider-test-task": mockDocker,
 	}
 
 	p1, err := NewProviderWithClient(ctx, "test-provider", mockDO, mockTailscale, WithDockerClients(mockDockerClients), WithLogger(zap.NewExample()))
@@ -562,14 +562,14 @@ func TestProviderSerialization(t *testing.T) {
 	mockDocker.On("ImagePull", ctx, mock.AnythingOfType("*zap.Logger"), "ubuntu:latest", image.PullOptions{}).Return(nil)
 	mockDocker.On("ContainerCreate", ctx, mock.MatchedBy(func(config *container.Config) bool {
 		return config.Image == "ubuntu:latest" &&
-			config.Hostname == "test-task" &&
+			config.Hostname == "petri-droplet-test-provider-test-task" &&
 			len(config.Labels) > 0 &&
 			config.Labels[providerLabelName] == "test-provider"
 	}), mock.MatchedBy(func(hostConfig *container.HostConfig) bool {
 		return len(hostConfig.Mounts) == 1 &&
 			hostConfig.Mounts[0].Target == "/data" &&
 			hostConfig.NetworkMode == "host"
-	}), mock.Anything, mock.Anything, mock.Anything).Return(container.CreateResponse{ID: "test-container"}, nil)
+	}), mock.Anything, mock.Anything, mock.Anything).Return(container.CreateResponse{ID: "petri-droplet-test-provider-test-task"}, nil)
 
 	_, err = p1.CreateTask(ctx, provider.TaskDefinition{
 		Name: "test-task",

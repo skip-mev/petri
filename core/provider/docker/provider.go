@@ -350,14 +350,12 @@ func (p *Provider) Teardown(ctx context.Context) error {
 			return err
 		}
 
-		if err := p.dockerClient.VolumeRemove(ctx, task.Volume.Name, true); err != nil {
-			return err
+		if task.Volume != nil {
+			if err := p.dockerClient.VolumeRemove(ctx, task.Volume.Name, true); err != nil {
+				return err
+			}
 		}
 	}
-
-	//if err := p.teardownVolumes(ctx); err != nil {
-	//	return err
-	//}
 
 	if err := p.destroyNetwork(ctx); err != nil {
 		return err
