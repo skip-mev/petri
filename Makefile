@@ -6,8 +6,8 @@ tidy:
 unit-test:
 	@docker pull nginx:latest
 	@docker pull ghcr.io/cosmos/simapp:v0.47
-	@cd ./core && go test -p 1 -count 1 ./... -race
-	@cd ./cosmos && go test -p 1 -count 1 `go list ./... | grep -v e2e` -race
+	@cd ./core && go test -v -p 1 -count 1 ./... -race
+	@cd ./cosmos && go test -v -p 1 -count 1 `go list ./... | grep -v e2e` -race
 
 docker-e2e:
 	@docker pull nginx:latest
