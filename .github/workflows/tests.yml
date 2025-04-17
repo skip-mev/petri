@@ -33,6 +33,9 @@ jobs:
           sudo apt-get install docker-ce
       - name: Run Docker E2E tests
         run: |
+          cd cosmos
+          go mod edit -replace github.com/skip-mev/petri/core/v3 => ../core
+          cd ..
           make tidy
           make docker-e2e
 
@@ -63,6 +66,9 @@ jobs:
           TS_CLIENT_AUTH_KEY: ${{ secrets.TS_CLIENT_AUTH_KEY }}
           TS_SERVER_OAUTH_SECRET: ${{ secrets.TS_SERVER_OAUTH_SECRET }}
         run: |
+          cd cosmos
+          go mod edit -replace github.com/skip-mev/petri/core/v3 => ../core
+          cd ..
           make tidy
           make digitalocean-e2e
 
@@ -85,5 +91,8 @@ jobs:
           sudo apt-get install docker-ce
       - name: Run unit tests
         run: |
+          cd cosmos
+          go mod edit -replace github.com/skip-mev/petri/core/v3 => ../core
+          cd ..
           make tidy
           make unit-test
