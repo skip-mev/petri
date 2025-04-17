@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"flag"
+	"github.com/skip-mev/petri/core/v3/util"
 	"os"
 	"testing"
 	"time"
@@ -117,8 +118,9 @@ func TestDOE2E(t *testing.T) {
 		Tags:        []string{"petri-e2e"},
 		LocalClient: localClient,
 	}
+	providerName := util.RandomString(5)
 
-	p, err := digitalocean.NewProvider(ctx, "digitalocean_provider", doToken, tailscaleSettings, digitalocean.WithLogger(logger))
+	p, err := digitalocean.NewProvider(ctx, providerName, doToken, tailscaleSettings, digitalocean.WithLogger(logger))
 	defer func() {
 		if restoredProvider != nil {
 			return
