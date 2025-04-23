@@ -103,6 +103,11 @@ func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
 
 	sdkConfig["api"] = api
 
+	telemetry := make(Toml)
+	telemetry["enabled"] = true
+
+	sdkConfig["telemetry"] = telemetry
+
 	return sdkConfig
 }
 
