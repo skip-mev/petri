@@ -102,6 +102,7 @@ func GenerateDefaultAppConfig(c petritypes.ChainI) Toml {
 
 	telemetry := make(Toml)
 	telemetry["enabled"] = true
+	telemetry["prometheus-retention-time"] = 3600
 
 	sdkConfig["telemetry"] = telemetry
 
