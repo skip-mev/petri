@@ -2,15 +2,13 @@ package digitalocean
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/digitalocean/godo"
 )
 
 func (p *Provider) createFirewall(ctx context.Context) (*godo.Firewall, error) {
 	state := p.GetState()
 	req := &godo.FirewallRequest{
-		Name: fmt.Sprintf("%s-firewall", state.PetriTag),
+		Name: state.PetriTag,
 		Tags: []string{state.PetriTag},
 		OutboundRules: []godo.OutboundRule{
 			{

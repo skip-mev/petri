@@ -125,24 +125,14 @@ func TestTaskDefinitionValidation(t *testing.T) {
 		{
 			name: "valid",
 			def: provider.TaskDefinition{
-				Name:          "test",
-				ContainerName: "test",
-				Image:         validImageDefinition,
+				Name:  "test",
+				Image: validImageDefinition,
 			},
 			expectPass: true,
 		},
 		{
 			name: "no name",
 			def: provider.TaskDefinition{
-				ContainerName: "test",
-				Image:         validImageDefinition,
-			},
-			expectPass: false,
-		},
-		{
-			name: "no container name",
-			def: provider.TaskDefinition{
-				Name:  "test",
 				Image: validImageDefinition,
 			},
 			expectPass: false,
@@ -150,16 +140,14 @@ func TestTaskDefinitionValidation(t *testing.T) {
 		{
 			name: "no image",
 			def: provider.TaskDefinition{
-				Name:          "test",
-				ContainerName: "test",
+				Name: "test",
 			},
 			expectPass: false,
 		},
 		{
 			name: "invalid image",
 			def: provider.TaskDefinition{
-				Name:          "test",
-				ContainerName: "test",
+				Name: "test",
 				Image: provider.ImageDefinition{
 					Image: "",
 				},
@@ -169,10 +157,9 @@ func TestTaskDefinitionValidation(t *testing.T) {
 		{
 			name: "invalid port",
 			def: provider.TaskDefinition{
-				Name:          "test",
-				ContainerName: "test",
-				Image:         validImageDefinition,
-				Ports:         []string{"", "100000"},
+				Name:  "test",
+				Image: validImageDefinition,
+				Ports: []string{"", "100000"},
 			},
 			expectPass: false,
 		},

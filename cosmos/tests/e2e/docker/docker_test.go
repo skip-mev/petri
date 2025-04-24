@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"flag"
+	"github.com/skip-mev/petri/core/v3/util"
 	"testing"
 
 	"github.com/skip-mev/petri/core/v3/provider"
@@ -75,7 +76,9 @@ func TestDockerE2E(t *testing.T) {
 		}
 	}()
 
-	p, err := docker.CreateProvider(ctx, logger, "docker_provider")
+	providerName := util.RandomString(5)
+
+	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)

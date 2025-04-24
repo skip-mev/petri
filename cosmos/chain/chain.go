@@ -21,7 +21,6 @@ import (
 
 	"github.com/skip-mev/petri/core/v3/provider"
 	petritypes "github.com/skip-mev/petri/core/v3/types"
-	"github.com/skip-mev/petri/core/v3/util"
 )
 
 type PackagedState struct {
@@ -85,7 +84,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	for i := 0; i < config.NumValidators; i++ {
 		i := i
 		eg.Go(func() error {
-			validatorName := fmt.Sprintf("validator-%d-%s", i, util.RandomString(8))
+			validatorName := fmt.Sprintf("%s-validator-%d", config.Name, i)
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
@@ -113,7 +112,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		i := i
 
 		eg.Go(func() error {
-			nodeName := fmt.Sprintf("node-%d-%s", i, util.RandomString(8))
+			nodeName := fmt.Sprintf("%s-node-%d", config.Name, i)
 
 			logger.Info("creating node", zap.String("name", nodeName))
 

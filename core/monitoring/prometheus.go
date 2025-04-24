@@ -25,8 +25,7 @@ type PrometheusOptions struct {
 // Additionally, it creates a Prometheus configuration file (given the Targets in PrometheusOptions).
 func SetupPrometheusTask(ctx context.Context, logger *zap.Logger, p provider.ProviderI, opts PrometheusOptions) (provider.TaskI, error) {
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "prometheus",
-		ContainerName: "prometheus",
+		Name: "prometheus",
 		Image: provider.ImageDefinition{
 			Image: "prom/prometheus:v2.46.0",
 			UID:   "65534",

@@ -30,8 +30,7 @@ func TestTaskLifecycle(t *testing.T) {
 	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "test",
-		ContainerName: "test",
+		Name: "test",
 		Image: provider.ImageDefinition{
 			Image: "nginx:latest",
 			UID:   "1000",
@@ -83,8 +82,7 @@ func TestTaskExposingPort(t *testing.T) {
 	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "test",
-		ContainerName: "test",
+		Name: "test",
 		Image: provider.ImageDefinition{
 			Image: "nginx:latest",
 			UID:   "1000",
@@ -130,8 +128,7 @@ func TestTaskRunCommand(t *testing.T) {
 	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "test",
-		ContainerName: "test",
+		Name: "test",
 		Image: provider.ImageDefinition{
 			Image: "busybox:latest",
 			UID:   "1000",
@@ -180,8 +177,7 @@ func TestTaskRunCommandWhileStopped(t *testing.T) {
 	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "test",
-		ContainerName: "test",
+		Name: "test",
 		Image: provider.ImageDefinition{
 			Image: "busybox:latest",
 			UID:   "1000",
@@ -227,8 +223,7 @@ func TestTaskReadWriteFile(t *testing.T) {
 	}(ctx, p)
 
 	task, err := p.CreateTask(ctx, provider.TaskDefinition{
-		Name:          "test",
-		ContainerName: "test",
+		Name: "test",
 		Image: provider.ImageDefinition{
 			Image: "busybox:latest",
 			UID:   "1000",

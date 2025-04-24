@@ -31,15 +31,14 @@ func (v *VolumeDefinition) ValidateBasic() error {
 
 // TaskDefinition defines the configuration for a task
 type TaskDefinition struct {
-	Name          string // Name is used when generating volumes, etc. - additional resources for the container
-	ContainerName string // ContainerName is used for the actual container / job name
-	Image         ImageDefinition
-	Ports         []string
-	Environment   map[string]string
-	DataDir       string
-	Entrypoint    []string
-	Command       []string
-	Args          []string
+	Name        string // Name is used when generating volumes, etc. - additional resources for the container
+	Image       ImageDefinition
+	Ports       []string
+	Environment map[string]string
+	DataDir     string
+	Entrypoint  []string
+	Command     []string
+	Args        []string
 
 	ProviderSpecificConfig map[string]string
 }
@@ -47,10 +46,6 @@ type TaskDefinition struct {
 func (t *TaskDefinition) ValidateBasic() error {
 	if t.Name == "" {
 		return fmt.Errorf("name cannot be empty")
-	}
-
-	if t.ContainerName == "" {
-		return fmt.Errorf("container name cannot be empty")
 	}
 
 	if err := t.Image.ValidateBasic(); err != nil {

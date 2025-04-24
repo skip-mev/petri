@@ -55,6 +55,7 @@ func TestChainLifecycle(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
@@ -62,7 +63,10 @@ func TestChainLifecycle(t *testing.T) {
 		require.NoError(t, p.Teardown(ctx))
 	}(p, ctx)
 
-	c, err := chain.CreateChain(ctx, logger, p, defaultChainConfig, defaultChainOptions)
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+
+	c, err := chain.CreateChain(ctx, logger, p, chainConfig, defaultChainOptions)
 	require.NoError(t, err)
 
 	require.NoError(t, c.Init(ctx, defaultChainOptions))
@@ -80,6 +84,7 @@ func TestChainSerialization(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
@@ -95,7 +100,10 @@ func TestChainSerialization(t *testing.T) {
 		}
 	}(p2, ctx)
 
-	c, err := chain.CreateChain(ctx, logger, p2, defaultChainConfig, defaultChainOptions)
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+
+	c, err := chain.CreateChain(ctx, logger, p2, chainConfig, defaultChainOptions)
 	require.NoError(t, err)
 
 	require.NoError(t, c.Init(ctx, defaultChainOptions))
@@ -126,7 +134,7 @@ func TestGenesisModifier(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewDevelopment()
 	providerName := gonanoid.MustGenerate(idAlphabet, 10)
-	chainName := gonanoid.MustGenerate(idAlphabet, 64)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
 
 	p, err := docker.CreateProvider(ctx, logger, providerName)
 	require.NoError(t, err)
@@ -142,7 +150,10 @@ func TestGenesisModifier(t *testing.T) {
 		},
 	})
 
-	c, err := chain.CreateChain(ctx, logger, p, defaultChainConfig, chainOpts)
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+
+	c, err := chain.CreateChain(ctx, logger, p, chainConfig, chainOpts)
 	require.NoError(t, err)
 
 	require.NoError(t, c.Init(ctx, chainOpts))

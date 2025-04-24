@@ -62,7 +62,7 @@ func CreateProvider(ctx context.Context, logger *zap.Logger, providerName string
 	state := ProviderState{
 		Name:             providerName,
 		BuilderImageName: "busybox:latest",
-		NetworkName:      fmt.Sprintf("petri-network-%s", providerName),
+		NetworkName:      fmt.Sprintf("petri-%s", providerName),
 		TaskStates:       make(map[string]*TaskState),
 	}
 
@@ -166,7 +166,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	state := p.GetState()
 
 	taskState := &TaskState{
-		Name:             definition.Name,
+		Name:             fmt.Sprintf("%s-%s", p.state.Name, definition.Name),
 		Definition:       definition,
 		BuilderImageName: state.BuilderImageName,
 	}
@@ -193,10 +193,10 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 
 	var mounts []mount.Mount
 
-	logger.Debug("creating task", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
+	logger.Debug("creating task", zap.String("name", taskState.Name), zap.String("image", definition.Image.Image))
 
 	if definition.DataDir != "" {
-		volumeName := fmt.Sprintf("%s-data", definition.Name)
+		volumeName := fmt.Sprintf("%s-data", taskState.Name)
 
 		logger.Debug("creating volume", zap.String("name", volumeName))
 
@@ -230,7 +230,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		}
 	}
 
-	logger.Debug("creating container", zap.String("name", definition.Name), zap.String("image", definition.Image.Image))
+	logger.Debug("creating container", zap.String("name", state.Name), zap.String("image", definition.Image.Image))
 
 	ip, err := p.nextAvailableIP()
 	if err != nil {
@@ -242,7 +242,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Entrypoint: definition.Entrypoint,
 		Cmd:        definition.Command,
 		Tty:        false,
-		Hostname:   definition.Name,
+		Hostname:   taskState.Name,
 		Labels: map[string]string{
 			providerLabelName: state.Name,
 		},
@@ -260,7 +260,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 				},
 			},
 		},
-	}, nil, definition.ContainerName)
+	}, nil, taskState.Name)
 
 	if err != nil {
 		return nil, err
@@ -349,10 +349,12 @@ func (p *Provider) Teardown(ctx context.Context) error {
 		}); err != nil {
 			return err
 		}
-	}
 
-	if err := p.teardownVolumes(ctx); err != nil {
-		return err
+		if task.Volume != nil {
+			if err := p.dockerClient.VolumeRemove(ctx, task.Volume.Name, true); err != nil {
+				return err
+			}
+		}
 	}
 
 	if err := p.destroyNetwork(ctx); err != nil {
