@@ -16,3 +16,9 @@ func WithDockerClients(clients map[string]clients.DockerClient) func(*Provider) 
 		p.dockerClientOverrides = clients
 	}
 }
+
+func WithTelemetry(telemetry TelemetrySettings) func(*Provider) {
+	return func(p *Provider) {
+		p.telemetrySettings = &telemetry
+	}
+}

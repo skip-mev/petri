@@ -18,7 +18,7 @@ type TailscaleSettings struct {
 	LocalClient clients.TailscaleLocalClient
 }
 
-func (ts *TailscaleSettings) FormatUserData(hostname string) string {
+func (ts *TailscaleSettings) GetCommand(hostname string) string {
 	prefixedTags := make([]string, len(ts.Tags))
 
 	for i, tag := range ts.Tags {
@@ -39,9 +39,7 @@ func (ts *TailscaleSettings) FormatUserData(hostname string) string {
 		command = append(command, "--advertise-tags", strings.Join(prefixedTags, ","))
 	}
 
-	return fmt.Sprintf(`#cloud-config
-runcmd:
-- %s`, strings.Join(command, " "))
+	return strings.Join(command, " ")
 }
 
 func (ts *TailscaleSettings) ValidateBasic() error {

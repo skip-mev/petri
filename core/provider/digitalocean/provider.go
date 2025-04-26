@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +28,7 @@ var _ provider.ProviderI = (*Provider)(nil)
 
 const (
 	providerLabelName = "petri-provider"
+	portsLabelName    = "petri-ports"
 )
 
 type ProviderState struct {
@@ -43,6 +45,7 @@ type Provider struct {
 	logger                *zap.Logger
 	doClient              DoClient
 	tailscaleSettings     TailscaleSettings
+	telemetrySettings     *TelemetrySettings
 	dockerClientOverrides map[string]clients.DockerClient // map of droplet name to docker clients
 }
 
@@ -200,6 +203,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 			Hostname:   taskState.Name,
 			Labels: map[string]string{
 				providerLabelName: state.Name,
+				portsLabelName:    strings.Join(definition.Ports, ","),
 			},
 			Env: convertEnvMapToList(definition.Environment),
 		}, &container.HostConfig{
