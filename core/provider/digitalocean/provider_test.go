@@ -69,6 +69,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.Moc
 		Env:        []string{"TEST=value"},
 		Hostname:   "petri-droplet-test-provider-test-task",
 		Labels: map[string]string{
+			portsLabelName:    "",
 			providerLabelName: "test-provider",
 		},
 	}, &container.HostConfig{
