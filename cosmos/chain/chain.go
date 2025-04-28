@@ -490,10 +490,10 @@ func (c *Chain) GetTMClient(ctx context.Context) (*rpchttp.HTTP, error) {
 func (c *Chain) GetFullNode() petritypes.NodeI {
 	if len(c.Nodes) > 0 {
 		// use random full node
-		return c.Nodes[rand.Intn(len(c.Nodes)-1)]
+		return c.Nodes[rand.Intn(len(c.Nodes))]
 	}
 	// use random validator
-	return c.Validators[rand.Intn(len(c.Validators)-1)]
+	return c.Validators[rand.Intn(len(c.Validators))]
 }
 
 func (c *Chain) WaitForStartup(ctx context.Context) error {
