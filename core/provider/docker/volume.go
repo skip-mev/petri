@@ -15,7 +15,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 
@@ -567,26 +566,6 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 
 		if res.StatusCode != 0 {
 			return fmt.Errorf("configuring volume exited %d", res.StatusCode)
-		}
-	}
-
-	return nil
-}
-
-func (p *Provider) teardownVolumes(ctx context.Context) error {
-	p.logger.Debug("tearing down docker volumes")
-
-	volumes, err := p.dockerClient.VolumeList(ctx, volume.ListOptions{
-		Filters: filters.NewArgs(filters.Arg("label", fmt.Sprintf("%s=%s", providerLabelName, p.GetState().Name))),
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, filteredVolume := range volumes.Volumes {
-		err := p.DestroyVolume(ctx, filteredVolume.Name)
-		if err != nil {
-			return err
 		}
 	}
 
