@@ -9,6 +9,8 @@ import (
 	"strings"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tsnet"
+	"time"
 )
 
 type TailscaleSettings struct {
@@ -131,4 +133,48 @@ func GenerateTailscaleAuthKey(ctx context.Context, oauthSecret string, tags []st
 		return "", err
 	}
 	return authkey, nil
+}
+
+func SetupTailscale(ctx context.Context, serverOauthSecret, nodeAuthKey, hostname string, serverTags, nodeTags []string) (TailscaleSettings, error) {
+	authKey, err := GenerateTailscaleAuthKey(ctx, serverOauthSecret, serverTags)
+	if err != nil {
+		return TailscaleSettings{}, err
+	}
+
+	ts := tsnet.Server{
+		AuthKey:   authKey,
+		Ephemeral: true,
+		Hostname:  hostname,
+	}
+
+	if err := ts.Start(); err != nil {
+		return TailscaleSettings{}, err
+	}
+
+	lc, err := ts.LocalClient()
+	if err != nil {
+		return TailscaleSettings{}, err
+	}
+
+	for {
+		status, err := lc.Status(ctx)
+		if err != nil {
+			return TailscaleSettings{}, err
+		}
+
+		if status.BackendState == "Running" {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	tailscaleSettings := TailscaleSettings{
+		AuthKey:     nodeAuthKey,
+		Tags:        nodeTags,
+		Server:      &ts,
+		LocalClient: lc,
+	}
+
+	return tailscaleSettings, nil
 }
