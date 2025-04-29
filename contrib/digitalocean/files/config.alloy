@@ -16,8 +16,8 @@ foreach "container" {
 
             template {
                 prometheus.scrape "target" {
-                    targets = [{ __address__ = string.format("127.0.0.1:%s", port)}]
-                    scraping_interval = "5s"
+                    targets = [{ __address__ = string.format("127.0.0.1:%s", port), provider=json_path(local.file.creds.content, ".provider")[0]}]
+                    scrape_interval = "5s"
                     forward_to = [prometheus.remote_write.overseer.receiver]
                 }
             }
@@ -64,7 +64,7 @@ discovery.relabel "logs_integrations_docker" {
 loki.source.docker "default" {
   host       = "tcp://localhost:2375"
   targets    = discovery.docker.containers.targets
-  labels     = {"service" = "ironbird"}
+  labels     = {"service" = "ironbird", "provider" = json_path(local.file.creds.content, ".provider")[0]}
   relabel_rules = discovery.relabel.logs_integrations_docker.rules
   forward_to = [loki.write.overseer.receiver]
 }
