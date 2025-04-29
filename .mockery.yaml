@@ -1,7 +1,6 @@
-with-expecter: true
+pkgname: "mocks"
 dir: "{{.InterfaceDir}}/mocks"
 filename: "mock_{{ .InterfaceName | snakecase }}.go"
-outpkg: "mocks"
 packages:
   github.com/skip-mev/petri/core/v3/provider/digitalocean:
     interfaces:
@@ -11,3 +10,6 @@ packages:
       DockerClient:
       TailscaleServer:
       TailscaleLocalClient:
+
+
+
