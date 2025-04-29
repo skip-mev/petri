@@ -22,8 +22,20 @@ type TelemetrySettings struct {
 	Loki       LokiSettings       `json:"loki"`
 }
 
-func (t *TelemetrySettings) GetCommand() ([]string, error) {
-	config, err := json.Marshal(t)
+type TelemetryConfig struct {
+	Prometheus PrometheusSettings `json:"prometheus"`
+	Loki       LokiSettings       `json:"loki"`
+	Provider   string             `json:"provider"`
+}
+
+func (t *TelemetrySettings) GetCommand(provider string) ([]string, error) {
+	telemetryConfig := TelemetryConfig{
+		Prometheus: t.Prometheus,
+		Loki:       t.Loki,
+		Provider:   provider,
+	}
+
+	config, err := json.Marshal(telemetryConfig)
 
 	if err != nil {
 		return nil, err

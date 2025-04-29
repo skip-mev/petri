@@ -42,7 +42,7 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		p.tailscaleSettings.GetCommand(fmt.Sprintf("%s-%s", p.GetState().PetriTag, definition.Name)))
 
 	if p.telemetrySettings != nil {
-		telemetryCommand, err := p.telemetrySettings.GetCommand()
+		telemetryCommand, err := p.telemetrySettings.GetCommand(p.GetState().Name)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to format telemetry user data: %w", err)
