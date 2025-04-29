@@ -27,6 +27,32 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		return nil, fmt.Errorf("could not cast provider specific config to DigitalOceanConfig")
 	}
 
+<<<<<<< HEAD
+=======
+	imageId, err := strconv.ParseInt(doConfig["image_id"], 10, 64)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse image ID: %w", err)
+	}
+
+	var userDataCommands []string
+	userDataCommands = append(userDataCommands,
+		p.tailscaleSettings.GetCommand(fmt.Sprintf("%s-%s", p.GetState().PetriTag, definition.Name)))
+
+	if p.telemetrySettings != nil {
+		telemetryCommand, err := p.telemetrySettings.GetCommand(p.GetState().Name)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to format telemetry user data: %w", err)
+		}
+
+		userDataCommands = append(userDataCommands, telemetryCommand...)
+	}
+
+	userDataCommands = append(userDataCommands, "sudo sed -i.bak 's/^root:.*/root:*:16231:0:99999:7:::/' /etc/shadow")
+
+	state := p.GetState()
+>>>>>>> 231c4e5 (fix)
 	req := &godo.DropletCreateRequest{
 		Name:   fmt.Sprintf("%s-%s", p.petriTag, definition.Name),
 		Region: doConfig.Region,

@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 
 	"github.com/skip-mev/petri/core/provider"
@@ -460,6 +459,7 @@ func (p *Provider) SetVolumeOwner(ctx context.Context, volumeName, uid, gid stri
 
 	return nil
 }
+<<<<<<< HEAD
 
 func (p *Provider) teardownVolumes(ctx context.Context) error {
 	p.logger.Debug("tearing down docker volumes")
@@ -480,3 +480,5 @@ func (p *Provider) teardownVolumes(ctx context.Context) error {
 
 	return nil
 }
+=======
+>>>>>>> 231c4e5 (fix)
