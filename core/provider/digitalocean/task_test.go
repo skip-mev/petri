@@ -996,7 +996,7 @@ func TestGetStatus(t *testing.T) {
 			expectError:    true,
 		},
 		{
-			name:           "getDroplet error",
+			name:           "GetDroplet error",
 			dropletStatus:  "",
 			containerState: "",
 			setupMocks: func(mockDocker *clientmocks.MockDockerClient, mockDO *mocks.MockDoClient, tailscale *TailscaleSettings) {
