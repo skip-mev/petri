@@ -70,6 +70,8 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 	}
 
 	petriTag := fmt.Sprintf("petri-droplet-%s", providerName)
+	logger, _ := zap.NewDevelopment()
+	logger.Info("petriTag", zap.String("tag", petriTag), zap.String("providername", providerName))
 	digitalOceanProvider := &Provider{
 		doClient:          doClient,
 		tailscaleSettings: tailscaleSettings,
