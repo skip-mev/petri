@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/skip-mev/petri/core/v3/provider/clients"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2/clientcredentials"
 	"strings"
 	"tailscale.com/client/tailscale"
@@ -72,6 +73,8 @@ func (t *Task) getTailscalePeer(ctx context.Context) (*ipnstate.PeerStatus, erro
 	}
 
 	hostname := t.GetState().TailscaleHostname
+
+	t.logger.Info("getTailscalePeer", zap.String("hostname", hostname), zap.Any("peers", status.Peer))
 
 	for _, peer := range status.Peer {
 		if peer.HostName == hostname {
