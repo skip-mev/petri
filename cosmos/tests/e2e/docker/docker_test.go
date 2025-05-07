@@ -3,8 +3,9 @@ package e2e
 import (
 	"context"
 	"flag"
-	"github.com/skip-mev/petri/core/v3/util"
 	"testing"
+
+	"github.com/skip-mev/petri/core/v3/util"
 
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/docker"
