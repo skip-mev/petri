@@ -38,6 +38,64 @@ func (_m *MockDoClient) EXPECT() *MockDoClient_Expecter {
 	return &MockDoClient_Expecter{mock: &_m.Mock}
 }
 
+// CreateDomain provides a mock function for the type MockDoClient
+func (_mock *MockDoClient) CreateDomain(ctx context.Context, rootDomain string, req *godo.DomainRecordEditRequest) (*godo.DomainRecord, error) {
+	ret := _mock.Called(ctx, rootDomain, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateDomain")
+	}
+
+	var r0 *godo.DomainRecord
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *godo.DomainRecordEditRequest) (*godo.DomainRecord, error)); ok {
+		return returnFunc(ctx, rootDomain, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *godo.DomainRecordEditRequest) *godo.DomainRecord); ok {
+		r0 = returnFunc(ctx, rootDomain, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*godo.DomainRecord)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *godo.DomainRecordEditRequest) error); ok {
+		r1 = returnFunc(ctx, rootDomain, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockDoClient_CreateDomain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateDomain'
+type MockDoClient_CreateDomain_Call struct {
+	*mock.Call
+}
+
+// CreateDomain is a helper method to define mock.On call
+//   - ctx
+//   - rootDomain
+//   - req
+func (_e *MockDoClient_Expecter) CreateDomain(ctx interface{}, rootDomain interface{}, req interface{}) *MockDoClient_CreateDomain_Call {
+	return &MockDoClient_CreateDomain_Call{Call: _e.mock.On("CreateDomain", ctx, rootDomain, req)}
+}
+
+func (_c *MockDoClient_CreateDomain_Call) Run(run func(ctx context.Context, rootDomain string, req *godo.DomainRecordEditRequest)) *MockDoClient_CreateDomain_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*godo.DomainRecordEditRequest))
+	})
+	return _c
+}
+
+func (_c *MockDoClient_CreateDomain_Call) Return(domainRecord *godo.DomainRecord, err error) *MockDoClient_CreateDomain_Call {
+	_c.Call.Return(domainRecord, err)
+	return _c
+}
+
+func (_c *MockDoClient_CreateDomain_Call) RunAndReturn(run func(ctx context.Context, rootDomain string, req *godo.DomainRecordEditRequest) (*godo.DomainRecord, error)) *MockDoClient_CreateDomain_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateDroplet provides a mock function for the type MockDoClient
 func (_mock *MockDoClient) CreateDroplet(ctx context.Context, req *godo.DropletCreateRequest) (*godo.Droplet, error) {
 	ret := _mock.Called(ctx, req)
@@ -262,6 +320,53 @@ func (_c *MockDoClient_CreateTag_Call) Return(tag *godo.Tag, err error) *MockDoC
 }
 
 func (_c *MockDoClient_CreateTag_Call) RunAndReturn(run func(ctx context.Context, req *godo.TagCreateRequest) (*godo.Tag, error)) *MockDoClient_CreateTag_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteDomain provides a mock function for the type MockDoClient
+func (_mock *MockDoClient) DeleteDomain(ctx context.Context, rootDomain string, recordId int) error {
+	ret := _mock.Called(ctx, rootDomain, recordId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteDomain")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) error); ok {
+		r0 = returnFunc(ctx, rootDomain, recordId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockDoClient_DeleteDomain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteDomain'
+type MockDoClient_DeleteDomain_Call struct {
+	*mock.Call
+}
+
+// DeleteDomain is a helper method to define mock.On call
+//   - ctx
+//   - rootDomain
+//   - recordId
+func (_e *MockDoClient_Expecter) DeleteDomain(ctx interface{}, rootDomain interface{}, recordId interface{}) *MockDoClient_DeleteDomain_Call {
+	return &MockDoClient_DeleteDomain_Call{Call: _e.mock.On("DeleteDomain", ctx, rootDomain, recordId)}
+}
+
+func (_c *MockDoClient_DeleteDomain_Call) Run(run func(ctx context.Context, rootDomain string, recordId int)) *MockDoClient_DeleteDomain_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockDoClient_DeleteDomain_Call) Return(err error) *MockDoClient_DeleteDomain_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockDoClient_DeleteDomain_Call) RunAndReturn(run func(ctx context.Context, rootDomain string, recordId int) error) *MockDoClient_DeleteDomain_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -492,6 +597,64 @@ func (_c *MockDoClient_DeleteTag_Call) Return(err error) *MockDoClient_DeleteTag
 }
 
 func (_c *MockDoClient_DeleteTag_Call) RunAndReturn(run func(ctx context.Context, tag string) error) *MockDoClient_DeleteTag_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDomain provides a mock function for the type MockDoClient
+func (_mock *MockDoClient) GetDomain(ctx context.Context, rootDomain string, recordId int) (*godo.DomainRecord, error) {
+	ret := _mock.Called(ctx, rootDomain, recordId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDomain")
+	}
+
+	var r0 *godo.DomainRecord
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) (*godo.DomainRecord, error)); ok {
+		return returnFunc(ctx, rootDomain, recordId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) *godo.DomainRecord); ok {
+		r0 = returnFunc(ctx, rootDomain, recordId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*godo.DomainRecord)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
+		r1 = returnFunc(ctx, rootDomain, recordId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockDoClient_GetDomain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDomain'
+type MockDoClient_GetDomain_Call struct {
+	*mock.Call
+}
+
+// GetDomain is a helper method to define mock.On call
+//   - ctx
+//   - rootDomain
+//   - recordId
+func (_e *MockDoClient_Expecter) GetDomain(ctx interface{}, rootDomain interface{}, recordId interface{}) *MockDoClient_GetDomain_Call {
+	return &MockDoClient_GetDomain_Call{Call: _e.mock.On("GetDomain", ctx, rootDomain, recordId)}
+}
+
+func (_c *MockDoClient_GetDomain_Call) Run(run func(ctx context.Context, rootDomain string, recordId int)) *MockDoClient_GetDomain_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockDoClient_GetDomain_Call) Return(domainRecord *godo.DomainRecord, err error) *MockDoClient_GetDomain_Call {
+	_c.Call.Return(domainRecord, err)
+	return _c
+}
+
+func (_c *MockDoClient_GetDomain_Call) RunAndReturn(run func(ctx context.Context, rootDomain string, recordId int) (*godo.DomainRecord, error)) *MockDoClient_GetDomain_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -140,7 +140,7 @@ func (t *Task) GetDefinition() provider.TaskDefinition {
 }
 
 func (t *Task) GetStatus(ctx context.Context) (provider.TaskStatus, error) {
-	droplet, err := t.getDroplet(ctx)
+	droplet, err := t.GetDroplet(ctx)
 	if err != nil {
 		return provider.TASK_STATUS_UNDEFINED, err
 	}

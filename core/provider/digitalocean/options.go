@@ -22,3 +22,9 @@ func WithTelemetry(telemetry TelemetrySettings) func(*Provider) {
 		p.telemetrySettings = &telemetry
 	}
 }
+
+func WithDomain(domain string) func(*Provider) {
+	return func(p *Provider) {
+		p.domain = domain
+	}
+}

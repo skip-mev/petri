@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"net"
 	"strconv"
 	"strings"
@@ -36,6 +37,7 @@ type ProviderState struct {
 	Name       string                `json:"name"`
 	PetriTag   string                `json:"petri_tag"`
 	FirewallID string                `json:"firewall_id"`
+	DomainIDs  []int                 `json:"domain_ids"`
 }
 
 type Provider struct {
@@ -46,6 +48,7 @@ type Provider struct {
 	doClient              DoClient
 	tailscaleSettings     TailscaleSettings
 	telemetrySettings     *TelemetrySettings
+	domain                string
 	dockerClientOverrides map[string]clients.DockerClient // map of droplet name to docker clients
 }
 
@@ -354,6 +357,11 @@ func (p *Provider) Teardown(ctx context.Context) error {
 	if err := p.teardownTag(ctx); err != nil {
 		return err
 	}
+
+	if err := p.teardownDomains(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -376,6 +384,24 @@ func (p *Provider) teardownTag(ctx context.Context) error {
 	return p.doClient.DeleteTag(ctx, p.GetState().PetriTag)
 }
 
+func (p *Provider) teardownDomains(ctx context.Context) error {
+	if p.domain == "" {
+		return nil
+	}
+
+	var multiErr error
+
+	for _, id := range p.state.DomainIDs {
+		err := p.doClient.DeleteDomain(ctx, p.domain, id)
+		if err != nil {
+			multiErr = errors.Join(err, fmt.Errorf("failed to delete domain %d: %w", id, err))
+			continue
+		}
+	}
+
+	return multiErr
+}
+
 func (p *Provider) removeTask(_ context.Context, taskID string) error {
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
@@ -391,6 +417,36 @@ func (p *Provider) createTag(ctx context.Context, tagName string) (*godo.Tag, er
 	}
 
 	return p.doClient.CreateTag(ctx, req)
+}
+
+func (p *Provider) CreateDomains(ctx context.Context, domains map[string]string) error {
+	if p.domain == "" {
+		return nil
+	}
+
+	p.stateMu.Lock()
+	defer p.stateMu.Unlock()
+
+	for domain, ip := range domains {
+		// create an A record named portX where X is the port number and ip is the public IP of the droplet
+		req := &godo.DomainRecordEditRequest{
+			Type: "A",
+			Name: domain,
+			Data: ip,
+			TTL:  300,
+		}
+
+		spew.Dump(req)
+
+		resp, err := p.doClient.CreateDomain(ctx, p.domain, req)
+		if err != nil {
+			return fmt.Errorf("failed to create domain %s: %w", domain, err)
+		}
+
+		p.state.DomainIDs = append(p.state.DomainIDs, resp.ID)
+	}
+
+	return nil
 }
 
 func (p *Provider) GetState() ProviderState {

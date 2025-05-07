@@ -21,6 +21,11 @@ type DoClient interface {
 	GetFirewall(ctx context.Context, firewallID string) (*godo.Firewall, error)
 	DeleteFirewall(ctx context.Context, firewallID string) error
 
+	// Domain operations
+	CreateDomain(ctx context.Context, rootDomain string, req *godo.DomainRecordEditRequest) (*godo.DomainRecord, error)
+	GetDomain(ctx context.Context, rootDomain string, recordId int) (*godo.DomainRecord, error)
+	DeleteDomain(ctx context.Context, rootDomain string, recordId int) error
+
 	// SSH Key operations
 	CreateKey(ctx context.Context, req *godo.KeyCreateRequest) (*godo.Key, error)
 	DeleteKeyByFingerprint(ctx context.Context, fingerprint string) error
@@ -115,6 +120,27 @@ func (c *godoClient) GetFirewall(ctx context.Context, firewallID string) (*godo.
 	}
 
 	return firewall, nil
+}
+
+func (c *godoClient) CreateDomain(ctx context.Context, rootDomain string, req *godo.DomainRecordEditRequest) (*godo.DomainRecord, error) {
+	domain, res, err := c.Domains.CreateRecord(ctx, rootDomain, req)
+	if err := checkResponse(res, err); err != nil {
+		return nil, err
+	}
+	return domain, nil
+}
+
+func (c *godoClient) GetDomain(ctx context.Context, rootDomain string, recordId int) (*godo.DomainRecord, error) {
+	domainResp, res, err := c.Domains.Record(ctx, rootDomain, recordId)
+	if err := checkResponse(res, err); err != nil {
+		return nil, err
+	}
+	return domainResp, nil
+}
+
+func (c *godoClient) DeleteDomain(ctx context.Context, rootDomain string, recordId int) error {
+	res, err := c.Domains.DeleteRecord(ctx, rootDomain, recordId)
+	return checkResponse(res, err)
 }
 
 // SSH Key operations

@@ -77,7 +77,7 @@ func (t *Task) waitForDockerStart(ctx context.Context) error {
 	start := time.Now()
 
 	err := util.WaitForCondition(ctx, time.Second*600, time.Millisecond*300, func() (bool, error) {
-		d, err := t.getDroplet(ctx)
+		d, err := t.GetDroplet(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -122,7 +122,7 @@ func (t *Task) waitForDockerStart(ctx context.Context) error {
 }
 
 func (t *Task) deleteDroplet(ctx context.Context) error {
-	droplet, err := t.getDroplet(ctx)
+	droplet, err := t.GetDroplet(ctx)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,8 @@ func (t *Task) deleteDroplet(ctx context.Context) error {
 	return t.doClient.DeleteDropletByID(ctx, droplet.ID)
 }
 
-func (t *Task) getDroplet(ctx context.Context) (*godo.Droplet, error) {
+// GetDroplet hack: SHOULD NOT BE USED IN CRITICAL PATH CODE
+func (t *Task) GetDroplet(ctx context.Context) (*godo.Droplet, error) {
 	dropletId, err := strconv.Atoi(t.GetState().ID)
 	if err != nil {
 		return nil, err
