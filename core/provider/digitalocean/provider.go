@@ -69,7 +69,7 @@ func NewProviderWithClient(ctx context.Context, providerName string, doClient Do
 		return nil, fmt.Errorf("failed to validate tailscale settings: %w", err)
 	}
 
-	petriTag := fmt.Sprintf("petri-droplet-%s", providerName)
+	petriTag := fmt.Sprintf("petri-%s", providerName)
 	digitalOceanProvider := &Provider{
 		doClient:          doClient,
 		tailscaleSettings: tailscaleSettings,
@@ -150,7 +150,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		tailscaleSettings: p.tailscaleSettings,
 	}
 
-	if err := util.WaitForCondition(ctx, 240*time.Second, 1*time.Second, func() (bool, error) {
+	if err := util.WaitForCondition(ctx, 240*time.Second, 10*time.Second, func() (bool, error) {
 		self, err := task.getTailscalePeer(ctx)
 
 		if err != nil {

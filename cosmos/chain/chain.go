@@ -85,7 +85,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	for i := 0; i < config.NumValidators; i++ {
 		i := i
 		eg.Go(func() error {
-			validatorName := fmt.Sprintf("%s-validator-%d", config.Name, i)
+			validatorName := fmt.Sprintf("validator-%d", i)
 
 			logger.Info("creating validator", zap.String("name", validatorName))
 
