@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"net"
 	"strconv"
 	"strings"
@@ -428,15 +427,14 @@ func (p *Provider) CreateDomains(ctx context.Context, domains map[string]string)
 	defer p.stateMu.Unlock()
 
 	for domain, ip := range domains {
-		// create an A record named portX where X is the port number and ip is the public IP of the droplet
+		p.logger.Info("creating domain", zap.String("name", domain), zap.String("ip", ip))
+
 		req := &godo.DomainRecordEditRequest{
 			Type: "A",
 			Name: domain,
 			Data: ip,
 			TTL:  300,
 		}
-
-		spew.Dump(req)
 
 		resp, err := p.doClient.CreateDomain(ctx, p.domain, req)
 		if err != nil {

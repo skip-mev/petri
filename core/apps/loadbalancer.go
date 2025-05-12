@@ -20,33 +20,29 @@ type LoadBalancerDefinition struct {
 	SSLKey                  []byte
 }
 
+// CaddyHttpDomainTemplate is used for HTTP services
+// it uses the default HTTP transport and sends traffic
+// to the second argument in the template
 const CaddyHttpDomainTemplate = `%s {
 	log
 	
 	handle {
-		reverse_proxy %s {
-			header_up Host {http.request.host}
-            header_up X-Real-IP {http.request.remote.host}
-            header_up X-Forwarded-For {http.request.remote.host}
-            header_up X-Forwarded-Port {http.request.port}
-            header_up X-Forwarded-Proto {http.request.scheme}
-		}
+		reverse_proxy %s 
 	}
 
 	tls /caddy/cert.pem /caddy/key.pem 
 }
 `
 
+// CaddyGrpcDomainTemplate is used for gRPC services -
+// it uses h2c (HTTP/2 cleartext) for the transport
+// and requires TLS termination, assuming that the endpoint
+// is cleartext
 const CaddyGrpcDomainTemplate = `%s {
 	log
 
 	handle {
 		reverse_proxy %s {
-			header_up Host {http.request.host}
-            header_up X-Real-IP {http.request.remote.host}
-            header_up X-Forwarded-For {http.request.remote.host}
-            header_up X-Forwarded-Port {http.request.port}
-            header_up X-Forwarded-Proto {http.request.scheme}
 			transport http {
 				# Use HTTP/2 cleartext for gRPC
 				versions h2c
