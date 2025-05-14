@@ -20,6 +20,9 @@ type LoadBalancerDefinition struct {
 	SSLKey                  []byte
 }
 
+// CaddyTLSTemplate is used for TLS termination
+const CaddyTlsTemplate = "tls /caddy/cert.pem /caddy/key.pem"
+
 // CaddyHttpDomainTemplate is used for HTTP services
 // it uses the default HTTP transport and sends traffic
 // to the second argument in the template
@@ -30,7 +33,7 @@ const CaddyHttpDomainTemplate = `%s {
 		reverse_proxy %s 
 	}
 
-	tls /caddy/cert.pem /caddy/key.pem 
+	%s
 }
 `
 
@@ -50,7 +53,7 @@ const CaddyGrpcDomainTemplate = `%s {
 		}
 	}
 
-	tls /caddy/cert.pem /caddy/key.pem 
+	%s
 }
 `
 
@@ -74,12 +77,18 @@ func LaunchLoadBalancer(ctx context.Context, p *digitalocean.Provider, rootDomai
 		return nil, err
 	}
 
-	if err := task.WriteFile(ctx, "cert.pem", definition.SSLCertificate); err != nil {
-		return nil, err
-	}
+	tlsTemplate := ""
 
-	if err := task.WriteFile(ctx, "key.pem", definition.SSLKey); err != nil {
-		return nil, err
+	if definition.SSLCertificate != nil && definition.SSLKey != nil {
+		if err := task.WriteFile(ctx, "cert.pem", definition.SSLCertificate); err != nil {
+			return nil, err
+		}
+
+		if err := task.WriteFile(ctx, "key.pem", definition.SSLKey); err != nil {
+			return nil, err
+		}
+
+		tlsTemplate = CaddyTlsTemplate
 	}
 
 	caddyConfig := ""
@@ -93,7 +102,7 @@ func LaunchLoadBalancer(ctx context.Context, p *digitalocean.Provider, rootDomai
 			template = CaddyGrpcDomainTemplate
 		}
 
-		caddyConfig += fmt.Sprintf(template, fullDomain, domain.IP)
+		caddyConfig += fmt.Sprintf(template, fullDomain, domain.IP, tlsTemplate)
 	}
 
 	if err := task.WriteFile(ctx, "Caddyfile", []byte(caddyConfig)); err != nil {
