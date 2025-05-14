@@ -107,7 +107,6 @@ func (t *Task) Destroy(ctx context.Context) error {
 
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
 	state := t.GetState()
-	t.logger.Debug("getting external address", zap.String("id", state.Id))
 
 	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
 	if err != nil {
