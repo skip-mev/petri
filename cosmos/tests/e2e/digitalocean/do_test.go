@@ -136,7 +136,8 @@ func TestDOE2E(t *testing.T) {
 	// Create first half of chains
 	defaultChainConfig.NumNodes = *numNodes
 	defaultChainConfig.NumValidators = *numValidators
-	e2e.CreateChainsConcurrently(ctx, t, logger, p, 0, *numTestChains/2, chains, defaultChainConfig, defaultChainOptions)
+	e2e.CreateChainsConcurrently(ctx, t, logger, p, 0, *numTestChains/2, chains,
+		defaultChainConfig, "chain-%d", defaultChainOptions)
 
 	// Restore provider before creating second half of chains
 	serializedProvider, err := p.SerializeProvider(ctx)
@@ -167,7 +168,8 @@ func TestDOE2E(t *testing.T) {
 	}
 
 	// Create second half of chains with restored provider
-	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2, *numTestChains, restoredChains, defaultChainConfig, defaultChainOptions)
+	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2,
+		*numTestChains, restoredChains, defaultChainConfig, "chain-%d", defaultChainOptions)
 
 	// Test and teardown half the chains individually
 	for i := 0; i < *numTestChains/2; i++ {
