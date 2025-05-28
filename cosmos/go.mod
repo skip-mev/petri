@@ -7,7 +7,6 @@ toolchain go1.23.5
 replace (
 	github.com/cosmos/cosmos-sdk/api => cosmossdk.io/api v0.7.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/skip-mev/petri/core/v3 => ../core
 )
 
 require (
@@ -19,7 +18,7 @@ require (
 	github.com/golangci/golangci-lint v1.57.1
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/pelletier/go-toml/v2 v2.2.2
-	github.com/skip-mev/petri/core/v3 v3.0.6
+	github.com/skip-mev/petri/core/v3 petri/core/v3/gaia-evm
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.9.0
