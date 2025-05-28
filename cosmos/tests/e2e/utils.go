@@ -75,7 +75,7 @@ func CreateChainsConcurrently(
 		go func(index int) {
 			defer wg.Done()
 			config := chainConfig
-			config.ChainId = fmt.Sprintf("cosmos_22222-%d", index+1)
+			config.ChainId = fmt.Sprintf(chainIDFmtStr, index+1)
 			config.Name = fmt.Sprintf("chain-%d", index)
 
 			c, err := cosmoschain.CreateChain(ctx, logger, p, config, chainOptions)

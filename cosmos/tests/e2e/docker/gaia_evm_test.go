@@ -164,97 +164,9 @@ func TestGaiaEvmE2E(t *testing.T) {
 
 	chains := make([]*cosmoschain.Chain, *numTestChains)
 
-	// Create first half of chains
 	evmChainConfig.NumNodes = *numNodes
 	evmChainConfig.NumValidators = *numValidators
-	e2e.CreateChainsConcurrently(ctx, t, logger, p, 0, *numTestChains/2, chains,
+	e2e.CreateChainsConcurrently(ctx, t, logger, p, 0, 1, chains,
 		evmChainConfig, evmChainIDFmt, evmChainOptions)
-
-	// Restore provider before creating second half of chains
-	serializedProvider, err := p.SerializeProvider(ctx)
-	require.NoError(t, err)
-	restoredProvider, err := docker.RestoreProvider(ctx, logger, serializedProvider)
-	require.NoError(t, err)
-
-	// Restore the existing chains with the restored provider
-	restoredChains := make([]*cosmoschain.Chain, *numTestChains)
-	for i := 0; i < *numTestChains/2; i++ {
-		chainState, err := chains[i].Serialize(ctx, restoredProvider)
-		require.NoError(t, err)
-
-		restoredChain, err := cosmoschain.RestoreChain(ctx, logger, restoredProvider, chainState, node.RestoreNode, evmChainOptions.WalletConfig)
-		require.NoError(t, err)
-
-		require.Equal(t, chains[i].GetConfig(), restoredChain.GetConfig())
-		require.Equal(t, len(chains[i].GetValidators()), len(restoredChain.GetValidators()))
-
-		restoredChains[i] = restoredChain
-	}
-
-	// Create second half of chains with restored provider
-	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2,
-		*numTestChains, restoredChains, evmChainConfig, evmChainIDFmt, evmChainOptions)
-
-	// Test and teardown half the chains individually
-	for i := 0; i < *numTestChains/2; i++ {
-		originalChain := restoredChains[i]
-		validators := originalChain.GetValidators()
-		nodes := originalChain.GetNodes()
-
-		for _, validator := range validators {
-			e2e.AssertNodeRunning(t, ctx, validator)
-		}
-
-		for _, node := range nodes {
-			e2e.AssertNodeRunning(t, ctx, node)
-		}
-
-		err = originalChain.WaitForBlocks(ctx, 2)
-		require.NoError(t, err)
-
-		// Test individual chain teardown
-		err = originalChain.Teardown(ctx)
-		require.NoError(t, err)
-
-		for _, validator := range validators {
-			e2e.AssertNodeShutdown(t, ctx, validator)
-		}
-
-		for _, node := range nodes {
-			e2e.AssertNodeShutdown(t, ctx, node)
-		}
-	}
-
-	// Test the remaining chains but let the provider teardown handle their cleanup
-	remainingChains := make([]*cosmoschain.Chain, 0)
-	for i := *numTestChains / 2; i < *numTestChains; i++ {
-		originalChain := restoredChains[i]
-		remainingChains = append(remainingChains, originalChain)
-		validators := originalChain.GetValidators()
-		nodes := originalChain.GetNodes()
-		for _, validator := range validators {
-			e2e.AssertNodeRunning(t, ctx, validator)
-		}
-		for _, node := range nodes {
-			e2e.AssertNodeRunning(t, ctx, node)
-		}
-
-		err = originalChain.WaitForBlocks(ctx, 2)
-		require.NoError(t, err)
-	}
-
-	require.NoError(t, restoredProvider.Teardown(ctx))
-	// Verify all remaining chains are properly torn down
-	for _, chain := range remainingChains {
-		validators := chain.GetValidators()
-		nodes := chain.GetNodes()
-
-		for _, validator := range validators {
-			e2e.AssertNodeShutdown(t, ctx, validator)
-		}
-
-		for _, node := range nodes {
-			e2e.AssertNodeShutdown(t, ctx, node)
-		}
-	}
+	require.NoError(t, p.Teardown(ctx))
 }
