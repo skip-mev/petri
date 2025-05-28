@@ -42,10 +42,10 @@ func recursiveModifyToml(c map[string]any, modifications Toml) error {
 	}
 	return nil
 }
-func GenerateDefaultClientConfig() Toml {
+func GenerateDefaultClientConfig(chainID string) Toml {
 	clientConfig := make(Toml)
 
-	clientConfig["chain-id"] = ""
+	clientConfig["chain-id"] = chainID
 	clientConfig["keyring-backend"] = "os"
 	clientConfig["output"] = "text"
 	clientConfig["node"] = "http://localhost:26657"
@@ -157,9 +157,10 @@ func (n *Node) ModifyTomlConfigFile(
 }
 
 // SetDefaultConfigs will generate the default configs for CometBFT and the app, and write them to disk
-func (n *Node) SetDefaultConfigs(ctx context.Context) error {
+func (n *Node) SetDefaultConfigs(ctx context.Context, chainID string) error {
 	appConfig := GenerateDefaultAppConfig(n.GetChainConfig())
 	consensusConfig := GenerateDefaultConsensusConfig()
+	clientConfig := GenerateDefaultClientConfig(chainID)
 
 	if err := n.ModifyTomlConfigFile(
 		ctx,
@@ -173,6 +174,14 @@ func (n *Node) SetDefaultConfigs(ctx context.Context) error {
 		ctx,
 		"config/config.toml",
 		consensusConfig,
+	); err != nil {
+		return err
+	}
+
+	if err := n.ModifyTomlConfigFile(
+		ctx,
+		"config/client.toml",
+		clientConfig,
 	); err != nil {
 		return err
 	}

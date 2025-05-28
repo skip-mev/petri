@@ -64,6 +64,7 @@ func CreateChainsConcurrently(
 	startIndex, endIndex int,
 	chains []*cosmoschain.Chain,
 	chainConfig types.ChainConfig,
+	chainIDFmtStr string,
 	chainOptions types.ChainOptions,
 ) {
 	var wg sync.WaitGroup
@@ -74,7 +75,7 @@ func CreateChainsConcurrently(
 		go func(index int) {
 			defer wg.Done()
 			config := chainConfig
-			config.ChainId = fmt.Sprintf("chain-%d", index)
+			config.ChainId = fmt.Sprintf("cosmos_22222-%d", index+1)
 			config.Name = fmt.Sprintf("chain-%d", index)
 
 			c, err := cosmoschain.CreateChain(ctx, logger, p, config, chainOptions)

@@ -22,26 +22,26 @@ import (
 )
 
 var (
-	defaultChainConfig = types.ChainConfig{
-		Denom:         "stake",
+	evmChainConfig = types.ChainConfig{
+		Denom:         "atest",
 		Decimals:      6,
 		NumValidators: 1,
 		NumNodes:      1,
-		BinaryName:    "/usr/bin/simd",
+		BinaryName:    "gaiad",
 		Image: provider.ImageDefinition{
-			Image: "ghcr.io/cosmos/simapp:v0.47",
-			UID:   "1000",
-			GID:   "1000",
+			Image: "ghcr.io/cosmos/gaia:na-build-arm64",
+			UID:   "1025",
+			GID:   "1025",
 		},
-		GasPrices:            "0.0005stake",
+		GasPrices:            "0.0005atest",
 		Bech32Prefix:         "cosmos",
 		HomeDir:              "/gaia",
 		CoinType:             "118",
-		ChainId:              "stake-1",
+		ChainId:              "cosmos_262144-1",
 		UseGenesisSubCommand: true,
 	}
 
-	defaultChainOptions = types.ChainOptions{
+	evmChainOptions = types.ChainOptions{
 		NodeCreator: node.CreateNode,
 		WalletConfig: types.WalletConfig{
 			SigningAlgorithm: string(hd.Secp256k1.Name()),
@@ -50,14 +50,94 @@ var (
 			DerivationFn:     hd.Secp256k1.Derive(),
 			GenerationFn:     hd.Secp256k1.Generate(),
 		},
+		ModifyGenesis: cosmoschain.ModifyGenesis([]cosmoschain.GenesisKV{
+			{
+				Key:   "app_state.staking.params.bond_denom",
+				Value: "atest",
+			},
+			{
+				Key:   "app_state.gov.deposit_params.min_deposit.0.denom",
+				Value: "atest",
+			},
+			{
+				Key:   "app_state.gov.params.min_deposit.0.denom",
+				Value: "atest",
+			},
+			{
+				Key:   "app_state.evm.params.evm_denom",
+				Value: "atest",
+			},
+			{
+				Key:   "app_state.mint.params.mint_denom",
+				Value: "atest",
+			},
+			{
+				Key: "app_state.bank.denom_metadata",
+				Value: []map[string]interface{}{
+					{
+						"description": "The native staking token for evmd.",
+						"denom_units": []map[string]interface{}{
+							{
+								"denom":    "atest",
+								"exponent": 0,
+								"aliases":  []string{"attotest"},
+							},
+							{
+								"denom":    "test",
+								"exponent": 18,
+								"aliases":  []string{},
+							},
+						},
+						"base":     "atest",
+						"display":  "test",
+						"name":     "Test Token",
+						"symbol":   "TEST",
+						"uri":      "",
+						"uri_hash": "",
+					},
+				},
+			},
+			{
+				Key: "app_state.evm.params.active_static_precompiles",
+				Value: []string{
+					"0x0000000000000000000000000000000000000100",
+					"0x0000000000000000000000000000000000000400",
+					"0x0000000000000000000000000000000000000800",
+					"0x0000000000000000000000000000000000000801",
+					"0x0000000000000000000000000000000000000802",
+					"0x0000000000000000000000000000000000000803",
+					"0x0000000000000000000000000000000000000804",
+					"0x0000000000000000000000000000000000000805",
+				},
+			},
+			{
+				Key:   "app_state.erc20.params.native_precompiles",
+				Value: []string{"0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"},
+			},
+			{
+				Key: "app_state.erc20.token_pairs",
+				Value: []map[string]interface{}{
+					{
+						"contract_owner": 1,
+						"erc20_address":  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+						"denom":          "atest",
+						"enabled":        true,
+					},
+				},
+			},
+			{
+				Key:   "consensus.params.block.max_gas",
+				Value: "75000000",
+			},
+		}),
 	}
-
-	numTestChains = flag.Int("num-chains", 3, "number of chains to create for concurrent testing")
-	numNodes      = flag.Int("num-nodes", 1, "number of nodes per chain")
-	numValidators = flag.Int("num-validators", 1, "number of validators per chain")
 )
 
-func TestDockerE2E(t *testing.T) {
+const (
+	evmChainIDFmt = "cosmos_22222-%d"
+)
+
+func TestGaiaEvmE2E(t *testing.T) {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -85,10 +165,10 @@ func TestDockerE2E(t *testing.T) {
 	chains := make([]*cosmoschain.Chain, *numTestChains)
 
 	// Create first half of chains
-	defaultChainConfig.NumNodes = *numNodes
-	defaultChainConfig.NumValidators = *numValidators
+	evmChainConfig.NumNodes = *numNodes
+	evmChainConfig.NumValidators = *numValidators
 	e2e.CreateChainsConcurrently(ctx, t, logger, p, 0, *numTestChains/2, chains,
-		defaultChainConfig, "chain-%d", defaultChainOptions)
+		evmChainConfig, evmChainIDFmt, evmChainOptions)
 
 	// Restore provider before creating second half of chains
 	serializedProvider, err := p.SerializeProvider(ctx)
@@ -102,7 +182,7 @@ func TestDockerE2E(t *testing.T) {
 		chainState, err := chains[i].Serialize(ctx, restoredProvider)
 		require.NoError(t, err)
 
-		restoredChain, err := cosmoschain.RestoreChain(ctx, logger, restoredProvider, chainState, node.RestoreNode, defaultChainOptions.WalletConfig)
+		restoredChain, err := cosmoschain.RestoreChain(ctx, logger, restoredProvider, chainState, node.RestoreNode, evmChainOptions.WalletConfig)
 		require.NoError(t, err)
 
 		require.Equal(t, chains[i].GetConfig(), restoredChain.GetConfig())
@@ -112,8 +192,8 @@ func TestDockerE2E(t *testing.T) {
 	}
 
 	// Create second half of chains with restored provider
-	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2, *numTestChains,
-		restoredChains, defaultChainConfig, "chain-%d", defaultChainOptions)
+	e2e.CreateChainsConcurrently(ctx, t, logger, restoredProvider, *numTestChains/2,
+		*numTestChains, restoredChains, evmChainConfig, evmChainIDFmt, evmChainOptions)
 
 	// Test and teardown half the chains individually
 	for i := 0; i < *numTestChains/2; i++ {
