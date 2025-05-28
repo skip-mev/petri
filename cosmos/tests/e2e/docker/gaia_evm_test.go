@@ -37,7 +37,7 @@ var (
 		Bech32Prefix:         "cosmos",
 		HomeDir:              "/gaia",
 		CoinType:             "118",
-		ChainId:              "cosmos_262144-1",
+		ChainId:              "cosmos_22222-1",
 		UseGenesisSubCommand: true,
 	}
 
