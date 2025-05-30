@@ -39,7 +39,9 @@ func (n *Node) RecoverKey(ctx context.Context, name, mnemonic string) error {
 		fmt.Sprintf(`echo %q | %s keys add %s --recover --keyring-backend %s --coin-type %s --home %s --output json`, mnemonic, n.GetChainConfig().BinaryName, name, keyring.BackendTest, n.GetChainConfig().CoinType, n.GetChainConfig().HomeDir),
 	}
 
-	_, _, _, err := n.RunCommand(ctx, command)
+	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
+	n.logger.Debug("RecoverKey", zap.String("name", name), zap.String("stdout", stdout),
+		zap.String("stderr", stderr), zap.Any("exitCode", exitCode))
 
 	return err
 }

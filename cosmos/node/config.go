@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -46,7 +47,7 @@ func GenerateDefaultClientConfig(chainID string) Toml {
 	clientConfig := make(Toml)
 
 	clientConfig["chain-id"] = chainID
-	clientConfig["keyring-backend"] = "os"
+	clientConfig["keyring-backend"] = keyring.BackendTest
 	clientConfig["output"] = "text"
 	clientConfig["node"] = "http://localhost:26657"
 	clientConfig["broadcast-mode"] = "sync"

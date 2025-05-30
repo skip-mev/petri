@@ -68,7 +68,7 @@ func (n *Node) AddGenesisAccount(ctx context.Context, address string, genesisAmo
 		command = append(command, "genesis")
 	}
 
-	command = append(command, "add-genesis-account", address, amount)
+	command = append(command, "add-genesis-account", address, amount, "--keyring-backend", keyring.BackendTest)
 	command = n.BinCommand(command...)
 
 	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
