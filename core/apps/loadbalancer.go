@@ -2,15 +2,33 @@ package apps
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
 )
 
 type LoadBalancerDomain struct {
-	Domain   string `json:"domain"`
-	IP       string `json:"ip"`
-	Protocol string `json:"protocol"`
+	Domain   string   `json:"domain"`
+	IPs      []string `json:"ips,omitempty"`
+	Protocol string   `json:"protocol"`
+}
+
+func (lbd LoadBalancerDomain) Validate() error {
+	if lbd.Domain == "" {
+		return fmt.Errorf("domain must be specified")
+	}
+
+	if len(lbd.IPs) == 0 {
+		return fmt.Errorf("at least one IP must be specified")
+	}
+
+	if lbd.Protocol != "http" && lbd.Protocol != "grpc" {
+		return fmt.Errorf("protocol must be either 'http' or 'grpc'")
+	}
+	return nil
 }
 
 type LoadBalancerDefinition struct {
@@ -18,6 +36,28 @@ type LoadBalancerDefinition struct {
 	Domains                 []LoadBalancerDomain
 	SSLCertificate          []byte
 	SSLKey                  []byte
+}
+
+func (lbd LoadBalancerDefinition) Validate() error {
+	if len(lbd.Domains) == 0 {
+		return fmt.Errorf("at least one domain must be specified")
+	}
+
+	if len(lbd.SSLKey) == 0 && len(lbd.SSLCertificate) > 0 {
+		return fmt.Errorf("SSL key must be provided if SSL certificate is specified")
+	}
+
+	if len(lbd.SSLCertificate) == 0 && len(lbd.SSLKey) > 0 {
+		return fmt.Errorf("SSL certificate must be provided if SSL key is specified")
+	}
+
+	var err error
+
+	for _, domain := range lbd.Domains {
+		err = errors.Join(domain.Validate())
+	}
+
+	return err
 }
 
 // CaddyTLSTemplate is used for TLS termination
@@ -102,7 +142,8 @@ func LaunchLoadBalancer(ctx context.Context, p *digitalocean.Provider, rootDomai
 			template = CaddyGrpcDomainTemplate
 		}
 
-		caddyConfig += fmt.Sprintf(template, fullDomain, domain.IP, tlsTemplate)
+		ipDirective := strings.Join(domain.IPs, " ")
+		caddyConfig += fmt.Sprintf(template, fullDomain, ipDirective, tlsTemplate)
 	}
 
 	if err := task.WriteFile(ctx, "Caddyfile", []byte(caddyConfig)); err != nil {
