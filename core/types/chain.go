@@ -78,7 +78,10 @@ type ChainConfig struct {
 	CoinType string // CoinType is the coin type of the chain (e.g. 118)
 	ChainId  string // ChainId is the chain ID of the chain
 
-	UseGenesisSubCommand bool // UseGenesisSubCommand is a flag that indicates whether to use the 'genesis' subcommand to initialize the chain. Set to true if Cosmos SDK >v0.50
+	UseGenesisSubCommand bool     // UseGenesisSubCommand is a flag that indicates whether to use the 'genesis' subcommand to initialize the chain. Set to true if Cosmos SDK >v0.50
+	AdditionalStartFlags []string // AdditionalStartFlags are additional flags to pass to the chain binary when starting the chain
+
+	AdditionalPorts []string // AdditionalPorts are additional ports to expose for the chain
 
 	// number of tokens to allocate per account in the genesis state (unscaled). This value defaults to 10_000_000 if not set.
 	// if not set.

@@ -63,8 +63,8 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 	def := provider.TaskDefinition{
 		Name:       nodeConfig.Name,
 		Image:      chainConfig.Image,
-		Ports:      []string{"9090", "26656", "26657", "26660", "1317"},
-		Entrypoint: []string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"},
+		Ports:      append([]string{"9090", "26656", "26657", "26660", "1317"}, chainConfig.AdditionalPorts...),
+		Entrypoint: append([]string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"}, chainConfig.AdditionalStartFlags...),
 		DataDir:    chainConfig.HomeDir,
 	}
 
