@@ -11,8 +11,7 @@ import (
 
 type LoadBalancerDomain struct {
 	Domain   string   `json:"domain"`
-	IP       string   `json:"ip"`            // required, for single-IP load balancers, mutually exclusive with IPs
-	IPs      []string `json:"ips,omitempty"` // optional, for multi-IP load balancers
+	IPs      []string `json:"ips,omitempty"`
 	Protocol string   `json:"protocol"`
 }
 
@@ -21,18 +20,13 @@ func (lbd LoadBalancerDomain) Validate() error {
 		return fmt.Errorf("domain must be specified")
 	}
 
-	if lbd.IP == "" && len(lbd.IPs) == 0 {
-		return fmt.Errorf("either IP or IPs must be specified")
+	if len(lbd.IPs) == 0 {
+		return fmt.Errorf("at least one IP must be specified")
 	}
 
 	if lbd.Protocol != "http" && lbd.Protocol != "grpc" {
 		return fmt.Errorf("protocol must be either 'http' or 'grpc'")
 	}
-
-	if lbd.IP != "" && len(lbd.IPs) > 0 {
-		return fmt.Errorf("IP and IPs are mutually exclusive, please specify only one")
-	}
-
 	return nil
 }
 
@@ -149,11 +143,7 @@ func LaunchLoadBalancer(ctx context.Context, p *digitalocean.Provider, rootDomai
 
 		ipDirective := ""
 
-		if domain.IP != "" {
-			ipDirective = domain.IP
-		}
-
-		if len(domain.IPs) > 0 {
+		if len(domain.IPs) != 0 {
 			ipDirective = strings.Join(domain.IPs, " ")
 		}
 
