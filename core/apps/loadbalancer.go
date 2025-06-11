@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
-	"strings"
 )
 
 type LoadBalancerDomain struct {
@@ -141,12 +142,7 @@ func LaunchLoadBalancer(ctx context.Context, p *digitalocean.Provider, rootDomai
 			template = CaddyGrpcDomainTemplate
 		}
 
-		ipDirective := ""
-
-		if len(domain.IPs) != 0 {
-			ipDirective = strings.Join(domain.IPs, " ")
-		}
-
+		ipDirective := strings.Join(domain.IPs, " ")
 		caddyConfig += fmt.Sprintf(template, fullDomain, ipDirective, tlsTemplate)
 	}
 
