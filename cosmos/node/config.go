@@ -127,7 +127,7 @@ func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
 		evm["tracer"] = ""
 		evm["max-tx-gas-wanted"] = 0
 		evm["cache-preimage"] = false
-		evm["evm-chain-id"] = c.ChainId
+		evm["evm-chain-id"] = c.EVMConfig.ChainId
 
 		sdkConfig["evm"] = evm
 
