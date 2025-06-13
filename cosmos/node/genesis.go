@@ -102,7 +102,8 @@ func (n *Node) GenerateGenTx(ctx context.Context, genesisSelfDelegation types.Co
 	command = n.BinCommand(command...)
 
 	stdout, stderr, exitCode, err := n.RunCommand(ctx, command)
-	n.logger.Debug("gentx", zap.String("stdout", stdout), zap.String("stderr", stderr), zap.Int("exitCode", exitCode))
+	n.logger.Debug("gentx", zap.String("stdout", stdout), zap.String("stderr", stderr),
+		zap.Int("exitCode", exitCode), zap.Strings("command", command))
 
 	if err != nil {
 		return fmt.Errorf("failed to generate genesis transaction: %w", err)
