@@ -88,6 +88,8 @@ type ChainConfig struct {
 	GenesisDelegation *big.Int
 	// number of tokens to allocate to the genesis account. This value defaults to 5_000_000 if not set.
 	GenesisBalance *big.Int
+
+	IsEVMChain bool
 }
 
 func (c ChainConfig) GetGenesisBalance() *big.Int {
