@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	"github.com/pelletier/go-toml/v2"
@@ -120,6 +121,39 @@ func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
 	telemetry["prometheus-retention-time"] = 3600
 
 	sdkConfig["telemetry"] = telemetry
+
+	if c.IsEVMChain {
+		evm := make(Toml)
+		evm["tracer"] = ""
+		evm["max-tx-gas-wanted"] = 0
+		evm["cache-preimage"] = false
+		evm["evm-chain-id"] = c.EVMConfig.ChainId
+
+		sdkConfig["evm"] = evm
+
+		jsonRPC := make(Toml)
+		jsonRPC["enable"] = true
+		jsonRPC["address"] = "127.0.0.1:8545"
+		jsonRPC["ws-address"] = "127.0.0.1:8546"
+		jsonRPC["api"] = "eth,net,web3"
+		jsonRPC["gas-cap"] = 25000000
+		jsonRPC["allow-insecure-unlock"] = true
+		jsonRPC["evm-timeout"] = "5s"
+		jsonRPC["txfee-cap"] = 1
+		jsonRPC["filter-cap"] = 200
+		jsonRPC["feehistory-cap"] = 100
+		jsonRPC["logs-cap"] = 10000
+		jsonRPC["block-range-cap"] = 10000
+		jsonRPC["http-timeout"] = "30s"
+		jsonRPC["http-idle-timeout"] = "2m0s"
+		jsonRPC["allow-unprotected-txs"] = false
+		jsonRPC["max-open-connections"] = 0
+		jsonRPC["enable-indexer"] = false
+		jsonRPC["metrics-address"] = "127.0.0.1:6065"
+		jsonRPC["fix-revert-gas-refund-height"] = 0
+
+		sdkConfig["json-rpc"] = jsonRPC
+	}
 
 	return sdkConfig
 }

@@ -18,7 +18,7 @@ require (
 	github.com/golangci/golangci-lint v1.57.1
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/pelletier/go-toml/v2 v2.2.2
-	github.com/skip-mev/petri/core/v3 v3.1.0
+	github.com/skip-mev/petri/core/v3 v3.1.3
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.9.0
