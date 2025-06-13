@@ -56,6 +56,11 @@ func (o ChainOptions) ValidateBasic() error {
 	return nil
 }
 
+// EVMConfig is the configuration for the EVM chain
+type EVMConfig struct {
+	ChainId string // ChainId is the chain ID of the EVM chain
+}
+
 // ChainConfig is the configuration structure for a logical chain.
 // It contains all the relevant details needed to create a Cosmos chain
 type ChainConfig struct {
@@ -89,7 +94,8 @@ type ChainConfig struct {
 	// number of tokens to allocate to the genesis account. This value defaults to 5_000_000 if not set.
 	GenesisBalance *big.Int
 
-	IsEVMChain bool // IsEVMChain is used to set evm specific configs during chain creation
+	IsEVMChain bool      // IsEVMChain is used to set evm specific configs during chain creation
+	EVMConfig  EVMConfig // EVMChainConfig is the configuration for the EVM chain
 }
 
 func (c ChainConfig) GetGenesisBalance() *big.Int {
@@ -145,6 +151,12 @@ func (c ChainConfig) ValidateBasic() error {
 
 	if c.ChainId == "" {
 		return fmt.Errorf("chain ID cannot be empty")
+	}
+
+	if c.IsEVMChain {
+		if c.EVMConfig.ChainId == "" {
+			return fmt.Errorf("chain ID cannot be empty")
+		}
 	}
 
 	return nil
