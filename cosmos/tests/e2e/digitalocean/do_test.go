@@ -3,10 +3,11 @@ package e2e
 import (
 	"context"
 	"flag"
-	"github.com/skip-mev/petri/core/v3/util"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/skip-mev/petri/core/v3/util"
 
 	"tailscale.com/tsnet"
 
@@ -34,12 +35,51 @@ var (
 			UID:   "1000",
 			GID:   "1000",
 		},
-		GasPrices:            "0.0005stake",
 		Bech32Prefix:         "cosmos",
 		HomeDir:              "/gaia",
 		CoinType:             "118",
 		ChainId:              "stake-1",
 		UseGenesisSubCommand: true,
+		AppConfig: types.Toml{
+			"minimum-gas-prices": "0.0005stake",
+			"grpc": types.Toml{
+				"address": "0.0.0.0:9090",
+			},
+			"api": types.Toml{
+				"enable":  true,
+				"swagger": true,
+				"address": "tcp://0.0.0.0:1317",
+			},
+			"telemetry": types.Toml{
+				"enabled":                   true,
+				"prometheus-retention-time": 3600,
+			},
+		},
+		ConsensusConfig: types.Toml{
+			"log_level": "info",
+			"p2p": types.Toml{
+				"allow_duplicate_ip": true,
+				"addr_book_strict":   false,
+			},
+			"consensus": types.Toml{
+				"timeout_commit":  "2s",
+				"timeout_propose": "2s",
+			},
+			"instrumentation": types.Toml{
+				"prometheus": true,
+			},
+			"rpc": types.Toml{
+				"laddr":           "tcp://0.0.0.0:26657",
+				"allowed_origins": []string{"*"},
+			},
+		},
+		ClientConfig: types.Toml{
+			"chain-id":        "stake-1",
+			"keyring-backend": "test",
+			"output":          "text",
+			"node":            "http://localhost:26657",
+			"broadcast-mode":  "sync",
+		},
 	}
 
 	defaultChainOptions = types.ChainOptions{

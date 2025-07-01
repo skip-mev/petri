@@ -2,11 +2,12 @@ package examples
 
 import (
 	"context"
-	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
 	"tailscale.com/tsnet"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -89,12 +90,51 @@ func main() {
 			UID:   "1000",
 			GID:   "1000",
 		},
-		GasPrices:            "0.0005stake",
 		Bech32Prefix:         "cosmos",
 		HomeDir:              "/gaia",
 		CoinType:             "118",
 		ChainId:              "stake-1",
 		UseGenesisSubCommand: true,
+		AppConfig: petritypes.Toml{
+			"minimum-gas-prices": "0.0005stake",
+			"grpc": petritypes.Toml{
+				"address": "0.0.0.0:9090",
+			},
+			"api": petritypes.Toml{
+				"enable":  true,
+				"swagger": true,
+				"address": "tcp://0.0.0.0:1317",
+			},
+			"telemetry": petritypes.Toml{
+				"enabled":                   true,
+				"prometheus-retention-time": 3600,
+			},
+		},
+		ConsensusConfig: petritypes.Toml{
+			"log_level": "info",
+			"p2p": petritypes.Toml{
+				"allow_duplicate_ip": true,
+				"addr_book_strict":   false,
+			},
+			"consensus": petritypes.Toml{
+				"timeout_commit":  "2s",
+				"timeout_propose": "2s",
+			},
+			"instrumentation": petritypes.Toml{
+				"prometheus": true,
+			},
+			"rpc": petritypes.Toml{
+				"laddr":           "tcp://0.0.0.0:26657",
+				"allowed_origins": []string{"*"},
+			},
+		},
+		ClientConfig: petritypes.Toml{
+			"chain-id":        "stake-1",
+			"keyring-backend": "test",
+			"output":          "text",
+			"node":            "http://localhost:26657",
+			"broadcast-mode":  "sync",
+		},
 	}
 
 	chainOptions := petritypes.ChainOptions{
