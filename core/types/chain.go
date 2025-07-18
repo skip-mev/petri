@@ -61,6 +61,9 @@ type EVMConfig struct {
 	ChainId string // ChainId is the chain ID of the EVM chain
 }
 
+// Toml represents a TOML configuration as a map
+type Toml map[string]any
+
 // ChainConfig is the configuration structure for a logical chain.
 // It contains all the relevant details needed to create a Cosmos chain
 type ChainConfig struct {
@@ -73,8 +76,6 @@ type ChainConfig struct {
 	BinaryName string // BinaryName is the name of the chain binary in the Docker image
 
 	Image provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
-
-	GasPrices string // GasPrices are the minimum gas prices to set on the chain
 
 	Bech32Prefix string // Bech32Prefix is the Bech32 prefix of the on-chain addresses
 
@@ -94,8 +95,9 @@ type ChainConfig struct {
 	// number of tokens to allocate to the genesis account. This value defaults to 5_000_000 if not set.
 	GenesisBalance *big.Int
 
-	IsEVMChain bool      // IsEVMChain is used to set evm specific configs during chain creation
-	EVMConfig  EVMConfig // EVMChainConfig is the configuration for the EVM chain
+	AppConfig       Toml // AppConfig contains configurations for app.toml
+	ConsensusConfig Toml // ConsensusConfig contains configurations for config.toml
+	ClientConfig    Toml // ClientConfig contains configurations for client.toml
 }
 
 func (c ChainConfig) GetGenesisBalance() *big.Int {
@@ -133,10 +135,6 @@ func (c ChainConfig) ValidateBasic() error {
 		return fmt.Errorf("binary name cannot be empty")
 	}
 
-	if c.GasPrices == "" {
-		return fmt.Errorf("gas prices cannot be empty")
-	}
-
 	if err := c.Image.ValidateBasic(); err != nil {
 		return fmt.Errorf("image definition is invalid: %w", err)
 	}
@@ -153,10 +151,16 @@ func (c ChainConfig) ValidateBasic() error {
 		return fmt.Errorf("chain ID cannot be empty")
 	}
 
-	if c.IsEVMChain {
-		if c.EVMConfig.ChainId == "" {
-			return fmt.Errorf("chain ID cannot be empty")
-		}
+	if c.AppConfig == nil {
+		return fmt.Errorf("app config cannot be nil")
+	}
+
+	if c.ConsensusConfig == nil {
+		return fmt.Errorf("consensus config cannot be nil")
+	}
+
+	if c.ClientConfig == nil {
+		return fmt.Errorf("client config cannot be nil")
 	}
 
 	return nil

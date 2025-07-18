@@ -366,6 +366,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		return err
 	}
 
+	chainConfig := c.GetConfig()
 	for i := range c.Validators {
 		v := c.Validators[i]
 		eg.Go(func() error {
@@ -373,9 +374,11 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 			if err := v.OverwriteGenesisFile(ctx, genbz); err != nil {
 				return err
 			}
-			if err := v.SetDefaultConfigs(ctx, c.GetConfig().ChainId); err != nil {
+
+			if err := v.SetChainConfigs(ctx, chainConfig); err != nil {
 				return err
 			}
+
 			if err := v.SetPersistentPeers(ctx, peers); err != nil {
 				return err
 			}
@@ -390,9 +393,11 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 			if err := n.OverwriteGenesisFile(ctx, genbz); err != nil {
 				return err
 			}
-			if err := n.SetDefaultConfigs(ctx, c.GetConfig().ChainId); err != nil {
+
+			if err := n.SetChainConfigs(ctx, chainConfig); err != nil {
 				return err
 			}
+
 			if err := n.SetPersistentPeers(ctx, peers); err != nil {
 				return err
 			}
