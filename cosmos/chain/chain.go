@@ -366,6 +366,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		return err
 	}
 
+	chainConfig := c.GetConfig()
 	for i := range c.Validators {
 		v := c.Validators[i]
 		eg.Go(func() error {
@@ -374,7 +375,6 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 				return err
 			}
 
-			chainConfig := c.GetConfig()
 			if err := v.SetChainConfigs(ctx, chainConfig); err != nil {
 				return err
 			}
@@ -394,7 +394,6 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 				return err
 			}
 
-			chainConfig := c.GetConfig()
 			if err := n.SetChainConfigs(ctx, chainConfig); err != nil {
 				return err
 			}
