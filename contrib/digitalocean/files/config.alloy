@@ -18,7 +18,7 @@ foreach "container" {
                 prometheus.scrape "target" {
                     targets = [{ __address__ = string.format("127.0.0.1:%s", port), provider=json_path(local.file.creds.content, ".provider")[0]}]
                     scrape_interval = "5s"
-                    scrape_timeout  = "1"
+                    scrape_timeout  = "5s"
                     forward_to = [prometheus.remote_write.overseer.receiver]
                 }
             }
