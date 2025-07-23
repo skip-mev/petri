@@ -10,6 +10,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/skip-mev/petri/core/v3/provider"
 	"github.com/skip-mev/petri/core/v3/provider/docker"
 	"github.com/skip-mev/petri/core/v3/types"
@@ -317,4 +318,64 @@ func TestGaiaEvm(t *testing.T) {
 	require.NoError(t, c.WaitForBlocks(ctx, 2))
 
 	require.NoError(t, c.Teardown(ctx))
+}
+
+func TestCustomConfigOverride(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := zap.NewDevelopment()
+	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
+
+	p, err := docker.CreateProvider(ctx, logger, providerName)
+	require.NoError(t, err)
+	defer func(p provider.ProviderI, ctx context.Context) {
+		require.NoError(t, p.Teardown(ctx))
+	}(p, ctx)
+
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+	chainConfig.NumValidators = 1
+	chainConfig.CustomAppConfig = map[string]interface{}{
+		"minimum-gas-prices": "0.001customstake",
+		"grpc": map[string]interface{}{
+			"address": "0.0.0.0:9999",
+		},
+	}
+	chainConfig.CustomConsensusConfig = map[string]interface{}{
+		"log_level": "debug",
+	}
+	chainConfig.CustomClientConfig = map[string]interface{}{
+		"output": "json",
+	}
+
+	c, err := chain.CreateChain(ctx, logger, p, chainConfig, defaultChainOptions)
+	require.NoError(t, err)
+	require.NoError(t, c.Init(ctx, defaultChainOptions))
+	require.Len(t, c.GetValidators(), 1)
+	validator := c.GetValidators()[0]
+	time.Sleep(2 * time.Second)
+
+	appConfigBytes, err := validator.ReadFile(ctx, "config/app.toml")
+	require.NoError(t, err)
+	var appConfig map[string]interface{}
+	err = toml.Unmarshal(appConfigBytes, &appConfig)
+	require.NoError(t, err)
+	require.Equal(t, "0.001customstake", appConfig["minimum-gas-prices"])
+	grpcConfig, ok := appConfig["grpc"].(map[string]interface{})
+	require.True(t, ok)
+	require.Equal(t, "0.0.0.0:9999", grpcConfig["address"])
+
+	consensusConfigBytes, err := validator.ReadFile(ctx, "config/config.toml")
+	require.NoError(t, err)
+	var consensusConfig map[string]interface{}
+	err = toml.Unmarshal(consensusConfigBytes, &consensusConfig)
+	require.NoError(t, err)
+	require.Equal(t, "debug", consensusConfig["log_level"])
+
+	clientConfigBytes, err := validator.ReadFile(ctx, "config/client.toml")
+	require.NoError(t, err)
+	var clientConfig map[string]interface{}
+	err = toml.Unmarshal(clientConfigBytes, &clientConfig)
+	require.NoError(t, err)
+	require.Equal(t, "json", clientConfig["output"])
 }
