@@ -90,8 +90,8 @@ type NodeI interface {
 	// KeyBech32 returns the Bech32 address of a key on the node
 	KeyBech32(context.Context, string, string) (string, error)
 
-	// SetDefaultConfigs sets the default configurations for the app and consensus of the node
-	SetDefaultConfigs(context.Context, string) error
+	// SetChainConfigs sets the default configurations for the app and consensus of the node, then applies custom configs
+	SetChainConfigs(context.Context, string) error
 	// SetPersistentPeers takes in a comma-delimited peer string (nodeid1@host1:port1,nodeid2@host2:port2) and writes it
 	// to the consensus config file on the node
 	SetPersistentPeers(context.Context, string) error

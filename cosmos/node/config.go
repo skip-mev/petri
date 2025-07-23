@@ -15,25 +15,23 @@ import (
 	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
-type Toml map[string]any
-
 // recursiveModifyToml will apply toml modifications at the current depth,
 // then recurse for new depths
-func recursiveModifyToml(c map[string]any, modifications Toml) error {
+func recursiveModifyToml(c map[string]interface{}, modifications map[string]interface{}) error {
 	for key, value := range modifications {
 		if reflect.ValueOf(value).Kind() == reflect.Map {
 			cV, ok := c[key]
 			if !ok {
 				// Did not find section in existing config, populating fresh.
-				cV = make(Toml)
+				cV = make(map[string]interface{})
 			}
 			// Retrieve existing config to apply overrides to.
-			cVM, ok := cV.(map[string]any)
+			cVM, ok := cV.(map[string]interface{})
 
 			if !ok {
-				cVM = make(Toml)
+				cVM = make(map[string]interface{})
 			}
-			if err := recursiveModifyToml(cVM, value.(Toml)); err != nil {
+			if err := recursiveModifyToml(cVM, value.(map[string]interface{})); err != nil {
 				return err
 			}
 			c[key] = cVM
@@ -44,8 +42,9 @@ func recursiveModifyToml(c map[string]any, modifications Toml) error {
 	}
 	return nil
 }
-func GenerateDefaultClientConfig(chainID string) Toml {
-	clientConfig := make(Toml)
+
+func GenerateDefaultClientConfig(chainID string) map[string]interface{} {
+	clientConfig := make(map[string]interface{})
 
 	clientConfig["chain-id"] = chainID
 	clientConfig["keyring-backend"] = keyring.BackendTest
@@ -57,13 +56,13 @@ func GenerateDefaultClientConfig(chainID string) Toml {
 }
 
 // GenerateDefaultConsensusConfig returns a default / sensible config for CometBFT
-func GenerateDefaultConsensusConfig() Toml {
-	cometBftConfig := make(Toml)
+func GenerateDefaultConsensusConfig() map[string]interface{} {
+	cometBftConfig := make(map[string]interface{})
 
 	// Set Log Level to info
 	cometBftConfig["log_level"] = "info"
 
-	p2p := make(Toml)
+	p2p := make(map[string]interface{})
 
 	// Allow p2p strangeness
 	p2p["allow_duplicate_ip"] = true
@@ -71,7 +70,7 @@ func GenerateDefaultConsensusConfig() Toml {
 
 	cometBftConfig["p2p"] = p2p
 
-	consensusConfig := make(Toml)
+	consensusConfig := make(map[string]interface{})
 
 	blockTime := (time.Duration(2) * time.Second).String() // todo(zygimantass): make configurable
 	consensusConfig["timeout_commit"] = blockTime
@@ -79,12 +78,12 @@ func GenerateDefaultConsensusConfig() Toml {
 
 	cometBftConfig["consensus"] = consensusConfig
 
-	instrumentationConfig := make(Toml)
+	instrumentationConfig := make(map[string]interface{})
 	instrumentationConfig["prometheus"] = true
 
 	cometBftConfig["instrumentation"] = instrumentationConfig
 
-	rpc := make(Toml)
+	rpc := make(map[string]interface{})
 
 	// Enable public RPC
 	rpc["laddr"] = "tcp://0.0.0.0:26657"
@@ -96,18 +95,18 @@ func GenerateDefaultConsensusConfig() Toml {
 }
 
 // GenerateDefaultAppConfig returns a default / sensible config for the Cosmos SDK
-func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
-	sdkConfig := make(Toml)
+func GenerateDefaultAppConfig(c petritypes.ChainConfig) map[string]interface{} {
+	sdkConfig := make(map[string]interface{})
 	sdkConfig["minimum-gas-prices"] = c.GasPrices
 
-	grpc := make(Toml)
+	grpc := make(map[string]interface{})
 
 	// Enable public GRPC
 	grpc["address"] = "0.0.0.0:9090"
 
 	sdkConfig["grpc"] = grpc
 
-	api := make(Toml)
+	api := make(map[string]interface{})
 
 	// Enable public REST API
 	api["enable"] = true
@@ -116,22 +115,21 @@ func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
 
 	sdkConfig["api"] = api
 
-	telemetry := make(Toml)
+	telemetry := make(map[string]interface{})
 	telemetry["enabled"] = true
 	telemetry["prometheus-retention-time"] = 3600
 
 	sdkConfig["telemetry"] = telemetry
 
 	if c.IsEVMChain {
-		evm := make(Toml)
+		evm := make(map[string]interface{})
 		evm["tracer"] = ""
 		evm["max-tx-gas-wanted"] = 0
 		evm["cache-preimage"] = false
-		evm["evm-chain-id"] = c.EVMConfig.ChainId
 
 		sdkConfig["evm"] = evm
 
-		jsonRPC := make(Toml)
+		jsonRPC := make(map[string]interface{})
 		jsonRPC["enable"] = true
 		jsonRPC["address"] = "127.0.0.1:8545"
 		jsonRPC["ws-address"] = "127.0.0.1:8546"
@@ -163,14 +161,14 @@ func GenerateDefaultAppConfig(c petritypes.ChainConfig) Toml {
 func (n *Node) ModifyTomlConfigFile(
 	ctx context.Context,
 	filePath string,
-	modifications Toml,
+	modifications map[string]interface{},
 ) error {
 	config, err := n.ReadFile(ctx, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve %s: %w", filePath, err)
 	}
 
-	var c Toml
+	var c map[string]interface{}
 	if err := toml.Unmarshal(config, &c); err != nil {
 		return fmt.Errorf("failed to unmarshal %s: %w", filePath, err)
 	}
@@ -191,8 +189,8 @@ func (n *Node) ModifyTomlConfigFile(
 	return nil
 }
 
-// SetDefaultConfigs will generate the default configs for CometBFT and the app, and write them to disk
-func (n *Node) SetDefaultConfigs(ctx context.Context, chainID string) error {
+// SetChainConfigs will generate the default configs for CometBFT and the app, apply custom configs, and write them to disk
+func (n *Node) SetChainConfigs(ctx context.Context, chainID string) error {
 	appConfig := GenerateDefaultAppConfig(n.GetChainConfig())
 	consensusConfig := GenerateDefaultConsensusConfig()
 	clientConfig := GenerateDefaultClientConfig(chainID)
@@ -221,14 +219,55 @@ func (n *Node) SetDefaultConfigs(ctx context.Context, chainID string) error {
 		return err
 	}
 
+	if err := n.ApplyCustomConfigs(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ApplyCustomConfigs applies custom configurations from ChainConfig to the respective config files
+func (n *Node) ApplyCustomConfigs(ctx context.Context) error {
+	chainConfig := n.GetChainConfig()
+
+	if len(chainConfig.CustomAppConfig) > 0 {
+		if err := n.ModifyTomlConfigFile(
+			ctx,
+			"config/app.toml",
+			chainConfig.CustomAppConfig,
+		); err != nil {
+			return fmt.Errorf("failed to apply custom app config: %w", err)
+		}
+	}
+
+	if len(chainConfig.CustomConsensusConfig) > 0 {
+		if err := n.ModifyTomlConfigFile(
+			ctx,
+			"config/config.toml",
+			chainConfig.CustomConsensusConfig,
+		); err != nil {
+			return fmt.Errorf("failed to apply custom consensus config: %w", err)
+		}
+	}
+
+	if len(chainConfig.CustomClientConfig) > 0 {
+		if err := n.ModifyTomlConfigFile(
+			ctx,
+			"config/client.toml",
+			chainConfig.CustomClientConfig,
+		); err != nil {
+			return fmt.Errorf("failed to apply custom client config: %w", err)
+		}
+	}
+
 	return nil
 }
 
 // SetPersistentPeers will set the node's persistent peers in the CometBFT config
 func (n *Node) SetPersistentPeers(ctx context.Context, peers string) error {
-	cometBftConfig := make(Toml)
+	cometBftConfig := make(map[string]interface{})
 
-	p2pConfig := make(Toml)
+	p2pConfig := make(map[string]interface{})
 	p2pConfig["persistent_peers"] = peers
 
 	cometBftConfig["p2p"] = p2pConfig
