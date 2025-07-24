@@ -278,3 +278,19 @@ func (n *Node) SetPersistentPeers(ctx context.Context, peers string) error {
 		cometBftConfig,
 	)
 }
+
+// SetSeedNode will set a given node as seed for the network
+func (n *Node) SetSeedNode(ctx context.Context, seedNode string) error {
+	cometBftConfig := make(map[string]interface{})
+
+	p2pConfig := make(map[string]interface{})
+	p2pConfig["seeds"] = seedNode
+
+	cometBftConfig["p2p"] = p2pConfig
+
+	return n.ModifyTomlConfigFile(
+		ctx,
+		"config/config.toml",
+		cometBftConfig,
+	)
+}

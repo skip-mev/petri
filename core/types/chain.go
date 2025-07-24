@@ -93,6 +93,9 @@ type ChainConfig struct {
 	CustomAppConfig       map[string]interface{} // CustomAppConfig is the configuration for the chain's app.toml
 	CustomClientConfig    map[string]interface{} // CustomClientConfig is the configuration for the chain's client.toml
 	CustomConsensusConfig map[string]interface{} // CustomConsensusConfig is the configuration for the chain's config.toml
+
+	SetPersistentPeers bool
+	SetSeedNode        bool
 }
 
 func (c ChainConfig) GetGenesisBalance() *big.Int {

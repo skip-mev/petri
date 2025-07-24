@@ -361,25 +361,37 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		}
 	}
 
-	peers, err := c.PeerStrings(ctx)
-	if err != nil {
-		return err
+	chainConfig := c.GetConfig()
+	var persistentPeers, seeds string
+
+	if chainConfig.SetPersistentPeers {
+		persistentPeers, err = PeerStrings(ctx, append(c.Nodes, c.Validators...))
+		if err != nil {
+			return err
+		}
+	}
+
+	if chainConfig.SetSeedNode {
+		var seedNode petritypes.NodeI
+		if len(c.Nodes) > 0 {
+			seedNode = c.Nodes[0]
+		} else {
+			seedNode = c.Validators[0]
+		}
+
+		if seedNode != nil {
+			seeds, err = PeerStrings(ctx, []petritypes.NodeI{seedNode})
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	for i := range c.Validators {
 		v := c.Validators[i]
 		eg.Go(func() error {
 			c.logger.Info("overwriting genesis for validator", zap.String("validator", v.GetDefinition().Name))
-			if err := v.OverwriteGenesisFile(ctx, genbz); err != nil {
-				return err
-			}
-			if err := v.SetChainConfigs(ctx, c.GetConfig().ChainId); err != nil {
-				return err
-			}
-			if err := v.SetPersistentPeers(ctx, peers); err != nil {
-				return err
-			}
-			return nil
+			return configureNode(ctx, v, chainConfig, genbz, persistentPeers, seeds)
 		})
 	}
 
@@ -387,16 +399,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		n := c.Nodes[i]
 		eg.Go(func() error {
 			c.logger.Info("overwriting node genesis", zap.String("node", n.GetDefinition().Name))
-			if err := n.OverwriteGenesisFile(ctx, genbz); err != nil {
-				return err
-			}
-			if err := n.SetChainConfigs(ctx, c.GetConfig().ChainId); err != nil {
-				return err
-			}
-			if err := n.SetPersistentPeers(ctx, peers); err != nil {
-				return err
-			}
-			return nil
+			return configureNode(ctx, n, chainConfig, genbz, persistentPeers, seeds)
 		})
 	}
 
@@ -454,10 +457,10 @@ func (c *Chain) Teardown(ctx context.Context) error {
 
 // PeerStrings returns a comma-delimited string with the addresses of chain nodes in
 // the format of nodeid@host:port
-func (c *Chain) PeerStrings(ctx context.Context) (string, error) {
+func PeerStrings(ctx context.Context, peers []petritypes.NodeI) (string, error) {
 	peerStrings := []string{}
 
-	for _, n := range append(c.Validators, c.Nodes...) {
+	for _, n := range peers {
 		ip, err := n.GetIP(ctx)
 		if err != nil {
 			return "", err
@@ -613,4 +616,28 @@ func (c *Chain) Serialize(ctx context.Context, p provider.ProviderI) ([]byte, er
 	}
 
 	return json.Marshal(state)
+}
+
+func configureNode(ctx context.Context, node petritypes.NodeI, chainConfig petritypes.ChainConfig, genbz []byte, persistentPeers, seeds string) error {
+	if err := node.OverwriteGenesisFile(ctx, genbz); err != nil {
+		return err
+	}
+
+	if err := node.SetChainConfigs(ctx, chainConfig.ChainId); err != nil {
+		return err
+	}
+
+	if chainConfig.SetPersistentPeers {
+		if err := node.SetPersistentPeers(ctx, persistentPeers); err != nil {
+			return err
+		}
+	}
+
+	if chainConfig.SetSeedNode {
+		if err := node.SetSeedNode(ctx, seeds); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

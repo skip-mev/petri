@@ -379,3 +379,138 @@ func TestCustomConfigOverride(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "json", clientConfig["output"])
 }
+
+func verifyPeerConfiguration(t *testing.T, node types.NodeI, nodeType string, setPersistentPeers, setSeedNode bool) {
+	configBytes, err := node.ReadFile(context.Background(), "config/config.toml")
+	require.NoError(t, err, "%s should have config.toml", nodeType)
+
+	var config map[string]interface{}
+	err = toml.Unmarshal(configBytes, &config)
+	require.NoError(t, err, "%s config.toml should be valid TOML", nodeType)
+
+	p2pSection, ok := config["p2p"].(map[string]interface{})
+	require.True(t, ok, "%s should have p2p section", nodeType)
+
+	if setPersistentPeers {
+		persistentPeers, exists := p2pSection["persistent_peers"]
+		require.True(t, exists, "%s should have persistent_peers set", nodeType)
+		require.NotEmpty(t, persistentPeers, "%s persistent_peers should not be empty", nodeType)
+
+		persistentPeersStr := persistentPeers.(string)
+		require.Contains(t, persistentPeersStr, "@", "%s persistent_peers should contain @ character", nodeType)
+		require.Contains(t, persistentPeersStr, ":", "%s persistent_peers should contain : character", nodeType)
+	} else {
+		persistentPeers, exists := p2pSection["persistent_peers"]
+		if exists {
+			require.Empty(t, persistentPeers, "%s persistent_peers should be empty when flag is disabled", nodeType)
+		}
+	}
+
+	if setSeedNode {
+		seeds, exists := p2pSection["seeds"]
+		require.True(t, exists, "%s should have seeds set", nodeType)
+		require.NotEmpty(t, seeds, "%s seeds should not be empty", nodeType)
+
+		seedsStr := seeds.(string)
+		require.Contains(t, seedsStr, "@", "%s seeds should contain @ character", nodeType)
+		require.Contains(t, seedsStr, ":", "%s seeds should contain : character", nodeType)
+	} else {
+		seeds, exists := p2pSection["seeds"]
+		if exists {
+			require.Empty(t, seeds, "%s seeds should be empty when flag is disabled", nodeType)
+		}
+	}
+}
+
+func TestPersistentPeersConfiguration(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := zap.NewDevelopment()
+	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
+
+	p, err := docker.CreateProvider(ctx, logger, providerName)
+	require.NoError(t, err)
+	defer func(p provider.ProviderI, ctx context.Context) {
+		require.NoError(t, p.Teardown(ctx))
+	}(p, ctx)
+
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+	chainConfig.NumValidators = 1
+	chainConfig.NumNodes = 1
+	chainConfig.SetPersistentPeers = true
+	chainConfig.SetSeedNode = false
+
+	c, err := chain.CreateChain(ctx, logger, p, chainConfig, defaultChainOptions)
+	require.NoError(t, err)
+
+	require.NoError(t, c.Init(ctx, defaultChainOptions))
+	require.Len(t, c.Validators, 1)
+	require.Len(t, c.Nodes, 1)
+
+	verifyPeerConfiguration(t, c.Validators[0], "validator", true, false)
+	verifyPeerConfiguration(t, c.Nodes[0], "node", true, false)
+
+	require.NoError(t, c.Teardown(ctx))
+}
+
+func TestSeedNodeConfigurationWithNoNodes(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := zap.NewDevelopment()
+	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
+
+	p, err := docker.CreateProvider(ctx, logger, providerName)
+	require.NoError(t, err)
+	defer func(p provider.ProviderI, ctx context.Context) {
+		require.NoError(t, p.Teardown(ctx))
+	}(p, ctx)
+
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+	chainConfig.NumValidators = 1
+	chainConfig.NumNodes = 0 // No nodes, seed should be validator
+	chainConfig.SetPersistentPeers = false
+	chainConfig.SetSeedNode = true
+
+	c, err := chain.CreateChain(ctx, logger, p, chainConfig, defaultChainOptions)
+	require.NoError(t, err)
+
+	require.NoError(t, c.Init(ctx, defaultChainOptions))
+	require.Len(t, c.Validators, 1)
+	require.Len(t, c.Nodes, 0)
+
+	verifyPeerConfiguration(t, c.Validators[0], "validator", false, true)
+}
+
+func TestSeedNodeConfigurationWithOneNode(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := zap.NewDevelopment()
+	providerName := gonanoid.MustGenerate(idAlphabet, 10)
+	chainName := gonanoid.MustGenerate(idAlphabet, 5)
+
+	p, err := docker.CreateProvider(ctx, logger, providerName)
+	require.NoError(t, err)
+	defer func(p provider.ProviderI, ctx context.Context) {
+		require.NoError(t, p.Teardown(ctx))
+	}(p, ctx)
+
+	chainConfig := defaultChainConfig
+	chainConfig.Name = chainName
+	chainConfig.NumValidators = 1
+	chainConfig.NumNodes = 1 // With 1 node, seed should be the full node
+	chainConfig.SetPersistentPeers = false
+	chainConfig.SetSeedNode = true
+
+	c, err := chain.CreateChain(ctx, logger, p, chainConfig, defaultChainOptions)
+	require.NoError(t, err)
+
+	require.NoError(t, c.Init(ctx, defaultChainOptions))
+	require.Len(t, c.Validators, 1)
+	require.Len(t, c.Nodes, 1)
+
+	verifyPeerConfiguration(t, c.Validators[0], "validator", false, true)
+	verifyPeerConfiguration(t, c.Nodes[0], "node", false, true)
+
+	require.NoError(t, c.Teardown(ctx))
+}
