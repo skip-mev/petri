@@ -39,6 +39,7 @@ var defaultChainConfig = types.ChainConfig{
 	CoinType:             "118",
 	ChainId:              "stake-1",
 	UseGenesisSubCommand: true,
+	SetPersistentPeers:   true,
 }
 
 var defaultChainOptions = types.ChainOptions{
@@ -69,6 +70,7 @@ var evmChainConfig = types.ChainConfig{
 	CoinType:             "118",
 	ChainId:              "cosmos_22222-1",
 	UseGenesisSubCommand: true,
+	SetPersistentPeers:   true,
 }
 
 var evmChainOptions = types.ChainOptions{
