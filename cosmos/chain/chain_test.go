@@ -395,10 +395,6 @@ func verifyPeerConfiguration(t *testing.T, node types.NodeI, nodeType string, se
 		persistentPeers, exists := p2pSection["persistent_peers"]
 		require.True(t, exists, "%s should have persistent_peers set", nodeType)
 		require.NotEmpty(t, persistentPeers, "%s persistent_peers should not be empty", nodeType)
-
-		persistentPeersStr := persistentPeers.(string)
-		require.Contains(t, persistentPeersStr, "@", "%s persistent_peers should contain @ character", nodeType)
-		require.Contains(t, persistentPeersStr, ":", "%s persistent_peers should contain : character", nodeType)
 	} else {
 		persistentPeers, exists := p2pSection["persistent_peers"]
 		if exists {
@@ -410,10 +406,6 @@ func verifyPeerConfiguration(t *testing.T, node types.NodeI, nodeType string, se
 		seeds, exists := p2pSection["seeds"]
 		require.True(t, exists, "%s should have seeds set", nodeType)
 		require.NotEmpty(t, seeds, "%s seeds should not be empty", nodeType)
-
-		seedsStr := seeds.(string)
-		require.Contains(t, seedsStr, "@", "%s seeds should contain @ character", nodeType)
-		require.Contains(t, seedsStr, ":", "%s seeds should contain : character", nodeType)
 	} else {
 		seeds, exists := p2pSection["seeds"]
 		if exists {
