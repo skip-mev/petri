@@ -95,7 +95,7 @@ type NodeI interface {
 	// SetPersistentPeers takes in a comma-delimited peer string (nodeid1@host1:port1,nodeid2@host2:port2) and writes it
 	// to the consensus config file on the node
 	SetPersistentPeers(context.Context, string) error
-	// SetSeedNode will set a given node as seed for the network
+	// SetSeedNode will set a full node (or validator if no nodes exist) as seed for the network
 	SetSeedNode(ctx context.Context, seedNode string) error
 
 	// NodeId returns the p2p peer ID of the node
