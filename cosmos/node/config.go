@@ -294,3 +294,20 @@ func (n *Node) SetSeedNode(ctx context.Context, seedNode string) error {
 		cometBftConfig,
 	)
 }
+
+// SetSeedMode will configure this node to operate in seed mode
+func (n *Node) SetSeedMode(ctx context.Context) error {
+	cometBftConfig := make(map[string]interface{})
+
+	p2pConfig := make(map[string]interface{})
+	p2pConfig["seed_mode"] = true
+	p2pConfig["seeds"] = ""
+
+	cometBftConfig["p2p"] = p2pConfig
+
+	return n.ModifyTomlConfigFile(
+		ctx,
+		"config/config.toml",
+		cometBftConfig,
+	)
+}

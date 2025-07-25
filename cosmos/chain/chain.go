@@ -119,7 +119,7 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 			node, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
 				Index:       i,
 				Name:        nodeName,
-				IsValidator: true,
+				IsValidator: false,
 				ChainConfig: config,
 			}, opts.NodeOptions)
 			if err != nil {
@@ -363,6 +363,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 
 	chainConfig := c.GetConfig()
 	var persistentPeers, seeds string
+	var seedNode petritypes.NodeI
 
 	if chainConfig.SetPersistentPeers {
 		persistentPeers, err = PeerStrings(ctx, append(c.Nodes, c.Validators...))
@@ -372,11 +373,10 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 	}
 
 	if chainConfig.SetSeedNode {
-		var seedNode petritypes.NodeI
 		if len(c.Nodes) > 0 {
 			seedNode = c.Nodes[0]
 		} else {
-			seedNode = c.Validators[0]
+			return fmt.Errorf("no nodes available to be used as seed ")
 		}
 
 		if seedNode != nil {
@@ -405,6 +405,13 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 
 	if err := eg.Wait(); err != nil {
 		return err
+	}
+
+	if chainConfig.SetSeedNode && seedNode != nil {
+		c.logger.Info("configuring seed node mode", zap.String("seed_node", seedNode.GetDefinition().Name))
+		if err := seedNode.SetSeedMode(ctx); err != nil {
+			return fmt.Errorf("failed to set seed mode on %s: %w", seedNode.GetDefinition().Name, err)
+		}
 	}
 
 	for i := range c.Validators {

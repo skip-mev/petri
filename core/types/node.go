@@ -97,6 +97,8 @@ type NodeI interface {
 	SetPersistentPeers(context.Context, string) error
 	// SetSeedNode will set a full node (or validator if no nodes exist) as seed for the network
 	SetSeedNode(ctx context.Context, seedNode string) error
+	// SetSeedMode will configure this node to operate in seed mode
+	SetSeedMode(ctx context.Context) error
 
 	// NodeId returns the p2p peer ID of the node
 	NodeId(context.Context) (string, error)
