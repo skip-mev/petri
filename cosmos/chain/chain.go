@@ -362,15 +362,8 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 	}
 
 	chainConfig := c.GetConfig()
-	var persistentPeers, seeds string
+	persistentPeers, seeds := "", ""
 	var seedNode petritypes.NodeI
-
-	if chainConfig.SetPersistentPeers {
-		persistentPeers, err = PeerStrings(ctx, append(c.Nodes, c.Validators...))
-		if err != nil {
-			return err
-		}
-	}
 
 	if chainConfig.SetSeedNode {
 		if len(c.Nodes) > 0 {
@@ -387,11 +380,18 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		}
 	}
 
+	if chainConfig.SetPersistentPeers {
+		persistentPeers, err = PeerStrings(ctx, append(c.Nodes, c.Validators...))
+		if err != nil {
+			return err
+		}
+	}
+
 	for i := range c.Validators {
 		v := c.Validators[i]
 		eg.Go(func() error {
 			c.logger.Info("overwriting genesis for validator", zap.String("validator", v.GetDefinition().Name))
-			return configureNode(ctx, v, chainConfig, genbz, persistentPeers, seeds)
+			return configureNode(ctx, v, chainConfig, genbz, persistentPeers, seeds, c.logger)
 		})
 	}
 
@@ -399,7 +399,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		n := c.Nodes[i]
 		eg.Go(func() error {
 			c.logger.Info("overwriting node genesis", zap.String("node", n.GetDefinition().Name))
-			return configureNode(ctx, n, chainConfig, genbz, persistentPeers, seeds)
+			return configureNode(ctx, n, chainConfig, genbz, persistentPeers, seeds, c.logger)
 		})
 	}
 
@@ -468,7 +468,7 @@ func PeerStrings(ctx context.Context, peers []petritypes.NodeI) (string, error) 
 	peerStrings := []string{}
 
 	for _, n := range peers {
-		ip, err := n.GetIP(ctx)
+		externalAddr, err := n.GetExternalAddress(ctx, "26656")
 		if err != nil {
 			return "", err
 		}
@@ -478,7 +478,7 @@ func PeerStrings(ctx context.Context, peers []petritypes.NodeI) (string, error) 
 			return "", err
 		}
 
-		peerStrings = append(peerStrings, fmt.Sprintf("%s@%s:26656", nodeId, ip))
+		peerStrings = append(peerStrings, fmt.Sprintf("%s@%s", nodeId, externalAddr))
 	}
 
 	return strings.Join(peerStrings, ","), nil
@@ -625,7 +625,7 @@ func (c *Chain) Serialize(ctx context.Context, p provider.ProviderI) ([]byte, er
 	return json.Marshal(state)
 }
 
-func configureNode(ctx context.Context, node petritypes.NodeI, chainConfig petritypes.ChainConfig, genbz []byte, persistentPeers, seeds string) error {
+func configureNode(ctx context.Context, node petritypes.NodeI, chainConfig petritypes.ChainConfig, genbz []byte, persistentPeers, seeds string, logger *zap.Logger) error {
 	if err := node.OverwriteGenesisFile(ctx, genbz); err != nil {
 		return err
 	}
@@ -634,16 +634,14 @@ func configureNode(ctx context.Context, node petritypes.NodeI, chainConfig petri
 		return err
 	}
 
-	if chainConfig.SetPersistentPeers {
-		if err := node.SetPersistentPeers(ctx, persistentPeers); err != nil {
-			return err
-		}
+	logger.Debug("setting persistent peers", zap.String("persistent_peers", persistentPeers))
+	if err := node.SetPersistentPeers(ctx, persistentPeers); err != nil {
+		return err
 	}
 
-	if chainConfig.SetSeedNode {
-		if err := node.SetSeedNode(ctx, seeds); err != nil {
-			return err
-		}
+	logger.Debug("setting seeds", zap.String("seeds", seeds))
+	if err := node.SetSeedNode(ctx, seeds); err != nil {
+		return err
 	}
 
 	return nil

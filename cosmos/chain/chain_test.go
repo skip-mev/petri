@@ -444,8 +444,6 @@ func TestPersistentPeersConfiguration(t *testing.T) {
 
 	verifyPeerConfiguration(t, c.Validators[0], "validator", true, false)
 	verifyPeerConfiguration(t, c.Nodes[0], "node", true, false)
-
-	require.NoError(t, c.Teardown(ctx))
 }
 
 func TestSeedNodeConfigurationWithNoNodes(t *testing.T) {
@@ -491,7 +489,7 @@ func TestSeedNodeConfigurationWithOneNode(t *testing.T) {
 
 	chainConfig := defaultChainConfig
 	chainConfig.Name = chainName
-	chainConfig.NumValidators = 1
+	chainConfig.NumValidators = 2
 	chainConfig.NumNodes = 1 // With 1 node, seed should be the full node
 	chainConfig.SetPersistentPeers = false
 	chainConfig.SetSeedNode = true
@@ -500,11 +498,9 @@ func TestSeedNodeConfigurationWithOneNode(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, c.Init(ctx, defaultChainOptions))
-	require.Len(t, c.Validators, 1)
+	require.Len(t, c.Validators, 2)
 	require.Len(t, c.Nodes, 1)
 
 	verifyPeerConfiguration(t, c.Validators[0], "validator", false, true)
 	verifyPeerConfiguration(t, c.Nodes[0], "node", false, true)
-
-	require.NoError(t, c.Teardown(ctx))
 }

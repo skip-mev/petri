@@ -26,6 +26,7 @@ type TaskState struct {
 	IpAddress        string                  `json:"ip_address"`
 	BuilderImageName string                  `json:"builder_image_name"`
 	NetworkName      string                  `json:"network_name"`
+	PortBindings     nat.PortMap             `json:"port_bindings"`
 }
 
 type VolumeState struct {
@@ -105,20 +106,50 @@ func (t *Task) Destroy(ctx context.Context) error {
 	return nil
 }
 
+// getHostIP attempts to determine the Docker host's IP address
+func getHostIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		var ip net.IP
+
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+
+		if ip == nil || ip.IsLoopback() {
+			continue
+		}
+
+		if ipv4 := ip.To4(); ipv4 != nil {
+			return ipv4.String(), nil
+		}
+	}
+
+	return "", fmt.Errorf("no non-loopback IP address found")
+}
+
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
 	state := t.GetState()
 
-	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
-	if err != nil {
-		return "", fmt.Errorf("failed to inspect container: %w", err)
-	}
-
-	portBindings, ok := dockerContainer.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
+	portKey := nat.Port(fmt.Sprintf("%s/tcp", port))
+	portBindings, ok := state.PortBindings[portKey]
 	if !ok || len(portBindings) == 0 {
 		return "", fmt.Errorf("port %s not found", port)
 	}
 
-	return fmt.Sprintf("0.0.0.0:%s", portBindings[0].HostPort), nil
+	hostIP, err := getHostIP()
+	if err != nil {
+		return "", fmt.Errorf("failed to get host IP: %w", err)
+	}
+
+	return fmt.Sprintf("%s:%s", hostIP, portBindings[0].HostPort), nil
 }
 
 func (t *Task) GetIP(ctx context.Context) (string, error) {
