@@ -23,8 +23,6 @@ type NodeConfig struct {
 	Name  string // Name is the name of the node
 	Index int    // Index denotes which node this is in the Validators/Nodes array
 
-	IsValidator bool // IsValidator denotes whether this node is a validator
-
 	ChainConfig ChainConfig // ChainConfig is the config of the chain this node is running on
 }
 
@@ -91,7 +89,7 @@ type NodeI interface {
 	KeyBech32(context.Context, string, string) (string, error)
 
 	// SetChainConfigs sets the default configurations for the app and consensus of the node, then applies custom configs
-	SetChainConfigs(context.Context, string) error
+	SetChainConfigs(context.Context, string, string) error
 	// SetPersistentPeers takes in a comma-delimited peer string (nodeid1@host1:port1,nodeid2@host2:port2) and writes it
 	// to the consensus config file on the node
 	SetPersistentPeers(context.Context, string) error

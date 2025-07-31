@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/skip-mev/petri/core/v3/provider"
+	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
 	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
@@ -50,6 +51,10 @@ type Chain struct {
 	ValidatorWallets []petritypes.WalletI
 
 	mu sync.RWMutex
+
+	// useExternalAddresses determines whether to use external addresses (DigitalOcean)
+	// or internal addresses (Docker) for peer strings
+	useExternalAddresses bool
 }
 
 var _ petritypes.ChainI = &Chain{}
@@ -71,6 +76,10 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 		Config: config,
 	}
 
+	// Detect provider type to determine whether to use external vs internal address
+	_, isDigitalOcean := infraProvider.(*digitalocean.Provider)
+	chain.useExternalAddresses = isDigitalOcean
+
 	chain.logger = logger.Named("chain").With(zap.String("chain_id", config.ChainId))
 
 	chain.logger.Info("creating chain")
@@ -91,7 +100,6 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 			validator, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
 				Index:       i,
 				Name:        validatorName,
-				IsValidator: true,
 				ChainConfig: config,
 			}, opts.NodeOptions)
 			if err != nil {
@@ -119,7 +127,6 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 			node, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
 				Index:       i,
 				Name:        nodeName,
-				IsValidator: false,
 				ChainConfig: config,
 			}, opts.NodeOptions)
 			if err != nil {
@@ -373,7 +380,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		}
 
 		if seedNode != nil {
-			seeds, err = PeerStrings(ctx, []petritypes.NodeI{seedNode})
+			seeds, err = PeerStrings(ctx, []petritypes.NodeI{seedNode}, c.useExternalAddresses)
 			if err != nil {
 				return err
 			}
@@ -381,7 +388,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 	}
 
 	if chainConfig.SetPersistentPeers {
-		persistentPeers, err = PeerStrings(ctx, append(c.Nodes, c.Validators...))
+		persistentPeers, err = PeerStrings(ctx, append(c.Nodes, c.Validators...), c.useExternalAddresses)
 		if err != nil {
 			return err
 		}
@@ -391,7 +398,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		v := c.Validators[i]
 		eg.Go(func() error {
 			c.logger.Info("overwriting genesis for validator", zap.String("validator", v.GetDefinition().Name))
-			return configureNode(ctx, v, chainConfig, genbz, persistentPeers, seeds, c.logger)
+			return configureNode(ctx, v, chainConfig, genbz, persistentPeers, seeds, c.useExternalAddresses, c.logger)
 		})
 	}
 
@@ -399,7 +406,7 @@ func (c *Chain) Init(ctx context.Context, opts petritypes.ChainOptions) error {
 		n := c.Nodes[i]
 		eg.Go(func() error {
 			c.logger.Info("overwriting node genesis", zap.String("node", n.GetDefinition().Name))
-			return configureNode(ctx, n, chainConfig, genbz, persistentPeers, seeds, c.logger)
+			return configureNode(ctx, n, chainConfig, genbz, persistentPeers, seeds, c.useExternalAddresses, c.logger)
 		})
 	}
 
@@ -463,8 +470,40 @@ func (c *Chain) Teardown(ctx context.Context) error {
 }
 
 // PeerStrings returns a comma-delimited string with the addresses of chain nodes in
-// the format of nodeid@host:port
-func PeerStrings(ctx context.Context, peers []petritypes.NodeI) (string, error) {
+// the format of nodeid@host:port. If useExternal is true, it uses external addresses
+// (for DigitalOcean), otherwise it uses internal addresses (for Docker).
+func PeerStrings(ctx context.Context, peers []petritypes.NodeI, useExternal bool) (string, error) {
+	if useExternal {
+		return PeerStringsExternal(ctx, peers)
+	}
+	return PeerStringsInternal(ctx, peers)
+}
+
+// PeerStringsInternal returns a comma-delimited string with the addresses of chain nodes in
+// the format of nodeid@host:port using the internal private address of the node (used for Docker networks)
+func PeerStringsInternal(ctx context.Context, peers []petritypes.NodeI) (string, error) {
+	peerStrings := []string{}
+
+	for _, n := range peers {
+		ip, err := n.GetIP(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		nodeId, err := n.NodeId(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		peerStrings = append(peerStrings, fmt.Sprintf("%s@%s:26656", nodeId, ip))
+	}
+
+	return strings.Join(peerStrings, ","), nil
+}
+
+// PeerStringsExternal returns a comma-delimited string with the addresses of chain nodes in
+// the format of nodeid@host:port using the external public address of the node (used for public DigitalOcean networks)
+func PeerStringsExternal(ctx context.Context, peers []petritypes.NodeI) (string, error) {
 	peerStrings := []string{}
 
 	for _, n := range peers {
@@ -625,12 +664,28 @@ func (c *Chain) Serialize(ctx context.Context, p provider.ProviderI) ([]byte, er
 	return json.Marshal(state)
 }
 
-func configureNode(ctx context.Context, node petritypes.NodeI, chainConfig petritypes.ChainConfig, genbz []byte, persistentPeers, seeds string, logger *zap.Logger) error {
+func configureNode(ctx context.Context, node petritypes.NodeI, chainConfig petritypes.ChainConfig, genbz []byte,
+	persistentPeers, seeds string, useExternalAddress bool, logger *zap.Logger) error {
 	if err := node.OverwriteGenesisFile(ctx, genbz); err != nil {
 		return err
 	}
 
-	if err := node.SetChainConfigs(ctx, chainConfig.ChainId); err != nil {
+	var p2pExternalAddr string
+	var err error
+	if useExternalAddress {
+		p2pExternalAddr, err = node.GetExternalAddress(ctx, "26656")
+		if err != nil {
+			return fmt.Errorf("failed to get external address for p2p port: %w", err)
+		}
+	} else {
+		p2pExternalAddr, err = node.GetIP(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get ip for p2p port: %w", err)
+		}
+		p2pExternalAddr = fmt.Sprintf("%s:26656", p2pExternalAddr)
+	}
+
+	if err := node.SetChainConfigs(ctx, chainConfig.ChainId, p2pExternalAddr); err != nil {
 		return err
 	}
 

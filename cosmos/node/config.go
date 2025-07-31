@@ -192,15 +192,10 @@ func (n *Node) ModifyTomlConfigFile(
 }
 
 // SetChainConfigs will generate the default configs for CometBFT and the app, apply custom configs, and write them to disk
-func (n *Node) SetChainConfigs(ctx context.Context, chainID string) error {
+func (n *Node) SetChainConfigs(ctx context.Context, chainID string, p2pExternalAddr string) error {
 	appConfig := GenerateDefaultAppConfig(n.GetChainConfig())
 
-	externalAddr, err := n.GetExternalAddress(ctx, "26656")
-	if err != nil {
-		return fmt.Errorf("failed to get external address for p2p port: %w", err)
-	}
-
-	consensusConfig := GenerateDefaultConsensusConfig(externalAddr)
+	consensusConfig := GenerateDefaultConsensusConfig(p2pExternalAddr)
 	clientConfig := GenerateDefaultClientConfig(chainID)
 
 	if err := n.ModifyTomlConfigFile(
