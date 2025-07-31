@@ -468,11 +468,9 @@ func TestSeedNodeConfigurationWithNoNodes(t *testing.T) {
 	c, err := chain.CreateChain(ctx, logger, p, chainConfig, defaultChainOptions)
 	require.NoError(t, err)
 
-	require.NoError(t, c.Init(ctx, defaultChainOptions))
-	require.Len(t, c.Validators, 1)
-	require.Len(t, c.Nodes, 0)
-
-	verifyPeerConfiguration(t, c.Validators[0], "validator", false, true)
+	err = c.Init(ctx, defaultChainOptions)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no nodes available to be used as seed")
 }
 
 func TestSeedNodeConfigurationWithOneNode(t *testing.T) {
@@ -502,5 +500,6 @@ func TestSeedNodeConfigurationWithOneNode(t *testing.T) {
 	require.Len(t, c.Nodes, 1)
 
 	verifyPeerConfiguration(t, c.Validators[0], "validator", false, true)
-	verifyPeerConfiguration(t, c.Nodes[0], "node", false, true)
+	verifyPeerConfiguration(t, c.Validators[1], "validator", false, true)
+	verifyPeerConfiguration(t, c.Nodes[0], "node", false, false) // seed node should not have the seed flag set
 }
