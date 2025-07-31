@@ -56,7 +56,7 @@ func GenerateDefaultClientConfig(chainID string) map[string]interface{} {
 }
 
 // GenerateDefaultConsensusConfig returns a default / sensible config for CometBFT
-func GenerateDefaultConsensusConfig() map[string]interface{} {
+func GenerateDefaultConsensusConfig(externalAddr string) map[string]interface{} {
 	cometBftConfig := make(map[string]interface{})
 
 	// Set Log Level to info
@@ -67,6 +67,8 @@ func GenerateDefaultConsensusConfig() map[string]interface{} {
 	// Allow p2p strangeness
 	p2p["allow_duplicate_ip"] = true
 	p2p["addr_book_strict"] = false
+
+	p2p["external_address"] = externalAddr
 
 	cometBftConfig["p2p"] = p2p
 
@@ -192,7 +194,13 @@ func (n *Node) ModifyTomlConfigFile(
 // SetChainConfigs will generate the default configs for CometBFT and the app, apply custom configs, and write them to disk
 func (n *Node) SetChainConfigs(ctx context.Context, chainID string) error {
 	appConfig := GenerateDefaultAppConfig(n.GetChainConfig())
-	consensusConfig := GenerateDefaultConsensusConfig()
+
+	externalAddr, err := n.GetExternalAddress(ctx, "26656")
+	if err != nil {
+		return fmt.Errorf("failed to get external address for p2p port: %w", err)
+	}
+
+	consensusConfig := GenerateDefaultConsensusConfig(externalAddr)
 	clientConfig := GenerateDefaultClientConfig(chainID)
 
 	if err := n.ModifyTomlConfigFile(
