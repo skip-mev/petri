@@ -40,6 +40,7 @@ var (
 		CoinType:             "118",
 		ChainId:              "stake-1",
 		UseGenesisSubCommand: true,
+		SetPersistentPeers:   true,
 	}
 
 	defaultChainOptions = types.ChainOptions{

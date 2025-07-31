@@ -26,6 +26,7 @@ type TaskState struct {
 	IpAddress        string                  `json:"ip_address"`
 	BuilderImageName string                  `json:"builder_image_name"`
 	NetworkName      string                  `json:"network_name"`
+	PortBindings     nat.PortMap             `json:"port_bindings"`
 }
 
 type VolumeState struct {
@@ -108,12 +109,8 @@ func (t *Task) Destroy(ctx context.Context) error {
 func (t *Task) GetExternalAddress(ctx context.Context, port string) (string, error) {
 	state := t.GetState()
 
-	dockerContainer, err := t.dockerClient.ContainerInspect(ctx, state.Id)
-	if err != nil {
-		return "", fmt.Errorf("failed to inspect container: %w", err)
-	}
-
-	portBindings, ok := dockerContainer.NetworkSettings.Ports[nat.Port(fmt.Sprintf("%s/tcp", port))]
+	portKey := nat.Port(fmt.Sprintf("%s/tcp", port))
+	portBindings, ok := state.PortBindings[portKey]
 	if !ok || len(portBindings) == 0 {
 		return "", fmt.Errorf("port %s not found", port)
 	}
