@@ -22,9 +22,5 @@ func (d DigitalOceanTaskConfig) ValidateBasic() error {
 		return fmt.Errorf("image_id has to be an integer")
 	}
 
-	if v, ok := d["docker_auth"]; !ok || v == "" {
-		return fmt.Errorf("docker_auth has to be non-empty")
-	}
-
 	return nil
 }
