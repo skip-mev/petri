@@ -270,6 +270,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	taskState.Status = provider.TASK_STOPPED
 	taskState.NetworkName = state.NetworkName
 	taskState.IpAddress = ip
+	taskState.PortBindings = portBindings
 
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()

@@ -56,7 +56,7 @@ func GenerateDefaultClientConfig(chainID string) map[string]interface{} {
 }
 
 // GenerateDefaultConsensusConfig returns a default / sensible config for CometBFT
-func GenerateDefaultConsensusConfig() map[string]interface{} {
+func GenerateDefaultConsensusConfig(externalAddr string) map[string]interface{} {
 	cometBftConfig := make(map[string]interface{})
 
 	// Set Log Level to info
@@ -67,6 +67,8 @@ func GenerateDefaultConsensusConfig() map[string]interface{} {
 	// Allow p2p strangeness
 	p2p["allow_duplicate_ip"] = true
 	p2p["addr_book_strict"] = false
+
+	p2p["external_address"] = externalAddr
 
 	cometBftConfig["p2p"] = p2p
 
@@ -190,9 +192,10 @@ func (n *Node) ModifyTomlConfigFile(
 }
 
 // SetChainConfigs will generate the default configs for CometBFT and the app, apply custom configs, and write them to disk
-func (n *Node) SetChainConfigs(ctx context.Context, chainID string) error {
+func (n *Node) SetChainConfigs(ctx context.Context, chainID string, p2pExternalAddr string) error {
 	appConfig := GenerateDefaultAppConfig(n.GetChainConfig())
-	consensusConfig := GenerateDefaultConsensusConfig()
+
+	consensusConfig := GenerateDefaultConsensusConfig(p2pExternalAddr)
 	clientConfig := GenerateDefaultClientConfig(chainID)
 
 	if err := n.ModifyTomlConfigFile(
@@ -269,6 +272,39 @@ func (n *Node) SetPersistentPeers(ctx context.Context, peers string) error {
 
 	p2pConfig := make(map[string]interface{})
 	p2pConfig["persistent_peers"] = peers
+
+	cometBftConfig["p2p"] = p2pConfig
+
+	return n.ModifyTomlConfigFile(
+		ctx,
+		"config/config.toml",
+		cometBftConfig,
+	)
+}
+
+// SetSeedNode will set a given node as seed for the network
+func (n *Node) SetSeedNode(ctx context.Context, seedNode string) error {
+	cometBftConfig := make(map[string]interface{})
+
+	p2pConfig := make(map[string]interface{})
+	p2pConfig["seeds"] = seedNode
+
+	cometBftConfig["p2p"] = p2pConfig
+
+	return n.ModifyTomlConfigFile(
+		ctx,
+		"config/config.toml",
+		cometBftConfig,
+	)
+}
+
+// SetSeedMode will configure this node to operate in seed mode
+func (n *Node) SetSeedMode(ctx context.Context) error {
+	cometBftConfig := make(map[string]interface{})
+
+	p2pConfig := make(map[string]interface{})
+	p2pConfig["seed_mode"] = true
+	p2pConfig["seeds"] = ""
 
 	cometBftConfig["p2p"] = p2pConfig
 
