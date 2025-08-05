@@ -191,7 +191,9 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	_, _, err = task.dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
 	if err != nil {
 		p.logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
-		if err = task.dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{}); err != nil {
+		if err = task.dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{
+			RegistryAuth: doConfig["docker_auth"],
+		}); err != nil {
 			return nil, err
 		}
 	}
