@@ -19,8 +19,9 @@ as you would use the Docker provider.
 
 1. Rename the `contrib/digitalocean/petri_docker.pkr.hcl.example` file to `contrib/digitalocean/petri_docker.pkr.hcl`
 2. Replace `<DO_API_TOKEN>` with your DigitalOcean API token 
-3. Include the regions you're going to run Petri on in the "snapshot_regions" variable.
-4. Run `packer build petri_docker.pkr.hcl`
+3. Replace `<GRAF_PYRO_USER>` and `<GRAF_PYRO_PASS>` in `config.alloy` with your Grafana username and password for Pyroscope profiling data publication.
+4. Include the regions you're going to run Petri on in the "snapshot_regions" variable.
+5. Run `packer build petri_docker.pkr.hcl`
 
 ### Finding the image ID of your snapshot
 

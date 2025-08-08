@@ -61,11 +61,12 @@ func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.
 	node.logger.Info("creating node", zap.String("name", nodeConfig.Name))
 
 	def := provider.TaskDefinition{
-		Name:       nodeConfig.Name,
-		Image:      chainConfig.Image,
-		Ports:      append([]string{"9090", "26656", "26657", "26660", "1317"}, chainConfig.AdditionalPorts...),
-		Entrypoint: append([]string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"}, chainConfig.AdditionalStartFlags...),
-		DataDir:    chainConfig.HomeDir,
+		Name:        nodeConfig.Name,
+		Image:       chainConfig.Image,
+		Ports:       append([]string{"9090", "26656", "26657", "26660", "1317"}, chainConfig.AdditionalPorts...),
+		Entrypoint:  append([]string{chainConfig.BinaryName, "--home", chainConfig.HomeDir, "start"}, chainConfig.AdditionalStartFlags...),
+		DataDir:     chainConfig.HomeDir,
+		Environment: map[string]string{"GODEBUG": "blockprofilerate=1"},
 	}
 
 	if opts.NodeDefinitionModifier != nil {

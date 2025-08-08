@@ -17,14 +17,20 @@ type LokiSettings struct {
 	URL      string `json:"url"`
 }
 
+type PyroscopeSettings struct {
+	URL string `json:"url"`
+}
+
 type TelemetrySettings struct {
 	Prometheus PrometheusSettings `json:"prometheus"`
 	Loki       LokiSettings       `json:"loki"`
+	Pyroscope  PyroscopeSettings  `json:"pyroscope"`
 }
 
 type TelemetryConfig struct {
 	Prometheus PrometheusSettings `json:"prometheus"`
 	Loki       LokiSettings       `json:"loki"`
+	Pyroscope  PyroscopeSettings  `json:"pyroscope"`
 	Provider   string             `json:"provider"`
 }
 
@@ -32,6 +38,7 @@ func (t *TelemetrySettings) GetCommand(provider string) ([]string, error) {
 	telemetryConfig := TelemetryConfig{
 		Prometheus: t.Prometheus,
 		Loki:       t.Loki,
+		Pyroscope:  t.Pyroscope,
 		Provider:   provider,
 	}
 
