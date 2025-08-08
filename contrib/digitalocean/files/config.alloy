@@ -80,3 +80,37 @@ loki.write "overseer" {
      }
    }
 }
+
+pyroscope.scrape "node" {
+          targets = [
+            {"__address__" = "localhost:6060", "service_name" = "ironbird", "host" = coalesce(sys.env("HOSTNAME"), constants.hostname)},
+          ]
+          profiling_config {
+            profile.memory {
+              enabled = true
+            }
+            profile.block {
+              enabled = true
+            }
+            profile.goroutine {
+              enabled = true
+            }
+            profile.mutex {
+              enabled = true
+            }
+            profile.process_cpu {
+              enabled = true
+            }
+        }
+      forward_to = [pyroscope.write.grafana_cloud.receiver]
+}
+
+pyroscope.write "grafana_cloud" {
+  endpoint {
+    url = json_path(local.file.creds.content, ".pyroscope.url")[0]
+    basic_auth {
+      username = "<GRAF_PYRO_USER>"
+      password = "<GRAF_PYRO_PASS>"
+    }
+  }
+}
