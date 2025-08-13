@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skip-mev/petri/core/v3/types"
 	"net"
 	"sync"
 
@@ -369,4 +370,8 @@ func (p *Provider) GetState() ProviderState {
 	p.stateMu.Lock()
 	defer p.stateMu.Unlock()
 	return *p.state
+}
+
+func (p *Provider) GetType() string {
+	return types.Docker
 }

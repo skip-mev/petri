@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/skip-mev/petri/core/v3/types"
 	"net"
 	"strconv"
 	"strings"
@@ -468,4 +469,8 @@ func (p *Provider) getDockerClientOverride(task string) clients.DockerClient {
 	}
 
 	return nil
+}
+
+func (p *Provider) GetType() string {
+	return types.DigitalOcean
 }

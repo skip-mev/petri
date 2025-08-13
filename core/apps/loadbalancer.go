@@ -32,10 +32,10 @@ func (lbd LoadBalancerDomain) Validate() error {
 }
 
 type LoadBalancerDefinition struct {
-	ProviderSpecificOptions map[string]string
-	Domains                 []LoadBalancerDomain
-	SSLCertificate          []byte
-	SSLKey                  []byte
+	DigitalOceanConfig map[string]string
+	Domains            []LoadBalancerDomain
+	SSLCertificate     []byte
+	SSLKey             []byte
 }
 
 func (lbd LoadBalancerDefinition) Validate() error {
@@ -110,7 +110,7 @@ func LaunchLoadBalancer(ctx context.Context, p *digitalocean.Provider, rootDomai
 		DataDir:    "/caddy",
 		Entrypoint: []string{"caddy", "run", "--config", "/caddy/Caddyfile"},
 
-		ProviderSpecificConfig: definition.ProviderSpecificOptions,
+		ProviderSpecificConfig: definition.DigitalOceanConfig,
 	})
 
 	if err != nil {

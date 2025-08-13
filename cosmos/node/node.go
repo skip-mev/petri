@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/skip-mev/petri/core/v3/provider"
-
 	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
@@ -42,7 +41,7 @@ var _ petritypes.NodeRestorer = RestoreNode
 
 // CreateNode creates a new logical node and creates the underlying workload for it
 func CreateNode(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, nodeConfig petritypes.NodeConfig, opts petritypes.NodeOptions) (petritypes.NodeI, error) {
-	if err := nodeConfig.ValidateBasic(); err != nil {
+	if err := nodeConfig.ValidateBasic(infraProvider.GetType()); err != nil {
 		return nil, fmt.Errorf("failed to validate node config: %w", err)
 	}
 
