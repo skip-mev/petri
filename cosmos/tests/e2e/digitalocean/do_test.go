@@ -34,7 +34,7 @@ var (
 				NumNodes:      1,
 			},
 			{
-				Name:          "FRA1",
+				Name:          "fra1",
 				NumValidators: 1,
 				NumNodes:      0,
 			},
