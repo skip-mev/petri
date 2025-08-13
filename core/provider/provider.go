@@ -49,4 +49,5 @@ type ProviderI interface {
 	Teardown(context.Context) error
 
 	SerializeProvider(context.Context) ([]byte, error)
+	GetType() string
 }

@@ -21,7 +21,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/skip-mev/petri/core/v3/provider"
-	"github.com/skip-mev/petri/core/v3/provider/digitalocean"
 	petritypes "github.com/skip-mev/petri/core/v3/types"
 )
 
@@ -61,7 +60,8 @@ var _ petritypes.ChainI = &Chain{}
 
 // CreateChain creates the Chain object and initializes the node tasks, their backing compute and the validator wallets
 func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, config petritypes.ChainConfig, opts petritypes.ChainOptions) (*Chain, error) {
-	if err := config.ValidateBasic(); err != nil {
+	providerType := infraProvider.GetType()
+	if err := config.ValidateBasic(providerType); err != nil {
 		return nil, fmt.Errorf("failed to validate chain config: %w", err)
 	}
 
@@ -75,33 +75,103 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	chain.State = State{
 		Config: config,
 	}
-
-	// Detect provider type to determine whether to use external vs internal address
-	_, isDigitalOcean := infraProvider.(*digitalocean.Provider)
-	chain.useExternalAddresses = isDigitalOcean
+	chain.useExternalAddresses = providerType == petritypes.DigitalOcean
 
 	chain.logger = logger.Named("chain").With(zap.String("chain_id", config.ChainId))
-
 	chain.logger.Info("creating chain")
 
+	validators, nodes, err := createNodes(ctx, logger, &chain, infraProvider, providerType, config, opts)
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("created nodes", zap.Int("validators", len(validators)), zap.Int("nodes", len(nodes)))
+
+	chain.Nodes = nodes
+	chain.Validators = validators
+	chain.ValidatorWallets = make([]petritypes.WalletI, len(validators))
+
+	return &chain, nil
+}
+
+func createNodes(ctx context.Context, logger *zap.Logger, chain *Chain, infraProvider provider.ProviderI, providerType string,
+	config petritypes.ChainConfig, opts petritypes.ChainOptions) ([]petritypes.NodeI, []petritypes.NodeI, error) {
+	if providerType == petritypes.DigitalOcean {
+		return createRegionalNodes(ctx, logger, chain, infraProvider, config, opts)
+	}
+
+	return createLocalNodes(ctx, logger, chain, infraProvider, config, opts)
+}
+
+func createRegionalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, infraProvider provider.ProviderI,
+	config petritypes.ChainConfig, opts petritypes.ChainOptions) ([]petritypes.NodeI, []petritypes.NodeI, error) {
+	var eg errgroup.Group
 	validators := make([]petritypes.NodeI, 0)
 	nodes := make([]petritypes.NodeI, 0)
 
-	var eg errgroup.Group
+	validatorIndex := 0
+	nodeIndex := 0
 
-	chain.logger.Info("creating validators and nodes", zap.Int("num_validators", config.NumValidators), zap.Int("num_nodes", config.NumNodes))
+	for _, regionConfig := range config.RegionConfig {
+		region := regionConfig
+
+		for i := 0; i < region.NumValidators; i++ {
+			currentValidatorIndex := validatorIndex
+			currentRegion := region.Name
+			eg.Go(func() error {
+				validator, err := createNode(ctx, logger, infraProvider, config, opts,
+					currentValidatorIndex, currentRegion, "validator",
+					createRegionalNodeOptions(opts.NodeOptions, region))
+				if err != nil {
+					return err
+				}
+
+				chain.mu.Lock()
+				validators = append(validators, validator)
+				chain.mu.Unlock()
+				return nil
+			})
+			validatorIndex++
+		}
+
+		for i := 0; i < region.NumNodes; i++ {
+			currentNodeIndex := nodeIndex
+			currentRegion := region.Name
+			eg.Go(func() error {
+				node, err := createNode(ctx, logger, infraProvider, config, opts,
+					currentNodeIndex, currentRegion, "node",
+					createRegionalNodeOptions(opts.NodeOptions, region))
+				if err != nil {
+					return err
+				}
+
+				chain.mu.Lock()
+				nodes = append(nodes, node)
+				chain.mu.Unlock()
+				return nil
+			})
+			nodeIndex++
+		}
+	}
+
+	if err := eg.Wait(); err != nil {
+		logger.Error("error creating regional nodes", zap.Error(err))
+		return nil, nil, err
+	}
+
+	return validators, nodes, nil
+}
+
+func createLocalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, infraProvider provider.ProviderI,
+	config petritypes.ChainConfig, opts petritypes.ChainOptions) ([]petritypes.NodeI, []petritypes.NodeI, error) {
+	var eg errgroup.Group
+	validators := make([]petritypes.NodeI, 0)
+	nodes := make([]petritypes.NodeI, 0)
 
 	for i := 0; i < config.NumValidators; i++ {
-		i := i
+		currentValidatorIndex := i
 		eg.Go(func() error {
-			validatorName := fmt.Sprintf("%s-validator-%d", config.Name, i)
-			logger.Info("creating validator", zap.String("name", validatorName))
-
-			validator, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
-				Index:       i,
-				Name:        validatorName,
-				ChainConfig: config,
-			}, opts.NodeOptions)
+			validator, err := createNode(ctx, logger, infraProvider, config, opts,
+				currentValidatorIndex, "", "validator", opts.NodeOptions)
 			if err != nil {
 				return err
 			}
@@ -109,26 +179,15 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 			chain.mu.Lock()
 			validators = append(validators, validator)
 			chain.mu.Unlock()
-
 			return nil
 		})
 	}
 
-	logger.Info("creating nodes")
-
 	for i := 0; i < config.NumNodes; i++ {
-		i := i
-
+		currentNodeIndex := i
 		eg.Go(func() error {
-			nodeName := fmt.Sprintf("%s-node-%d", config.Name, i)
-
-			logger.Info("creating node", zap.String("name", nodeName))
-
-			node, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
-				Index:       i,
-				Name:        nodeName,
-				ChainConfig: config,
-			}, opts.NodeOptions)
+			node, err := createNode(ctx, logger, infraProvider, config, opts,
+				currentNodeIndex, "", "node", opts.NodeOptions)
 			if err != nil {
 				return err
 			}
@@ -136,20 +195,59 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 			chain.mu.Lock()
 			nodes = append(nodes, node)
 			chain.mu.Unlock()
-
 			return nil
 		})
 	}
 
 	if err := eg.Wait(); err != nil {
-		return nil, err
+		logger.Error("error creating local nodes", zap.Error(err))
+		return nil, nil, err
 	}
 
-	chain.Nodes = nodes
-	chain.Validators = validators
-	chain.ValidatorWallets = make([]petritypes.WalletI, config.NumValidators)
+	return validators, nodes, nil
+}
 
-	return &chain, nil
+func createNode(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, config petritypes.ChainConfig,
+	opts petritypes.ChainOptions, index int, region string, nodeType string, nodeOptions petritypes.NodeOptions) (petritypes.NodeI, error) {
+
+	var nodeName string
+	if region != "" {
+		nodeName = fmt.Sprintf("%s-%s-%d-%s", config.Name, nodeType, index, region)
+	} else {
+		nodeName = fmt.Sprintf("%s-%s-%d", config.Name, nodeType, index)
+	}
+
+	logger.Info(fmt.Sprintf("creating %s", nodeType), zap.String("name", nodeName))
+	return opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
+		Index:       index,
+		Name:        nodeName,
+		ChainConfig: config,
+	}, nodeOptions)
+}
+
+func createRegionalNodeOptions(baseOpts petritypes.NodeOptions, region petritypes.RegionConfig) petritypes.NodeOptions {
+	applyRegionConfig := func(definition provider.TaskDefinition) provider.TaskDefinition {
+		if definition.ProviderSpecificConfig == nil {
+			definition.ProviderSpecificConfig = make(map[string]string)
+		}
+		definition.ProviderSpecificConfig["region"] = region.Name
+		definition.ProviderSpecificConfig["size"] = "s-4vcpu-8gb"
+		definition.ProviderSpecificConfig["image_id"] = "195881161"
+		return definition
+	}
+
+	if baseOpts.NodeDefinitionModifier == nil {
+		baseOpts.NodeDefinitionModifier = func(definition provider.TaskDefinition, nodeConfig petritypes.NodeConfig) provider.TaskDefinition {
+			return applyRegionConfig(definition)
+		}
+	} else {
+		originalModifier := baseOpts.NodeDefinitionModifier
+		baseOpts.NodeDefinitionModifier = func(definition provider.TaskDefinition, nodeConfig petritypes.NodeConfig) provider.TaskDefinition {
+			definition = originalModifier(definition, nodeConfig)
+			return applyRegionConfig(definition)
+		}
+	}
+	return baseOpts
 }
 
 // RestoreChain restores a Chain object from a serialized state

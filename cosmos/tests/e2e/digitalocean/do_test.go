@@ -3,10 +3,11 @@ package e2e
 import (
 	"context"
 	"flag"
-	"github.com/skip-mev/petri/core/v3/util"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/skip-mev/petri/core/v3/util"
 
 	"tailscale.com/tsnet"
 
@@ -24,11 +25,21 @@ import (
 
 var (
 	defaultChainConfig = types.ChainConfig{
-		Denom:         "stake",
-		Decimals:      6,
-		NumValidators: 1,
-		NumNodes:      1,
-		BinaryName:    "/usr/bin/simd",
+		Denom:    "stake",
+		Decimals: 6,
+		RegionConfig: []types.RegionConfig{
+			{
+				Name:          "nyc1",
+				NumValidators: 1,
+				NumNodes:      1,
+			},
+			{
+				Name:          "FRA1",
+				NumValidators: 1,
+				NumNodes:      0,
+			},
+		},
+		BinaryName: "/usr/bin/simd",
 		Image: provider.ImageDefinition{
 			Image: "ghcr.io/cosmos/simapp:v0.47",
 			UID:   "1000",
@@ -66,8 +77,6 @@ var (
 	}
 
 	numTestChains = flag.Int("num-chains", 3, "number of chains to create for concurrent testing")
-	numNodes      = flag.Int("num-nodes", 1, "number of nodes per chain")
-	numValidators = flag.Int("num-validators", 1, "number of validators per chain")
 )
 
 func TestDOE2E(t *testing.T) {
@@ -135,8 +144,6 @@ func TestDOE2E(t *testing.T) {
 	chains := make([]*cosmoschain.Chain, *numTestChains)
 
 	// Create first half of chains
-	defaultChainConfig.NumNodes = *numNodes
-	defaultChainConfig.NumValidators = *numValidators
 	e2e.CreateChainsConcurrently(ctx, t, logger, p, 0, *numTestChains/2, chains,
 		defaultChainConfig, "chain-%d", defaultChainOptions)
 
