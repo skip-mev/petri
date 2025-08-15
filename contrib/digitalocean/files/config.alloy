@@ -16,7 +16,7 @@ foreach "container" {
 
             template {
                 prometheus.scrape "target" {
-                    targets = [{ __address__ = string.format("127.0.0.1:%s", port), provider=json_path(local.file.creds.content, ".provider")[0]}]
+                    targets = [{ __address__ = string.format("127.0.0.1:%s", port), provider=json_path(local.file.creds.content, ".provider")[0], node_name=container["__meta_docker_container_label_petri_node_name"]}]
                     scrape_interval = "5s"
                     scrape_timeout  = "5s"
                     forward_to = [prometheus.remote_write.overseer.receiver]
@@ -60,6 +60,11 @@ discovery.relabel "logs_integrations_docker" {
     regex = "/(.*)"
     target_label = "container_name"
   }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_petri_node_name"]
+    target_label = "node_name"
+  }
 }
 
 loki.source.docker "default" {
@@ -83,7 +88,7 @@ loki.write "overseer" {
 
 pyroscope.scrape "node" {
           targets = [
-            {"__address__" = "localhost:6060", "service_name" = "ironbird", "host" = coalesce(sys.env("HOSTNAME"), constants.hostname)},
+            {"__address__" = "localhost:6060", "service_name" = "ironbird", "host" = coalesce(sys.env("HOSTNAME"), constants.hostname), "node_name" = coalesce(sys.env("NODE_NAME"), constants.hostname)},
           ]
           profiling_config {
             profile.memory {

@@ -12,7 +12,11 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-const providerLabelName = "petri-provider"
+const (
+	providerLabelName = "petri-provider"
+	portsLabelName    = "petri-ports"
+	nodeNameLabelName = "petri-node-name"
+)
 
 func (p *Provider) initNetwork(ctx context.Context) (network.Inspect, error) {
 	state := p.GetState()

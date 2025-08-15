@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/api/types/image"
@@ -245,6 +246,8 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 		Hostname:   taskState.Name,
 		Labels: map[string]string{
 			providerLabelName: state.Name,
+			portsLabelName:    strings.Join(definition.Ports, ","),
+			nodeNameLabelName: definition.Name,
 		},
 		Env:          convertEnvMapToList(definition.Environment),
 		ExposedPorts: portSet,

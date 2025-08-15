@@ -29,6 +29,7 @@ var _ provider.ProviderI = (*Provider)(nil)
 const (
 	providerLabelName = "petri-provider"
 	portsLabelName    = "petri-ports"
+	nodeNameLabelName = "petri-node-name"
 )
 
 type ProviderState struct {
@@ -208,6 +209,7 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 			Labels: map[string]string{
 				providerLabelName: state.Name,
 				portsLabelName:    strings.Join(definition.Ports, ","),
+				nodeNameLabelName: definition.Name,
 			},
 			Env: convertEnvMapToList(definition.Environment),
 		}, &container.HostConfig{
