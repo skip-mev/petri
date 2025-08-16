@@ -3,13 +3,14 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	clientmocks "github.com/skip-mev/petri/core/v3/provider/clients/mocks"
 	"net/netip"
 	"sync"
-	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/types/key"
 	"testing"
 	"time"
+
+	clientmocks "github.com/skip-mev/petri/core/v3/provider/clients/mocks"
+	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/types/key"
 
 	"github.com/skip-mev/petri/core/v3/provider/clients"
 
@@ -71,6 +72,7 @@ func setupTestProvider(t *testing.T, ctx context.Context) (*Provider, *mocks.Moc
 		Labels: map[string]string{
 			portsLabelName:    "",
 			providerLabelName: "test-provider",
+			nodeNameLabelName: "test-task",
 		},
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
