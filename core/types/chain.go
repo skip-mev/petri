@@ -11,8 +11,48 @@ import (
 	"github.com/skip-mev/petri/core/v3/provider"
 )
 
+var (
+	validRegions = map[string]bool{
+		"nyc1": true,
+		"sfo2": true,
+		"ams3": true,
+		"fra1": true,
+		"sgp1": true,
+	}
+)
+
+const (
+	DigitalOcean = "DigitalOcean"
+	Docker       = "Docker"
+)
+
 // GenesisModifier is a function that takes in genesis bytes and returns modified genesis bytes
 type GenesisModifier func([]byte) ([]byte, error)
+
+// RegionConfig defines the number of validators and nodes for a specific region
+type RegionConfig struct {
+	Name          string `json:"name"`
+	NumValidators int    `json:"num_validators"`
+	NumNodes      int    `json:"num_nodes"`
+}
+
+func (r RegionConfig) ValidateBasic() error {
+	if r.Name == "" {
+		return fmt.Errorf("region cannot be empty")
+	}
+
+	if !validRegions[r.Name] {
+		return fmt.Errorf("region '%s' is not supported. Valid regions are: nyc1, sfo2, ams3, fra1, sgp1", r.Name)
+	}
+
+	if r.NumValidators < 0 {
+		return fmt.Errorf("num validators cannot be negative")
+	}
+	if r.NumNodes < 0 {
+		return fmt.Errorf("num nodes cannot be negative")
+	}
+	return nil
+}
 
 // ChainI is an interface for a logical chain
 type ChainI interface {
@@ -62,8 +102,11 @@ type ChainConfig struct {
 	Name          string
 	Denom         string // Denom is the denomination of the native staking token
 	Decimals      uint64 // Decimals is the number of decimals of the native staking token
-	NumValidators int    // NumValidators is the number of validators to create
-	NumNodes      int    // NumNodes is the number of nodes to create
+	NumValidators int    // NumValidators is the number of validators to create for Docker deployments
+	NumNodes      int    // NumNodes is the number of nodes to create for Docker deployments
+
+	// RegionConfig defines how validators and nodes should be distributed across regions for DigitalOcean deployments
+	RegionConfig []RegionConfig
 
 	BinaryName string // BinaryName is the name of the chain binary in the Docker image
 
@@ -115,7 +158,7 @@ func (c ChainConfig) GetGenesisDelegation() *big.Int {
 	return c.GenesisDelegation
 }
 
-func (c ChainConfig) ValidateBasic() error {
+func (c ChainConfig) ValidateBasic(providerType string) error {
 	if c.Name == "" {
 		return fmt.Errorf("name cannot be empty")
 	}
@@ -128,8 +171,30 @@ func (c ChainConfig) ValidateBasic() error {
 		return fmt.Errorf("decimals cannot be 0")
 	}
 
-	if c.NumValidators == 0 {
-		return fmt.Errorf("num validators cannot be 0")
+	if providerType == DigitalOcean {
+		if len(c.RegionConfig) == 0 {
+			return fmt.Errorf("regional distribution cannot be empty")
+		}
+
+		hasValidators := false
+		for i, region := range c.RegionConfig {
+			if err := region.ValidateBasic(); err != nil {
+				return fmt.Errorf("regional config %d is invalid: %w", i, err)
+			}
+			if !hasValidators && region.NumValidators > 0 {
+				hasValidators = true
+			}
+		}
+
+		if !hasValidators {
+			return fmt.Errorf("at least one region must have validators")
+		}
+	} else if providerType == Docker {
+		if c.NumValidators == 0 {
+			return fmt.Errorf("num validators cannot be 0")
+		}
+	} else {
+		return fmt.Errorf("invalid provider type: %s", providerType)
 	}
 
 	if c.BinaryName == "" {

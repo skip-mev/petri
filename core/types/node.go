@@ -26,12 +26,12 @@ type NodeConfig struct {
 	ChainConfig ChainConfig // ChainConfig is the config of the chain this node is running on
 }
 
-func (c NodeConfig) ValidateBasic() error {
+func (c NodeConfig) ValidateBasic(providerType string) error {
 	if c.Name == "" {
 		return fmt.Errorf("name cannot be empty")
 	}
 
-	if err := c.ChainConfig.ValidateBasic(); err != nil {
+	if err := c.ChainConfig.ValidateBasic(providerType); err != nil {
 		return err
 	}
 
