@@ -115,10 +115,13 @@ func createRegionalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, 
 		for i := 0; i < region.NumValidators; i++ {
 			currentValidatorIndex := validatorIndex
 			currentRegion := region.Name
+			validatorName := fmt.Sprintf("%s-validator-%d-%s", config.Name, currentValidatorIndex, currentRegion)
 			eg.Go(func() error {
-				validator, err := createNode(ctx, logger, infraProvider, config, opts,
-					currentValidatorIndex, currentRegion, "validator",
-					createRegionalNodeOptions(opts.NodeOptions, region))
+				validator, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
+					Index:       currentValidatorIndex,
+					Name:        validatorName,
+					ChainConfig: config,
+				}, createRegionalNodeOptions(opts.NodeOptions, region))
 				if err != nil {
 					return err
 				}
@@ -134,10 +137,13 @@ func createRegionalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, 
 		for i := 0; i < region.NumNodes; i++ {
 			currentNodeIndex := nodeIndex
 			currentRegion := region.Name
+			nodeName := fmt.Sprintf("%s-node-%d-%s", config.Name, currentNodeIndex, currentRegion)
 			eg.Go(func() error {
-				node, err := createNode(ctx, logger, infraProvider, config, opts,
-					currentNodeIndex, currentRegion, "node",
-					createRegionalNodeOptions(opts.NodeOptions, region))
+				node, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
+					Index:       currentNodeIndex,
+					Name:        nodeName,
+					ChainConfig: config,
+				}, createRegionalNodeOptions(opts.NodeOptions, region))
 				if err != nil {
 					return err
 				}
@@ -167,9 +173,13 @@ func createLocalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, inf
 
 	for i := 0; i < config.NumValidators; i++ {
 		currentValidatorIndex := i
+		validatorName := fmt.Sprintf("%s-validator-%d", config.Name, currentValidatorIndex)
 		eg.Go(func() error {
-			validator, err := createNode(ctx, logger, infraProvider, config, opts,
-				currentValidatorIndex, "", "validator", opts.NodeOptions)
+			validator, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
+				Index:       currentValidatorIndex,
+				Name:        validatorName,
+				ChainConfig: config,
+			}, opts.NodeOptions)
 			if err != nil {
 				return err
 			}
@@ -183,9 +193,13 @@ func createLocalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, inf
 
 	for i := 0; i < config.NumNodes; i++ {
 		currentNodeIndex := i
+		nodeName := fmt.Sprintf("%s-node-%d", config.Name, currentNodeIndex)
 		eg.Go(func() error {
-			node, err := createNode(ctx, logger, infraProvider, config, opts,
-				currentNodeIndex, "", "node", opts.NodeOptions)
+			node, err := opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
+				Index:       currentNodeIndex,
+				Name:        nodeName,
+				ChainConfig: config,
+			}, opts.NodeOptions)
 			if err != nil {
 				return err
 			}
@@ -203,24 +217,6 @@ func createLocalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, inf
 	}
 
 	return validators, nodes, nil
-}
-
-func createNode(ctx context.Context, logger *zap.Logger, infraProvider provider.ProviderI, config petritypes.ChainConfig,
-	opts petritypes.ChainOptions, index int, region string, nodeType string, nodeOptions petritypes.NodeOptions) (petritypes.NodeI, error) {
-
-	var nodeName string
-	if region != "" {
-		nodeName = fmt.Sprintf("%s-%s-%d-%s", config.Name, nodeType, index, region)
-	} else {
-		nodeName = fmt.Sprintf("%s-%s-%d", config.Name, nodeType, index)
-	}
-
-	logger.Info(fmt.Sprintf("creating %s", nodeType), zap.String("name", nodeName))
-	return opts.NodeCreator(ctx, logger, infraProvider, petritypes.NodeConfig{
-		Index:       index,
-		Name:        nodeName,
-		ChainConfig: config,
-	}, nodeOptions)
 }
 
 func createRegionalNodeOptions(baseOpts petritypes.NodeOptions, region petritypes.RegionConfig) petritypes.NodeOptions {
