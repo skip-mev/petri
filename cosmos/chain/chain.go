@@ -80,10 +80,17 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	chain.logger = logger.Named("chain").With(zap.String("chain_id", config.ChainId))
 	chain.logger.Info("creating chain")
 
-	validators, nodes, err := createNodes(ctx, logger, &chain, infraProvider, providerType, config, opts)
+	var validators, nodes []petritypes.NodeI
+	var err error
+	if providerType == petritypes.DigitalOcean {
+		validators, nodes, err = createRegionalNodes(ctx, logger, &chain, infraProvider, config, opts)
+	} else {
+		validators, nodes, err = createLocalNodes(ctx, logger, &chain, infraProvider, config, opts)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	logger.Info("created nodes", zap.Int("validators", len(validators)), zap.Int("nodes", len(nodes)))
 
 	chain.Nodes = nodes
@@ -91,15 +98,6 @@ func CreateChain(ctx context.Context, logger *zap.Logger, infraProvider provider
 	chain.ValidatorWallets = make([]petritypes.WalletI, len(validators))
 
 	return &chain, nil
-}
-
-func createNodes(ctx context.Context, logger *zap.Logger, chain *Chain, infraProvider provider.ProviderI, providerType string,
-	config petritypes.ChainConfig, opts petritypes.ChainOptions) ([]petritypes.NodeI, []petritypes.NodeI, error) {
-	if providerType == petritypes.DigitalOcean {
-		return createRegionalNodes(ctx, logger, chain, infraProvider, config, opts)
-	}
-
-	return createLocalNodes(ctx, logger, chain, infraProvider, config, opts)
 }
 
 func createRegionalNodes(ctx context.Context, logger *zap.Logger, chain *Chain, infraProvider provider.ProviderI,
