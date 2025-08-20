@@ -378,3 +378,7 @@ func (p *Provider) GetState() ProviderState {
 func (p *Provider) GetType() string {
 	return types.Docker
 }
+
+func (p *Provider) GetName() string {
+	return p.state.Name
+}

@@ -476,3 +476,7 @@ func (p *Provider) getDockerClientOverride(task string) clients.DockerClient {
 func (p *Provider) GetType() string {
 	return types.DigitalOcean
 }
+
+func (p *Provider) GetName() string {
+	return p.state.Name
+}

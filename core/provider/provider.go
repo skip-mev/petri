@@ -50,4 +50,5 @@ type ProviderI interface {
 
 	SerializeProvider(context.Context) ([]byte, error)
 	GetType() string
+	GetName() string
 }
