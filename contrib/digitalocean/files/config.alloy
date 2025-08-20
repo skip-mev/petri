@@ -65,6 +65,7 @@ discovery.relabel "logs_integrations_docker" {
     source_labels = ["__meta_docker_container_label_petri_node_name"]
     target_label = "node_name"
   }
+
 }
 
 loki.source.docker "default" {
@@ -88,7 +89,7 @@ loki.write "overseer" {
 
 pyroscope.scrape "node" {
           targets = [
-            {"__address__" = "localhost:6060", "service_name" = "ironbird", "host" = coalesce(sys.env("HOSTNAME"), constants.hostname), "node_name" = coalesce(sys.env("NODE_NAME"), constants.hostname)},
+            {"__address__" = "localhost:6060", "service_name" = "ironbird", "host" = coalesce(sys.env("HOSTNAME"), constants.hostname), "node_name" = coalesce(sys.env("NODE_NAME"), constants.hostname), "provider" = json_path(local.file.creds.content, ".provider")[0]},
           ]
           profiling_config {
             profile.memory {
