@@ -65,7 +65,8 @@ type ChainConfig struct {
 	NumValidators int    // NumValidators is the number of validators to create
 	NumNodes      int    // NumNodes is the number of nodes to create
 
-	BinaryName string // BinaryName is the name of the chain binary in the Docker image
+	BinaryName string   // BinaryName is the name of the chain binary in the Docker image
+	Entrypoint []string // Entrypoint is the list of arguments to invoke in the entrypoint of the Docker image
 
 	Image provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
 

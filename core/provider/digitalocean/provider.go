@@ -189,11 +189,22 @@ func (p *Provider) CreateTask(ctx context.Context, definition provider.TaskDefin
 	}
 
 	_, _, err = task.dockerClient.ImageInspectWithRaw(ctx, definition.Image.Image)
+	registryAuth := doConfig["docker_auth"]
 	if err != nil {
 		p.logger.Info("image not found, pulling", zap.String("image", definition.Image.Image))
-		if err = task.dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{
-			RegistryAuth: doConfig["docker_auth"],
-		}); err != nil {
+		for retries := 5; retries > 0; retries-- {
+			err = task.dockerClient.ImagePull(ctx, p.logger, definition.Image.Image, image.PullOptions{
+				RegistryAuth: registryAuth,
+			})
+			if err != nil {
+				p.logger.Info("got rate limited on docker pull, sleeping 10 seconds and going again")
+				time.Sleep(10 * time.Second)
+			} else {
+				break
+			}
+		}
+		if err != nil {
+			p.logger.Error("failed to pull image", zap.String("image", definition.Image.Image), zap.Error(err))
 			return nil, err
 		}
 	}
