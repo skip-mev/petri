@@ -22,5 +22,14 @@ func (n *Node) InitHome(ctx context.Context) error {
 		return fmt.Errorf("failed to init home (exit code %d): %s, stdout: %s", exitCode, stderr, stdout)
 	}
 
+	clientConfig := GenerateDefaultClientConfig(n.GetChainConfig().ChainId)
+	if err := n.ModifyTomlConfigFile(
+		ctx,
+		"config/client.toml",
+		clientConfig,
+	); err != nil {
+		return err
+	}
+
 	return nil
 }

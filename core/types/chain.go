@@ -108,7 +108,8 @@ type ChainConfig struct {
 	// RegionConfig defines how validators and nodes should be distributed across regions for DigitalOcean deployments
 	RegionConfig []RegionConfig
 
-	BinaryName string // BinaryName is the name of the chain binary in the Docker image
+	BinaryName string   // BinaryName is the name of the chain binary in the Docker image
+	Entrypoint []string // Entrypoint is the list of arguments to invoke in the entrypoint of the Docker image
 
 	Image provider.ImageDefinition // Image is the Docker ImageDefinition of the chain
 
