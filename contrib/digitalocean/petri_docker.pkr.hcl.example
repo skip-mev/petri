@@ -68,6 +68,11 @@ build {
             "chown root:docker /docker_volumes",
             "sudo sed -i.bak 's/^CUSTOM_ARGS.*/CUSTOM_ARGS=\"--stability.level experimental\"/' /etc/default/alloy",
 
+            # SSH - disable password authentication
+            "sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config",
+            "sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config",
+            "systemctl restart ssh",
+            
             "cloud-init clean --logs",
         ]
     }
@@ -91,4 +96,5 @@ build {
         source = "files/enabled_ipv4_forwarding.conf"
         destination = "/etc/sysctl.d/enabled_ipv4_forwarding.conf"
     }
+
 }
