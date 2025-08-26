@@ -51,13 +51,12 @@ func (p *Provider) CreateDroplet(ctx context.Context, definition provider.TaskDe
 		userDataCommands = append(userDataCommands, telemetryCommand...)
 	}
 
-	userDataCommands = append(userDataCommands, "sudo sed -i.bak 's/^root:.*/root:*:16231:0:99999:7:::/' /etc/shadow")
-
 	state := p.GetState()
 	req := &godo.DropletCreateRequest{
-		Name:   fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
-		Region: doConfig["region"],
-		Size:   doConfig["size"],
+		Name:    fmt.Sprintf("%s-%s", state.PetriTag, definition.Name),
+		Region:  doConfig["region"],
+		Size:    doConfig["size"],
+		SSHKeys: []godo.DropletCreateSSHKey{{ID: 50241382}},
 		Image: godo.DropletCreateImage{
 			ID: int(imageId),
 		},
