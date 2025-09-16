@@ -21,6 +21,18 @@ foreach "container" {
                     scrape_timeout  = "5s"
                     forward_to = [prometheus.remote_write.overseer.receiver]
                 }
+
+                prometheus.scrape "geth_metrics" {
+                    targets = [{
+                        __address__ = string.format("127.0.0.1:%s", port),
+                        provider = json_path(local.file.creds.content, ".provider")[0],
+                        node_name = container["__meta_docker_container_label_petri_node_name"]
+                    }]
+                    metrics_path = "/geth/metrics"
+                    scrape_interval = "5s"
+                    scrape_timeout  = "5s"
+                    forward_to = [prometheus.remote_write.overseer.receiver]
+                }
             }
         }
     }
