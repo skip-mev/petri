@@ -9,7 +9,7 @@ foreach "container" {
     var = "container"
 
     template {
-        prometheus.scrape "geth-metrics" {
+        prometheus.scrape "geth_metrics" {
             targets = [{
                 __address__ = "127.0.0.1:1317",
                 provider   = json_path(local.file.creds.content, ".provider")[0],
